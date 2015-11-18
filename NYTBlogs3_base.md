@@ -2,7 +2,7 @@
 bdanalytics  
 
 **  **    
-**Date: (Mon) Nov 16, 2015**    
+**Date: (Wed) Nov 18, 2015**    
 
 # Introduction:  
 
@@ -71,7 +71,6 @@ Summary of key steps & error improvement stats:
     -   Use plot.ly for interactive plots ?
     
     - Change .fit suffix of model metrics to .mdl if it's data independent (e.g. AIC, Adj.R.Squared - is it truly data independent ?, etc.)
-    - move model_type parameter to myfit_mdl before indep_vars_vctr (keep all model_* together)
     - create a custom model for rpart that has minbucket as a tuning parameter
     - varImp for randomForest crashes in caret version:6.0.41 -> submit bug report
 
@@ -93,7 +92,6 @@ Summary of key steps & error improvement stats:
 - Add print(ggplot.petrinet(glb_analytics_pn) + coord_flip()) at the end of every major chunk
 - Parameterize glb_analytics_pn
 - Move glb_impute_missing_data to mydsutils.R: (-) Too many glb vars used; glb_<>_df reassigned
-- Replicate myfit_mdl_classification features in myfit_mdl_regression
 - Do non-glm methods handle interaction terms ?
 - f-score computation for classifiers should be summation across outcomes (not just the desired one ?)
 - Add accuracy computation to glb_dmy_mdl in predict.data.new chunk
@@ -177,15 +175,7 @@ function(raw) {
 #     #as.factor(paste0("B", raw))
 #     #as.factor(gsub(" ", "\\.", raw))    
     }
-glb_map_rsp_raw_to_var(tst <- c(NA, 0, 1)) 
-```
-
-```
-## [1] <NA> N    Y   
-## Levels: N Y
-```
-
-```r
+# glb_map_rsp_raw_to_var(tst <- c(NA, 0, 1)) 
 # glb_map_rsp_raw_to_var(tst <- c(NA, 0, 2.99, 280.50, 1000.00)) 
 
 glb_map_rsp_var_to_raw <- #NULL 
@@ -199,17 +189,10 @@ function(var) {
 #     c("<=50K", " >50K")[as.numeric(var)]
 #     c(FALSE, TRUE)[as.numeric(var)]
 }
-glb_map_rsp_var_to_raw(glb_map_rsp_raw_to_var(tst))
-```
+# glb_map_rsp_var_to_raw(glb_map_rsp_raw_to_var(tst))
 
-```
-## [1] NA  0  1
-```
-
-```r
 if ((glb_rsp_var != glb_rsp_var_raw) && is.null(glb_map_rsp_raw_to_var))
     stop("glb_map_rsp_raw_to_var function expected")
-glb_rsp_var_out <- paste0(glb_rsp_var, ".predict.") # mdl_id is appended later
 
 # List info gathered for various columns
 # <col_name>:   <description>; <notes>
@@ -243,9 +226,8 @@ glbFeatsInteractionOnly <- list()
 #glbFeatsInteractionOnly[["carrier.fctr"]] <- "cellular.fctr"
 
 # currently does not handle more than 1 column; consider concatenating multiple columns
-glb_id_var <- c(NULL 
-                , "UniqueID")
-glb_category_var <- "NDSSName.my.fctr" # choose from c(NULL : default, "<category>")
+glb_id_var <- "UniqueID" # choose from c(NULL : default, "<id_feat>") 
+glbFeatsCategory <- "NDSSName.my.fctr" # choose from c(NULL : default, "<category>")
 
 glb_drop_vars <- c(NULL
                 # , "<feat1>", "<feat2>"
@@ -263,74 +245,17 @@ glb_assign_vars <- names(glb_assign_pairs_lst)
 # Derived features; Use this mechanism to cleanse data ??? Cons: Data duplication ???
 glbFeatsDerive <- list();
 
-# Add logs of numerics that are not distributed normally
-#   Derive & keep multiple transformations of the same feature, if normality is hard to achieve with just one transformation
-#   Right skew: logp1; sqrt; ^ 1/3; logp1(logp1); log10; exp(-<feat>/constant)
-
 # glbFeatsDerive[["<feat.my.sfx>"]] <- list(
+#     mapfn = function(<arg1>, <arg2>) { return(function(<arg1>, <arg2>)) } 
+#   , args = c("<arg1>", "<arg2>"))
+
     # character
 #     mapfn = function(Week) { return(substr(Week, 1, 10)) }
 
-#print(mod_raw <- grep("&#034;", glbObsAll[, txt_var], value = TRUE)) 
-#print(mod_raw <- glbObsAll[c(88,187,280,1040,1098), txt_var])
-#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="\\bdoes( +)not\\b")), glbFeatsText])
-#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="\\bipad [[:digit:]]\\b")), glbFeatsText][01:10])
-#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="pad mini")), glbFeatsText][11:20])
-#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="pad mini")), glbFeatsText][21:30])
-#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="pad mini")), glbFeatsText][31:40])
-#glbObsAll[which(glb_post_stop_words_terms_mtrx_lst[[txt_var]][, subset(glb_post_stop_words_terms_df_lst[[txt_var]], term %in% c("conditionminimal"))$pos] > 0), "description"]
-
-#     mapfn = function(description) { mod_raw <- description;
-
-    # This is here because it does not work if it's in txt_map_filename
-#         mod_raw <- gsub(paste0(c("\n", "\211", "\235", "\317", "\333"), collapse = "|"), " ", mod_raw)
-
-    # Don't parse for "." because of ".com"; use customized gsub for that text
-#         mod_raw <- gsub("(\\w)(!|\\*|,|-|/)(\\w)", "\\1\\2 \\3", mod_raw);
-
-#         return(mod_raw) }
-
-    # numeric
-#     mapfn = function(Rasmussen) { return(ifelse(sign(Rasmussen) >= 0, 1, 0)) } 
-#     mapfn = function(startprice) { return(startprice ^ (1/2)) }       
-#     mapfn = function(startprice) { return(log(startprice)) }   
-#     mapfn = function(startprice) { return(exp(-startprice / 20)) }
-#     mapfn = function(startprice) { return(scale(log(startprice))) }     
-#     mapfn = function(startprice) { return(sign(sprice.predict.diff) * (abs(sprice.predict.diff) ^ (1/10))) }        
-
-    # factor      
-#     mapfn = function(PropR) { return(as.factor(ifelse(PropR >= 0.5, "Y", "N"))) }
-#     mapfn = function(productline, description) { as.factor(gsub(" ", "", productline)) }
-#     mapfn = function(purpose) { return(relevel(as.factor(purpose), ref="all_other")) }
 #     mapfn = function(descriptor) { return(plyr::revalue(descriptor, c(
 #         "ABANDONED BUILDING"  = "OTHER",
-#         "##"                  = "##"
+#         "**"                  = "**"
 #                                           ))) }
-#     mapfn = function(raw) { tfr_raw <- as.character(cut(raw, 5)); 
-#                             tfr_raw[is.na(tfr_raw)] <- "NA.my";
-#                             return(as.factor(tfr_raw)) }
-#     mapfn = function(startprice.log10) { return(cut(startprice.log10, 3)) }
-#     mapfn = function(startprice.log10) { return(cut(sprice.predict.diff, c(-1000, -100, -10, -1, 0, 1, 10, 100, 1000))) }    
-
-#     , args = c("<arg1>"))
-    
-    # multiple args    
-#     mapfn = function(PTS, oppPTS) { return(PTS - oppPTS) }
-#     mapfn = function(startprice.log10.predict, startprice) {
-#                  return(spdiff <- (10 ^ startprice.log10.predict) - startprice) } 
-#     mapfn = function(productline, description) { as.factor(
-#         paste(gsub(" ", "", productline), as.numeric(nchar(description) > 0), sep = "#")) }
-
-#     , args = c("<arg1>", "<arg2>"))
-
-# # If glbObsAll is not sorted in the desired manner
-#     mapfn=function(Week) { return(coredata(lag(zoo(orderBy(~Week, glbObsAll)$ILI), -2, na.pad=TRUE))) }
-#     mapfn=function(ILI) { return(coredata(lag(zoo(ILI), -2, na.pad=TRUE))) }
-#     mapfn=function(ILI.2.lag) { return(log(ILI.2.lag)) }
-
-# glbFeatsDerive[["dummy.my"]] <- list(
-#     mapfn = function(UniqueID) { return(UniqueID) }       
-#     , args = c("UniqueID"))    
 glbFeatsDerive[["NDSSName.my"]] <- list(
     mapfn = function(NewsDesk, SectionName, SubsectionName) { 
         descriptor <- 
@@ -372,10 +297,30 @@ glbFeatsDerive[["NDSSName.my"]] <- list(
         }
     , args = c("NewsDesk", "SectionName", "SubsectionName"))    
 
-# glbFeatsDerive[["<feat.my.sfx>"]] <- list(
-#     mapfn = function(<arg1>, <arg2>) { return(function(<arg1>, <arg2>)) } 
-#   , args = c("<arg1>", "<arg2>"))
+#     mapfn = function(description) { mod_raw <- description;
+    # This is here because it does not work if it's in txt_map_filename
+#         mod_raw <- gsub(paste0(c("\n", "\211", "\235", "\317", "\333"), collapse = "|"), " ", mod_raw)
+    # Don't parse for "." because of ".com"; use customized gsub for that text
+#         mod_raw <- gsub("(\\w)(!|\\*|,|-|/)(\\w)", "\\1\\2 \\3", mod_raw);
+#         return(mod_raw) }
+#print(mod_raw <- grep("&#034;", glbObsAll[, txt_var], value = TRUE)) 
+#print(mod_raw <- glbObsAll[c(88,187,280,1040,1098), txt_var])
+#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="\\bdoes( +)not\\b")), glbFeatsText])
+#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="\\bipad [[:digit:]]\\b")), glbFeatsText][01:10])
+#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="pad mini")), glbFeatsText][11:20])
+#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="pad mini")), glbFeatsText][21:30])
+#print(mod_raw <- glbObsAll[sel_obs(list(descr.my.contains="pad mini")), glbFeatsText][31:40])
+#glbObsAll[which(glb_post_stop_words_terms_mtrx_lst[[txt_var]][, subset(glb_post_stop_words_terms_df_lst[[txt_var]], term %in% c("conditionminimal"))$pos] > 0), "description"]
 
+    # numeric
+# Create feature based on record position/id in data   
+# glbFeatsDerive[["dummy.my"]] <- list(
+#     mapfn = function(UniqueID) { return(UniqueID) }       
+#     , args = c("UniqueID"))    
+    
+# Add logs of numerics that are not distributed normally
+#   Derive & keep multiple transformations of the same feature, if normality is hard to achieve with just one transformation
+#   Right skew: logp1; sqrt; ^ 1/3; logp1(logp1); log10; exp(-<feat>/constant)
 glbFeatsDerive[["WordCount.log1p"]] <- list(
     mapfn = function(WordCount) { return(log1p(WordCount)) } 
   , args = c("WordCount"))
@@ -387,10 +332,42 @@ glbFeatsDerive[["WordCount.nexp"]] <- list(
   , args = c("WordCount"))
 #print(summary(glbObsAll$WordCount))
 #print(summary(mapfn(glbObsAll$WordCount)))
+    
+#     mapfn = function(Rasmussen) { return(ifelse(sign(Rasmussen) >= 0, 1, 0)) } 
+#     mapfn = function(startprice) { return(startprice ^ (1/2)) }       
+#     mapfn = function(startprice) { return(log(startprice)) }   
+#     mapfn = function(startprice) { return(exp(-startprice / 20)) }
+#     mapfn = function(startprice) { return(scale(log(startprice))) }     
+#     mapfn = function(startprice) { return(sign(sprice.predict.diff) * (abs(sprice.predict.diff) ^ (1/10))) }        
+
+    # factor      
+#     mapfn = function(PropR) { return(as.factor(ifelse(PropR >= 0.5, "Y", "N"))) }
+#     mapfn = function(productline, description) { as.factor(gsub(" ", "", productline)) }
+#     mapfn = function(purpose) { return(relevel(as.factor(purpose), ref="all_other")) }
+#     mapfn = function(raw) { tfr_raw <- as.character(cut(raw, 5)); 
+#                             tfr_raw[is.na(tfr_raw)] <- "NA.my";
+#                             return(as.factor(tfr_raw)) }
+#     mapfn = function(startprice.log10) { return(cut(startprice.log10, 3)) }
+#     mapfn = function(startprice.log10) { return(cut(sprice.predict.diff, c(-1000, -100, -10, -1, 0, 1, 10, 100, 1000))) }    
+
+#     , args = c("<arg1>"))
+    
+    # multiple args    
+#     mapfn = function(PTS, oppPTS) { return(PTS - oppPTS) }
+#     mapfn = function(startprice.log10.predict, startprice) {
+#                  return(spdiff <- (10 ^ startprice.log10.predict) - startprice) } 
+#     mapfn = function(productline, description) { as.factor(
+#         paste(gsub(" ", "", productline), as.numeric(nchar(description) > 0), sep = "*")) }
+
+# # If glbObsAll is not sorted in the desired manner
+#     mapfn=function(Week) { return(coredata(lag(zoo(orderBy(~Week, glbObsAll)$ILI), -2, na.pad=TRUE))) }
+#     mapfn=function(ILI) { return(coredata(lag(zoo(ILI), -2, na.pad=TRUE))) }
+#     mapfn=function(ILI.2.lag) { return(log(ILI.2.lag)) }
 
 # glbFeatsDerive[["<var1>"]] <- glbFeatsDerive[["<var2>"]]
 
 glb_derive_vars <- names(glbFeatsDerive)
+
 # tst <- "descr.my"; args_lst <- NULL; for (arg in glbFeatsDerive[[tst]]$args) args_lst[[arg]] <- glbObsAll[, arg]; print(head(args_lst[[arg]])); print(head(drv_vals <- do.call(glbFeatsDerive[[tst]]$mapfn, args_lst))); 
 # print(which_ix <- which(args_lst[[arg]] == 0.75)); print(drv_vals[which_ix]); 
 
@@ -481,7 +458,7 @@ if (!is.null(glbFeatsText)) {
 #mydspObs(list(descr.my.contains="non"), cols=c("color", "carrier", "cellular", "storage"))
 #grep("ever", dimnames(terms_stop_mtrx)$Terms)
 #which(terms_stop_mtrx[, grep("ipad", dimnames(terms_stop_mtrx)$Terms)] > 0)
-#glbObsAll[which(terms_stop_mtrx[, grep("16", dimnames(terms_stop_mtrx)$Terms)[1]] > 0), c(glb_category_var, "storage", txt_var)]
+#glbObsAll[which(terms_stop_mtrx[, grep("16", dimnames(terms_stop_mtrx)$Terms)[1]] > 0), c(glbFeatsCategory, "storage", txt_var)]
 
 # To identify whether terms shd be synonyms
 #orderBy(~term, glb_post_stop_words_terms_df_lst[[txt_var]][grep("^moder", glb_post_stop_words_terms_df_lst[[txt_var]]$term), ])
@@ -497,7 +474,7 @@ if (!is.null(glbFeatsText)) {
 #glb_post_stop_words_terms_df_lst[[txt_var]][grep("condit", glb_post_stop_words_terms_df_lst[[txt_var]]$term), ]
 #orderBy(~term, glb_post_stem_words_terms_df_lst[[txt_var]][grep("^con", glb_post_stem_words_terms_df_lst[[txt_var]]$term), ])
 #glbObsAll[which(terms_stem_mtrx[, grep("use", dimnames(terms_stem_mtrx)$Terms)[[1]]] > 0), c(glb_id_var, "productline", txt_var)]
-#glbObsAll[which(TfIdf_stem_mtrx[, 191] > 0), c(glb_id_var, glb_category_var, txt_var)]
+#glbObsAll[which(TfIdf_stem_mtrx[, 191] > 0), c(glb_id_var, glbFeatsCategory, txt_var)]
 #which(glbObsAll$UniqueID %in% c(11915, 11926, 12198))
 
 # Text Processing Step: mycombineSynonyms
@@ -600,20 +577,20 @@ glbObsTrnOutliers <- list()
 #subset(dffits_df, !is.na(.Bonf.p))
 
 #mdlId <- "CSM.X.glm"; vars <- myextract_actual_feats(row.names(orderBy(reformulate(c("-", paste0(mdlId, ".importance"))), myget_feats_importance(glb_models_lst[[mdlId]])))); 
-#model_diags_df <- glb_get_predictions(model_diags_df, mdlId,glb_rsp_var_out)
+#model_diags_df <- glb_get_predictions(model_diags_df, mdlId, glb_rsp_var)
 #obs_ix <- row.names(model_diags_df) %in% names(outliers$rstudent)[1]
 #obs_ix <- which(is.na(model_diags_df$.rstudent))
 #obs_ix <- which(is.na(model_diags_df$.dffits))
-#myplot_parcoord(obs_df=model_diags_df[, c(glb_id_var, glb_category_var, ".rstudent", ".dffits", ".hatvalues", glb_rsp_var, paste0(glb_rsp_var_out, mdlId), vars[1:min(20, length(vars))])], obs_ix=obs_ix, id_var=glb_id_var, category_var=glb_category_var)
+#myplot_parcoord(obs_df=model_diags_df[, c(glb_id_var, glbFeatsCategory, ".rstudent", ".dffits", ".hatvalues", glb_rsp_var, paste0(glb_rsp_var, mdlId), vars[1:min(20, length(vars))])], obs_ix=obs_ix, id_var=glb_id_var, category_var=glbFeatsCategory)
 
 #model_diags_df[row.names(model_diags_df) %in% names(outliers$rstudent)[c(1:2)], ]
-#ctgry_diags_df <- model_diags_df[model_diags_df[, glb_category_var] %in% c("Unknown#0"), ]
-#myplot_parcoord(obs_df=ctgry_diags_df[, c(glb_id_var, glb_category_var, ".rstudent", ".dffits", ".hatvalues", glb_rsp_var, "startprice.log10.predict.RFE.X.glmnet", indep_vars[1:20])], obs_ix=row.names(ctgry_diags_df) %in% names(outliers$rstudent)[1], id_var=glb_id_var, category_var=glb_category_var)
-#table(glbObsFit[model_diags_df[, glb_category_var] %in% c("iPad1#1"), "startprice.log10.cut.fctr"])
-#glbObsFit[model_diags_df[, glb_category_var] %in% c("iPad1#1"), c(glb_id_var, "startprice")]
+#ctgry_diags_df <- model_diags_df[model_diags_df[, glbFeatsCategory] %in% c("Unknown#0"), ]
+#myplot_parcoord(obs_df=ctgry_diags_df[, c(glb_id_var, glbFeatsCategory, ".rstudent", ".dffits", ".hatvalues", glb_rsp_var, "startprice.log10.predict.RFE.X.glmnet", indep_vars[1:20])], obs_ix=row.names(ctgry_diags_df) %in% names(outliers$rstudent)[1], id_var=glb_id_var, category_var=glbFeatsCategory)
+#table(glbObsFit[model_diags_df[, glbFeatsCategory] %in% c("iPad1#1"), "startprice.log10.cut.fctr"])
+#glbObsFit[model_diags_df[, glbFeatsCategory] %in% c("iPad1#1"), c(glb_id_var, "startprice")]
 
 # No outliers & .dffits == NaN
-#myplot_parcoord(obs_df=model_diags_df[, c(glb_id_var, glb_category_var, glb_rsp_var, "startprice.log10.predict.RFE.X.glmnet", indep_vars[1:10])], obs_ix=seq(1:nrow(model_diags_df))[is.na(model_diags_df$.dffits)], id_var=glb_id_var, category_var=glb_category_var)
+#myplot_parcoord(obs_df=model_diags_df[, c(glb_id_var, glbFeatsCategory, glb_rsp_var, "startprice.log10.predict.RFE.X.glmnet", indep_vars[1:10])], obs_ix=seq(1:nrow(model_diags_df))[is.na(model_diags_df$.dffits)], id_var=glb_id_var, category_var=glbFeatsCategory)
 
 # Modify mdlId to (build & extract) "<FamilyId>#<Fit|Trn>#<caretMethod>#<preProc1.preProc2>#<samplingMethod>"
 glb_models_lst <- list(); glb_models_df <- data.frame()
@@ -758,7 +735,7 @@ glb_tune_models_df <- data.frame()
     #svmRadial
     #   sigma=[0.08674323]; C=0.25 0.50 1.00 [2.00] 4.00; RMSE=0.1614957
     
-#glb_to_sav(); all.equal(sav_models_df, glb_models_df)
+#glb2Sav(); all.equal(sav_models_df, glb_models_df)
     
 glb_preproc_methods <- NULL
 #     c("YeoJohnson", "center.scale", "range", "pca", "ica", "spatialSign")
@@ -807,15 +784,15 @@ glb_mdl_ensemble <- NULL
 #      )
 
 # Only for classifications; for regressions remove "(.*)\\.prob" form the regex
-# tmp_fitobs_df <- glbObsFit[, grep(paste0("^", gsub(".", "\\.", glb_rsp_var_out, fixed = TRUE), "CSM\\.X\\.(.*)\\.prob"), names(glbObsFit), value = TRUE)]; cor_mtrx <- cor(tmp_fitobs_df); cor_vctr <- sort(cor_mtrx[row.names(orderBy(~-Overall, varImp(glb_models_lst[["Ensemble.repeatedcv.glmnet"]])$importance))[1], ]); summary(cor_vctr); cor_vctr
+# tmp_fitobs_df <- glbObsFit[, grep(paste0("^", gsub(".", "\\.", mygetPredictIds$value, fixed = TRUE), "CSM\\.X\\.(.*)\\.prob"), names(glbObsFit), value = TRUE)]; cor_mtrx <- cor(tmp_fitobs_df); cor_vctr <- sort(cor_mtrx[row.names(orderBy(~-Overall, varImp(glb_models_lst[["Ensemble.repeatedcv.glmnet"]])$importance))[1], ]); summary(cor_vctr); cor_vctr
 #ntv.glm <- glm(reformulate(indep_vars, glb_rsp_var), family = "binomial", data = glbObsFit)
 #step.glm <- step(ntv.glm)
 
-glb_sel_mdl_id <- "All.X.glmnet" #select from c(NULL, "All.X.glmnet", "RFE.X.glmnet", <mdlId>)
+glb_sel_mdl_id <- "All.X##rcv#glmnet" #select from c(NULL, "All.X##rcv#glmnet", "RFE.X##rcv#glmnet", <mdlId>)
 glb_fin_mdl_id <- NULL #select from c(NULL, glb_sel_mdl_id)
 
 glb_dsp_cols <- c(NULL
-#               List critical cols excl. glb_id_var, glb_category_var & glb_rsp_var
+#               List critical cols excl. glb_id_var, glbFeatsCategory & glb_rsp_var
                   )
 
 # Output specs
@@ -824,9 +801,9 @@ glb_out_obs <- NULL # select from c(NULL : default to "new", "all", "new", "trn"
 glb_out_vars_lst <- list()
 # glb_id_var will be the first output column, by default
 glb_out_vars_lst[["Probability1"]] <- 
-    "%<d-% paste0(glb_rsp_var_out, glb_fin_mdl_id, '.prob')"
+    "%<d-% mygetPredictIds(glb_rsp_var, glb_fin_mdl_id)$prob"
 # glb_out_vars_lst[[glb_rsp_var_raw]] <- glb_rsp_var_raw
-# glb_out_vars_lst[[paste0(head(unlist(strsplit(glb_rsp_var_out, "")), -1), collapse = "")]] <-
+# glb_out_vars_lst[[paste0(head(unlist(strsplit(mygetPredictIds$value, "")), -1), collapse = "")]] <-
 
 glbOutStackFnames <- NULL #: default
     # c("ebayipads_txt_assoc1_out_bid1_stack.csv") # manual stack
@@ -879,7 +856,7 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 
 ```
 ##         label step_major step_minor label_minor   bgn end elapsed
-## 1 import.data          1          0           0 9.037  NA      NA
+## 1 import.data          1          0           0 8.635  NA      NA
 ```
 
 ## Step `1.0: import data`
@@ -888,21 +865,21 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ```r
 #glb_chunks_df <- myadd_chunk(NULL, "import.data")
 
-glb_to_sav <- function() {
-    sav_allobs_df <<- glbObsAll 
-    sav_trnobs_df <<- glbObsTrn
+glb2Sav <- function() {
+    savObsAll <<- glbObsAll 
+    savObsTrn <<- glbObsTrn
     if (any(grepl("glbObsFit", ls(envir=globalenv()), fixed=TRUE)) &&
-        !is.null(glbObsFit)) sav_fitobs_df <<- glbObsFit    
+        !is.null(glbObsFit)) savObsFit <<- glbObsFit    
     if (any(grepl("glbObsOOB", ls(envir=globalenv()), fixed=TRUE)) &&
-        !is.null(glbObsOOB)) sav_OOBobs_df <<- glbObsOOB    
+        !is.null(glbObsOOB)) savObsOOB <<- glbObsOOB    
     if (any(grepl("glbObsNew", ls(envir=globalenv()), fixed=TRUE)) &&
         !is.null(glbObsNew)) {
         #print("Attempting to save glbObsNew...")
-        sav_newobs_df <<- glbObsNew    
+        savObsNew <<- glbObsNew    
     }
 
-    if (any(grepl("glb_ctgry_df", ls(envir=globalenv()), fixed=TRUE)) &&
-        !is.null(glb_ctgry_df)) sav_ctgry_df <<- glb_ctgry_df    
+    if (any(grepl("glbLvlCategory", ls(envir=globalenv()), fixed=TRUE)) &&
+        !is.null(glbLvlCategory)) savLvlCategory <<- glbLvlCategory    
 
     if (!is.null(glb_models_lst )) sav_models_lst  <<- glb_models_lst
     if (!is.null(glb_models_df  )) sav_models_df   <<- glb_models_df
@@ -1244,7 +1221,7 @@ if (length(glb_drop_vars) > 0) {
     glbObsNew <- glbObsNew[, setdiff(names(glbObsNew), glb_drop_vars)]    
 }
 
-#stop(here"); sav_allobs_df <- glbObsAll # glbObsAll <- sav_allobs_df
+#stop(here"); savObsAll <- glbObsAll # glbObsAll <- savObsAll
 # Combine trnent & newobs into glbObsAll for easier manipulation
 glbObsTrn$.src <- "Train"; glbObsNew$.src <- "Test"; 
 glbFeatsExclude <- union(glbFeatsExclude, ".src")
@@ -1436,7 +1413,7 @@ myprint_df(dupObsAll)
 # write.csv(dupObsAll[, c("UniqueID"), FALSE], "ebayipads_dups.csv", row.names=FALSE)
 
 if (nrow(dupObsAll) > 0) {
-    dupobs_df <- tidyr::unite(dupObsAll, "allfeats", -c(sold, UniqueID, .src), sep="#")
+    dupobs_df <- tidyr::unite(dupObsAll, "allfeats", -c(sold, UniqueID, .src), sep="*")
     # dupobs_df <- dplyr::group_by(dupobs_df, allfeats)
     # dupobs_df <- dupobs_df[, "UniqueID", FALSE]
     # dupobs_df <- ungroup(dupobs_df)
@@ -1553,8 +1530,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "inspect.data", major.inc=TRUE)
 
 ```
 ##          label step_major step_minor label_minor    bgn    end elapsed
-## 1  import.data          1          0           0  9.037 18.458   9.421
-## 2 inspect.data          2          0           0 18.458     NA      NA
+## 1  import.data          1          0           0  8.635 18.911  10.276
+## 2 inspect.data          2          0           0 18.911     NA      NA
 ```
 
 ## Step `2.0: inspect data`
@@ -1745,7 +1722,7 @@ glbObsAll <- add_new_diag_feats(glbObsAll)
 ```r
 require(dplyr)
 
-#stop(here"); sav_allobs_df <- glbObsAll # glbObsAll <- sav_allobs_df
+#stop(here"); savObsAll <- glbObsAll # glbObsAll <- savObsAll
 # Merge some <descriptor>
 # glbObsAll$<descriptor>.my <- glbObsAll$<descriptor>
 # glbObsAll[grepl("\\bAIRPORT\\b", glbObsAll$<descriptor>.my),
@@ -1823,8 +1800,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "scrub.data", major.inc=FALSE)
 
 ```
 ##          label step_major step_minor label_minor    bgn   end elapsed
-## 2 inspect.data          2          0           0 18.458 21.34   2.882
-## 3   scrub.data          2          1           1 21.340    NA      NA
+## 2 inspect.data          2          0           0 18.911 21.78   2.869
+## 3   scrub.data          2          1           1 21.780    NA      NA
 ```
 
 ### Step `2.1: scrub data`
@@ -1936,14 +1913,14 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "transform.data", major.inc=FALSE)
 ```
 
 ```
-##            label step_major step_minor label_minor    bgn   end elapsed
-## 3     scrub.data          2          1           1 21.340 22.44     1.1
-## 4 transform.data          2          2           2 22.441    NA      NA
+##            label step_major step_minor label_minor    bgn    end elapsed
+## 3     scrub.data          2          1           1 21.780 22.821   1.041
+## 4 transform.data          2          2           2 22.822     NA      NA
 ```
 
 ```r
 ### Mapping dictionary
-#sav_allobs_df <- glbObsAll; glbObsAll <- sav_allobs_df
+#savObsAll <- glbObsAll; glbObsAll <- savObsAll
 if (!is.null(glb_map_vars)) {
     for (feat in glb_map_vars) {
         map_df <- myimport_data(url=glb_map_urls[[feat]], 
@@ -1957,7 +1934,7 @@ if (!is.null(glb_map_vars)) {
 }
 
 ### Forced Assignments
-#stop(here"); sav_allobs_df <- glbObsAll; glbObsAll <- sav_allobs_df
+#stop(here"); savObsAll <- glbObsAll; glbObsAll <- savObsAll
 for (feat in glb_assign_vars) {
     new_feat <- paste0(feat, ".my")
     print(sprintf("Forced Assignments for: %s -> %s...", feat, new_feat))
@@ -1988,7 +1965,7 @@ for (feat in glb_assign_vars) {
 }
 
 ### Derivations using mapping functions
-#stop(here"); sav_allobs_df <- glbObsAll; glbObsAll <- sav_allobs_df
+#stop(here"); savObsAll <- glbObsAll; glbObsAll <- savObsAll
 for (new_feat in glb_derive_vars) {
     print(sprintf("Creating new feature: %s...", new_feat))
     args_lst <- NULL 
@@ -2028,8 +2005,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "extract.features", major.inc=TRUE)
 
 ```
 ##              label step_major step_minor label_minor    bgn    end elapsed
-## 4   transform.data          2          2           2 22.441 22.531   0.091
-## 5 extract.features          3          0           0 22.532     NA      NA
+## 4   transform.data          2          2           2 22.822 22.912    0.09
+## 5 extract.features          3          0           0 22.912     NA      NA
 ```
 
 ```r
@@ -2037,10 +2014,8 @@ extract.features_chunk_df <- myadd_chunk(NULL, "extract.features_bgn")
 ```
 
 ```
-##                  label step_major step_minor label_minor    bgn end
-## 1 extract.features_bgn          1          0           0 22.539  NA
-##   elapsed
-## 1      NA
+##                  label step_major step_minor label_minor   bgn end elapsed
+## 1 extract.features_bgn          1          0           0 22.92  NA      NA
 ```
 
 ```r
@@ -2069,7 +2044,7 @@ extract.features_chunk_df <- myadd_chunk(NULL, "extract.features_bgn")
 #       typically, dates come in as chars; 
 #           so this must be done before converting chars to factors
 
-#stop(here"); sav_allobs_df <- glbObsAll #; glbObsAll <- sav_allobs_df
+#stop(here"); savObsAll <- glbObsAll #; glbObsAll <- savObsAll
 if (!is.null(glb_date_vars)) {
     glbObsAll <- cbind(glbObsAll, 
         myextract_dates_df(df=glbObsAll, vars=glb_date_vars, 
@@ -2174,12 +2149,12 @@ extract.features_chunk_df <- myadd_chunk(extract.features_chunk_df,
 ## 1                extract.features_bgn          1          0           0
 ## 2 extract.features_factorize.str.vars          2          0           0
 ##      bgn    end elapsed
-## 1 22.539 22.552   0.013
-## 2 22.552     NA      NA
+## 1 22.920 22.933   0.013
+## 2 22.933     NA      NA
 ```
 
 ```r
-#stop(here"); sav_allobs_df <- glbObsAll; #glbObsAll <- sav_allobs_df
+#stop(here"); savObsAll <- glbObsAll; #glbObsAll <- savObsAll
 print(str_vars <- myfind_chr_cols_df(glbObsAll))
 ```
 
@@ -2234,7 +2209,7 @@ if (!is.null(glbFeatsText)) {
         match_lst <- gregexpr(rex_str, txt_vctr, ignore.case = ignore.case, perl=TRUE)
         match_lst <- regmatches(txt_vctr, match_lst)
         match_df <- data.frame(matches=sapply(match_lst, 
-                                              function (elems) paste(elems, collapse="#")))
+                                              function (elems) paste(elems, collapse="*")))
         match_df <- subset(match_df, matches != "")
         if (print.all)
             print(match_df)
@@ -2528,7 +2503,7 @@ if (!is.null(glbFeatsText)) {
         return(gsub("[[:punct:]]+", " ", gsub("('|-)", "", x)))
     }
     
-#stop(here"); glb_to_sav()    
+#stop(here"); glb2Sav()    
     glb_txt_corpus_lst <- list()
     print(sprintf("Building glb_txt_corpus_lst..."))
     glb_txt_corpus_lst <- foreach(txt_var = glbFeatsText, .verbose = FALSE) %dopar% {
@@ -2557,7 +2532,7 @@ mycombineSynonyms <- content_transformer(function(x, syn=NULL) {
         gsub(paste0("\\b(", paste(b$syns, collapse = "|"),")\\b"), b$word, a)}, syn, x)   
 })    
     
-#stop(here"); glb_to_sav(); sav_txt_corpus <- glb_txt_corpus_lst[[txt_var]]; all.equal(sav_txt_corpus, glb_txt_corpus_lst[[txt_var]]); glb_txt_corpus_lst[[txt_var]] <- sav_txt_corpus
+#stop(here"); glb2Sav(); sav_txt_corpus <- glb_txt_corpus_lst[[txt_var]]; all.equal(sav_txt_corpus, glb_txt_corpus_lst[[txt_var]]); glb_txt_corpus_lst[[txt_var]] <- sav_txt_corpus
     glb_post_stop_words_terms_df_lst <- list(); 
     glb_post_stop_words_terms_mtrx_lst <- list();     
     glb_post_stem_words_terms_df_lst <- list(); 
@@ -2767,7 +2742,7 @@ mycombineSynonyms <- content_transformer(function(x, syn=NULL) {
     extract.features_chunk_df <- myadd_chunk(extract.features_chunk_df, 
                             paste0("extract.features_", "bind.DTM"), 
                                          major.inc=TRUE)
-#stop(here"); glb_to_sav(); all.equal(sav_allobs_df, glbObsAll); glbObsAll <- sav_allobs_df
+#stop(here"); glb2Sav(); all.equal(savObsAll, glbObsAll); glbObsAll <- savObsAll
     require(tidyr)
     for (txt_var in glbFeatsText) {
         print(sprintf("Binding DTM for %s...", txt_var))
@@ -2810,7 +2785,7 @@ mycombineSynonyms <- content_transformer(function(x, syn=NULL) {
 #         #geom_hline(yintercept=cor.y.rnorm, color="red") + 
 #         geom_hline(yintercept=c(cor.y.rnorm, -cor.y.rnorm), color="red"))
 
-#stop(here"); glb_to_sav()        
+#stop(here"); glb2Sav()        
         if (glbFeatsTextFilter == "sparse") {
             txt_X_df <- as.data.frame(as.matrix(glb_sprs_DTM_lst[[txt_var]]))
             select_terms <- make.names(colnames(txt_X_df))
@@ -2846,7 +2821,7 @@ mycombineSynonyms <- content_transformer(function(x, syn=NULL) {
             if (length(assoc_terms_lst[[term]]) > 0)
                 assoc_terms <- union(assoc_terms, names(assoc_terms_lst[[term]]))
 
-#stop(here"); glb_to_sav()
+#stop(here"); glb2Sav()
         txt_X_df <- txt_full_X_df[, 
                         subset(terms_full_df, term %in% c(select_terms, assoc_terms))$pos,
                                     FALSE]
@@ -2860,7 +2835,7 @@ mycombineSynonyms <- content_transformer(function(x, syn=NULL) {
                             paste0("extract.features_", "bind.DXM"), 
                                          major.inc=TRUE)
 
-#stop(here"); sav_allobs_df <- glbObsAll; glbObsAll <- sav_allobs_df
+#stop(here"); savObsAll <- glbObsAll; glbObsAll <- savObsAll
     glb_punct_vctr <- c("!", "\"", "#", "\\$", "%", "&", "'", 
                         "\\(|\\)",# "\\(", "\\)", 
                         "\\*", "\\+", ",", "-", "\\.", "/", ":", ";", 
@@ -2974,7 +2949,7 @@ mycombineSynonyms <- content_transformer(function(x, syn=NULL) {
 
 # print(myplot_scatter(glbObsTrn, "<col1_name>", "<col2_name>", smooth=TRUE))
 
-#stop(here"); glb_to_sav(); glbObsAll <- sav_allobs_df
+#stop(here"); glb2Sav(); glbObsAll <- savObsAll
 if (!is.null(glbFeatsPrice)) {
     for (var in glbFeatsPrice) {
         for (digit in 1:(log10(max(glbObsAll[, var], na.rm=TRUE)) + 1)) {
@@ -3030,8 +3005,8 @@ extract.features_chunk_df <- myadd_chunk(extract.features_chunk_df, "extract.fea
 ## 2 extract.features_factorize.str.vars          2          0           0
 ## 3                extract.features_end          3          0           0
 ##      bgn    end elapsed
-## 2 22.552 22.578   0.026
-## 3 22.578     NA      NA
+## 2 22.933 22.958   0.025
+## 3 22.959     NA      NA
 ```
 
 ```r
@@ -3043,9 +3018,9 @@ myplt_chunk(extract.features_chunk_df)
 ## 2 extract.features_factorize.str.vars          2          0           0
 ## 1                extract.features_bgn          1          0           0
 ##      bgn    end elapsed duration
-## 2 22.552 22.578   0.026    0.026
-## 1 22.539 22.552   0.013    0.013
-## [1] "Total Elapsed Time: 22.578 secs"
+## 2 22.933 22.958   0.025    0.025
+## 1 22.920 22.933   0.013    0.013
+## [1] "Total Elapsed Time: 22.958 secs"
 ```
 
 ![](NYTBlogs3_base_files/figure-html/extract.features-1.png) 
@@ -3083,11 +3058,11 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "manage.missing.data", major.inc=FAL
 ```
 
 ```
-##                 label step_major step_minor label_minor    bgn    end
-## 5    extract.features          3          0           0 22.532 24.177
-## 6 manage.missing.data          3          1           1 24.178     NA
+##                 label step_major step_minor label_minor    bgn   end
+## 5    extract.features          3          0           0 22.912 24.58
+## 6 manage.missing.data          3          1           1 24.580    NA
 ##   elapsed
-## 5   1.645
+## 5   1.668
 ## 6      NA
 ```
 
@@ -3198,10 +3173,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "cluster.data", major.inc=FALSE)
 
 ```
 ##                 label step_major step_minor label_minor    bgn    end
-## 6 manage.missing.data          3          1           1 24.178 24.259
-## 7        cluster.data          3          2           2 24.259     NA
+## 6 manage.missing.data          3          1           1 24.580 24.662
+## 7        cluster.data          3          2           2 24.662     NA
 ##   elapsed
-## 6   0.081
+## 6   0.082
 ## 7      NA
 ```
 
@@ -3277,7 +3252,7 @@ if (glb_cluster) {
 #                      values=1:length(unique(glbObsAll$myCategory)))
 #     glb_hash_lst <- hash(key=unique(glbObsAll$myCategory), 
 #                      values=1:length(unique(glbObsAll$myCategory)))
-#stop(here"); glb_to_sav(); glbObsAll <- sav_allobs_df
+#stop(here"); glb2Sav(); glbObsAll <- savObsAll
     cluster_vars <- grep(paste0("[", 
                         toupper(paste0(substr(glbFeatsText, 1, 1), collapse = "")),
                                       "]\\.[PT]\\."), 
@@ -3301,17 +3276,17 @@ if (glb_cluster) {
     
     print(category_df <- mycompute_entropy_df(obs_df=glbObsAll,
                                              entropy_var=glb_cluster_entropy_var,
-                                             by_var=glb_category_var))
+                                             by_var=glbFeatsCategory))
     print(sprintf("glbObsAll$%s Entropy: %0.4f (%0.4f pct)",
-                    glb_category_var,
+                    glbFeatsCategory,
             category_ent <- weighted.mean(category_df$.entropy, category_df$.knt),
                     100 * category_ent / allobs_ent))
 
     glbObsAll$.clusterid <- 1    
     #print(max(table(glbObsAll$myCategory.fctr) / 20))
         
-#stop(here"); glb_to_sav()    
-    grp_ids <- sort(unique(glbObsAll[, glb_category_var]))
+#stop(here"); glb2Sav()    
+    grp_ids <- sort(unique(glbObsAll[, glbFeatsCategory]))
     glb_cluster_size_df_lst <- list()
     png(paste0(glb_out_pfx, "FeatsTxtClusters.png"), 
         width = 480 * 2, height = 480 * length(grp_ids))
@@ -3323,7 +3298,7 @@ if (glb_cluster) {
 # if (grep(grp, levels(grp_ids)) > 9) next        
 # if (grep(grp, levels(grp_ids)) != 10) next        
         print(sprintf("Category: %s", grp))
-        ctgry_allobs_df <- glbObsAll[glbObsAll[, glb_category_var] == grp, ]
+        ctgry_allobs_df <- glbObsAll[glbObsAll[, glbFeatsCategory] == grp, ]
         if (!inherits(ctgry_allobs_df[, glb_cluster_entropy_var], "factor"))
             ctgry_allobs_df[, glb_cluster_entropy_var] <- 
                 as.factor(ctgry_allobs_df[, glb_cluster_entropy_var])
@@ -3346,7 +3321,7 @@ if (glb_cluster) {
 #         print(sprintf("row_ix: %d", row_ix)); print(sprintf("col_ix: %d", col_ix));
 #         print(dim(ctgry_allobs_df))
         print(ctgry_allobs_df[c(row_ix, col_ix), 
-            c(glb_id_var, glb_cluster_entropy_var, glb_category_var, glbFeatsText, cluster_vars)])
+            c(glb_id_var, glb_cluster_entropy_var, glbFeatsCategory, glbFeatsText, cluster_vars)])
     
         min_dstns_mtrx <- dstns_mtrx
         diag(min_dstns_mtrx) <- 1
@@ -3355,7 +3330,7 @@ if (glb_cluster) {
         row_ix <- ceiling(which.min(min_dstns_mtrx) / ncol(min_dstns_mtrx))
         col_ix <- which.min(min_dstns_mtrx[row_ix, ])
         print(ctgry_allobs_df[c(row_ix, col_ix), 
-            c(glb_id_var, glb_cluster_entropy_var, glb_category_var, glbFeatsText,
+            c(glb_id_var, glb_cluster_entropy_var, glbFeatsCategory, glbFeatsText,
               cluster_vars)])
     
         set.seed(glb_cluster.seed)
@@ -3429,40 +3404,40 @@ if (glb_cluster) {
               useNA = "ifany")   
         clusterGroups[clusterGroups == 0] <- 1
         table(clusterGroups, ctgry_allobs_df[, glb_cluster_entropy_var], useNA = "ifany") 
-        glbObsAll[glbObsAll[, glb_category_var] == grp,]$.clusterid <-
+        glbObsAll[glbObsAll[, glbFeatsCategory] == grp,]$.clusterid <-
             clusterGroups
         
         pltIx <- pltIx + 1
     }
     dev.off()
-    #all.equal(sav_allobs_df_clusterid, glbObsAll$.clusterid)
+    #all.equal(savObsAll_clusterid, glbObsAll$.clusterid)
     
     print(cluster_df <- mycompute_entropy_df(obs_df=glbObsAll,
                                              entropy_var=glb_cluster_entropy_var,
-                                             by_var=glb_category_var))
+                                             by_var=glbFeatsCategory))
     print(sprintf("glbObsAll$%s$.clusterid Entropy: %0.4f (%0.4f pct)",
-                    glb_category_var,
+                    glbFeatsCategory,
                 cluster_ent <- weighted.mean(cluster_df$.entropy, cluster_df$.knt),
                     100 * cluster_ent / category_ent))
     
     glbObsAll$.clusterid.fctr <- as.factor(glbObsAll$.clusterid)
     # .clusterid.fctr is created automatically (probably ?) later
     glbFeatsExclude <- c(glbFeatsExclude, ".clusterid")
-    if (!is.null(glb_category_var))
-#         glbFeatsInteractionOnly[ifelse(grepl("\\.fctr", glb_category_var),
-#                                             glb_category_var, 
-#                                             paste0(glb_category_var, ".fctr"))] <-
+    if (!is.null(glbFeatsCategory))
+#         glbFeatsInteractionOnly[ifelse(grepl("\\.fctr", glbFeatsCategory),
+#                                             glbFeatsCategory, 
+#                                             paste0(glbFeatsCategory, ".fctr"))] <-
 #             c(".clusterid.fctr")
         glbFeatsInteractionOnly[[".clusterid.fctr"]] <-
-            ifelse(grepl("\\.fctr", glb_category_var), glb_category_var, 
-                                                        paste0(glb_category_var, ".fctr"))
+            ifelse(grepl("\\.fctr", glbFeatsCategory), glbFeatsCategory, 
+                                                        paste0(glbFeatsCategory, ".fctr"))
             
     if (glbFeatsTextClusterVarsExclude)
         glbFeatsExclude <- c(glbFeatsExclude, cluster_vars)
 }
 
 # Last call for data modifications 
-#stop(here") # sav_allobs_df <- glbObsAll
+#stop(here") # savObsAll <- glbObsAll
 # glbObsAll[(glbObsAll$PropR == 0.75) & (glbObsAll$State == "Hawaii"), "PropR.fctr"] <- "N"
 
 # Re-partition
@@ -3474,10 +3449,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 
 ```
 ##                     label step_major step_minor label_minor    bgn    end
-## 7            cluster.data          3          2           2 24.259 24.288
-## 8 partition.data.training          4          0           0 24.288     NA
+## 7            cluster.data          3          2           2 24.662 24.693
+## 8 partition.data.training          4          0           0 24.693     NA
 ##   elapsed
-## 7   0.029
+## 7   0.031
 ## 8      NA
 ```
 
@@ -3488,40 +3463,40 @@ if (all(is.na(glbObsNew[, glb_rsp_var]))) {
     set.seed(glb_split_sample.seed)
     OOB_size <- nrow(glbObsNew) * 1.1
     
-    if (is.null(glb_category_var)) {
+    if (is.null(glbFeatsCategory)) {
         require(caTools)
         split <- sample.split(glbObsTrn[, glb_rsp_var_raw], 
                               SplitRatio=OOB_size / nrow(glbObsTrn))
         glbObsOOB <- glbObsTrn[split ,]            
         glbObsFit <- glbObsTrn[!split, ] 
     } else {
-        sample_vars <- c(glb_category_var, glb_rsp_var_raw)
+        sample_vars <- c(glbFeatsCategory, glb_rsp_var_raw)
         rspvar_freq_df <- orderBy(reformulate(glb_rsp_var_raw), 
                                  mycreate_sqlxtab_df(glbObsTrn, glb_rsp_var_raw))
         OOB_rspvar_size <- 
             1.0 * OOB_size * rspvar_freq_df$.n / sum(rspvar_freq_df$.n) 
         names(OOB_rspvar_size) <- as.character(rspvar_freq_df[, glb_rsp_var_raw])
-        newobs_freq_df <- orderBy(reformulate(glb_category_var),
-                                mycreate_sqlxtab_df(glbObsNew, glb_category_var))
-        trnobs_freq_df <- orderBy(reformulate(glb_category_var),
-                                mycreate_sqlxtab_df(glbObsTrn, glb_category_var))
+        newobs_freq_df <- orderBy(reformulate(glbFeatsCategory),
+                                mycreate_sqlxtab_df(glbObsNew, glbFeatsCategory))
+        trnobs_freq_df <- orderBy(reformulate(glbFeatsCategory),
+                                mycreate_sqlxtab_df(glbObsTrn, glbFeatsCategory))
         ctgry_freq_df <- merge(newobs_freq_df, trnobs_freq_df, 
-                                by = glb_category_var,
+                                by = glbFeatsCategory,
                                 all = TRUE, sort = TRUE, 
                                 suffixes = c(".tst", ".trn"))
         ctgry_freq_df[is.na(ctgry_freq_df)] <- 0
         
         obs_freq_df <- mycreate_xtab_df(glbObsTrn, 
-                                        c(glb_category_var, glb_rsp_var_raw))
-        newobs_freq_df <- orderBy(reformulate(glb_category_var),
-                                mycreate_sqlxtab_df(glbObsNew, glb_category_var))
+                                        c(glbFeatsCategory, glb_rsp_var_raw))
+        newobs_freq_df <- orderBy(reformulate(glbFeatsCategory),
+                                mycreate_sqlxtab_df(glbObsNew, glbFeatsCategory))
         names(newobs_freq_df) <- gsub(".n", ".n.tst", names(newobs_freq_df), 
                                       fixed = TRUE)
         obs_freq_df <- merge(obs_freq_df, newobs_freq_df, all = TRUE)
         strata_mtrx <- ceiling(
             matrix(obs_freq_df$.n.tst * 1.0 / sum(obs_freq_df$.n.tst)) %*%
                       matrix(OOB_rspvar_size, nrow = 1))
-        dimnames(strata_mtrx)[[1]] <- obs_freq_df[, glb_category_var]
+        dimnames(strata_mtrx)[[1]] <- obs_freq_df[, glbFeatsCategory]
         dimnames(strata_mtrx)[[2]] <- 
             as.character(rspvar_freq_df[, glb_rsp_var_raw])
         for (val in rspvar_freq_df[, glb_rsp_var_raw]) {
@@ -3545,15 +3520,16 @@ if (all(is.na(glbObsNew[, glb_rsp_var]))) {
                 obs_freq_df[ix, strata] <- 1
         }    
         #print(colSums(obs_freq_df[, -1]))
+        #glbObsFrq <- obs_freq_df
     
                 
         OOB_strata_size <- as.vector(as.matrix(obs_freq_df[, 
                                     grepl("^\\.strata\\.", names(obs_freq_df))]))
-        tmp_trnobs_df <- orderBy(reformulate(c(glb_rsp_var_raw, glb_category_var)),
+        tmp_trnobs_df <- orderBy(reformulate(c(glb_rsp_var_raw, glbFeatsCategory)),
                                 glbObsTrn)
         require(sampling)
         split_strata <- sampling::strata(tmp_trnobs_df, 
-                               stratanames = c(glb_rsp_var_raw, glb_category_var),
+                               stratanames = c(glb_rsp_var_raw, glbFeatsCategory),
                                size = OOB_strata_size[!is.na(OOB_strata_size)],
                                method = "srswor")
         glbObsOOB <- getdata(tmp_trnobs_df, split_strata)[, names(glbObsTrn)]
@@ -3620,35 +3596,35 @@ dsp_class_dstrb <- function(obs_df, location_var, partition_var) {
 }    
 
 # Ensure proper splits by glb_rsp_var_raw & user-specified feature for OOB vs. new
-if (!is.null(glb_category_var)) {
+if (!is.null(glbFeatsCategory)) {
     if (glb_is_classification)
         dsp_class_dstrb(glbObsAll, ".lcn", glb_rsp_var_raw)
     newobs_ctgry_df <- mycreate_sqlxtab_df(subset(glbObsAll, .src == "Test"), 
-                                           glb_category_var)
+                                           glbFeatsCategory)
     names(newobs_ctgry_df) <- 
         gsub(".n", ".n.Tst", names(newobs_ctgry_df), fixed = TRUE)
     OOBobs_ctgry_df <- mycreate_sqlxtab_df(subset(glbObsAll, .lcn == "OOB"), 
-                                           glb_category_var)
+                                           glbFeatsCategory)
     names(OOBobs_ctgry_df) <- 
         gsub(".n", ".n.OOB", names(OOBobs_ctgry_df), fixed = TRUE)
     fitobs_ctgry_df <- mycreate_sqlxtab_df(subset(glbObsAll, .lcn == "Fit"), 
-                                           glb_category_var)
+                                           glbFeatsCategory)
     names(fitobs_ctgry_df) <- 
         gsub(".n", ".n.Fit", names(fitobs_ctgry_df), fixed = TRUE)
     
-#     glb_ctgry_df <- merge(newobs_ctgry_df, OOBobs_ctgry_df, by=glb_category_var
+#     glbLvlCategory <- merge(newobs_ctgry_df, OOBobs_ctgry_df, by=glbFeatsCategory
 #                           , all=TRUE, suffixes=c(".Tst", ".OOB"))
-    glb_ctgry_df <- merge(fitobs_ctgry_df, OOBobs_ctgry_df, by = glb_category_var
+    glbLvlCategory <- merge(fitobs_ctgry_df, OOBobs_ctgry_df, by = glbFeatsCategory
                           , all = TRUE)
-    glb_ctgry_df <- merge(glb_ctgry_df, newobs_ctgry_df, by = glb_category_var
+    glbLvlCategory <- merge(glbLvlCategory, newobs_ctgry_df, by = glbFeatsCategory
                           , all = TRUE)
-    glb_ctgry_df$.freqRatio.Fit <- 
-        glb_ctgry_df$.n.Fit / sum(glb_ctgry_df$.n.Fit, na.rm = TRUE)
-    glb_ctgry_df$.freqRatio.OOB <- 
-        glb_ctgry_df$.n.OOB / sum(glb_ctgry_df$.n.OOB, na.rm = TRUE)
-    glb_ctgry_df$.freqRatio.Tst <- 
-        glb_ctgry_df$.n.Tst / sum(glb_ctgry_df$.n.Tst, na.rm = TRUE)
-    print(orderBy(~-.freqRatio.Tst-.freqRatio.OOB-.freqRatio.Fit, glb_ctgry_df))
+    glbLvlCategory$.freqRatio.Fit <- 
+        glbLvlCategory$.n.Fit / sum(glbLvlCategory$.n.Fit, na.rm = TRUE)
+    glbLvlCategory$.freqRatio.OOB <- 
+        glbLvlCategory$.n.OOB / sum(glbLvlCategory$.n.OOB, na.rm = TRUE)
+    glbLvlCategory$.freqRatio.Tst <- 
+        glbLvlCategory$.n.Tst / sum(glbLvlCategory$.n.Tst, na.rm = TRUE)
+    print(orderBy(~-.freqRatio.Tst-.freqRatio.OOB-.freqRatio.Fit, glbLvlCategory))
 }
 ```
 
@@ -3788,17 +3764,17 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "select.features", major.inc=TRUE)
 
 ```
 ##                     label step_major step_minor label_minor    bgn    end
-## 8 partition.data.training          4          0           0 24.288 25.428
-## 9         select.features          5          0           0 25.428     NA
+## 8 partition.data.training          4          0           0 24.693 25.874
+## 9         select.features          5          0           0 25.875     NA
 ##   elapsed
-## 8    1.14
+## 8   1.181
 ## 9      NA
 ```
 
 ## Step `5.0: select features`
 
 ```r
-#stop(here"); glb_to_sav(); glbObsAll <- sav_allobs_df
+#stop(here"); glb2Sav(); glbObsAll <- savObsAll
 print(glb_feats_df <- myselect_features(entity_df=glbObsTrn, 
                        exclude_vars_as_features=glbFeatsExclude, 
                        rsp_var=glb_rsp_var))
@@ -3917,7 +3893,7 @@ for (feat in names(glbFeatsInteractionOnly))
     glb_feats_df[glb_feats_df$id %in% feat, "interaction.feat"] <-
         glbFeatsInteractionOnly[[feat]]
         
-#stop(here"); glb_to_sav(); glbObsAll <- sav_allobs_df
+#stop(here"); glb2Sav(); glbObsAll <- savObsAll
 indep_vars <- subset(glb_feats_df, !nzv & (exclude.as.feat != 1))[, "id"]
 numeric_indep_vars <- indep_vars[!grepl(".fctr", indep_vars, fixed=TRUE)]
 glb_feats_df$shapiro.test.p.value <- NA
@@ -4009,8 +3985,8 @@ myrun_rfe <- function(obs_df, indep_vars, sizes = NULL) {
     return(rfe_results)
 }
 
-#stop(here"); glb_to_sav()
-# shd .clusterid.fctr be excluded from this ? or include encoding of glb_category_var:.clusterid.fctr ?
+#stop(here"); glb2Sav()
+# shd .clusterid.fctr be excluded from this ? or include encoding of glbFeatsCategory:.clusterid.fctr ?
 indep_vars <- myadjust_interaction_feats(subset(glb_feats_df, 
                                                 !nzv & (exclude.as.feat != 1))$id)
 rfe_fit_results <- myrun_rfe(obs_df = glbObsFit, indep_vars = indep_vars, 
@@ -4324,8 +4300,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc=TRUE)
 
 ```
 ##              label step_major step_minor label_minor    bgn    end elapsed
-## 9  select.features          5          0           0 25.428 35.237   9.809
-## 10      fit.models          6          0           0 35.238     NA      NA
+## 9  select.features          5          0           0 25.875 35.522   9.647
+## 10      fit.models          6          0           0 35.523     NA      NA
 ```
 
 ## Step `6.0: fit models`
@@ -4428,7 +4404,7 @@ if (!is.null(glb_Baseline_mdl_var))
     ret_lst <- myfit_mdl(mdl_id="Baseline", 
                          model_method="mybaseln_classfr",
                         indep_vars_vctr=glb_Baseline_mdl_var,
-                        rsp_var=glb_rsp_var, rsp_var_out=glb_rsp_var_out,
+                        rsp_var=glb_rsp_var,
                         fit_df=glbObsFit, OOB_df=glbObsOOB)
 
 # Most Frequent Outcome "MFO" model: mean(y) for regression
@@ -4442,7 +4418,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
 ```
 
 ```
-## [1] "fitting model: MFO.myMFO_classfr"
+## [1] "fitting model: MFO###myMFO_classfr"
 ## [1] "    indep_vars: .rnorm"
 ## Fitting parameter = none on full training set
 ## [1] "in MFO.Classifier$fit"
@@ -4493,9 +4469,6 @@ ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-1.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.MFO.myMFO_classfr.Y
-## 1            N                                     3941
-## 2            Y                                      863
 ##          Prediction
 ## Reference    N    Y
 ##         N    0 3941
@@ -4519,9 +4492,6 @@ ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-2.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.MFO.myMFO_classfr.Y
-## 1            N                                     1498
-## 2            Y                                      230
 ##          Prediction
 ## Reference    N    Y
 ##         N    0 1498
@@ -4530,8 +4500,8 @@ ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
 ##      0.1331019      0.0000000      0.1174298      0.1500310      0.8668981 
 ## AccuracyPValue  McnemarPValue 
 ##      1.0000000      0.0000000 
-##                  id  feats max.nTuningRuns min.elapsedtime.everything
-## 1 MFO.myMFO_classfr .rnorm               0                      0.269
+##                    id  feats max.nTuningRuns min.elapsedtime.everything
+## 1 MFO###myMFO_classfr .rnorm               0                      0.271
 ##   min.elapsedtime.final max.AUCpROC.fit max.Sens.fit max.Spec.fit
 ## 1                 0.003             0.5            1            0
 ##   max.AUCROCR.fit opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -4550,6 +4520,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
 if (glb_is_classification)
     # "random" model - only for classification; 
     #   none needed for regression since it is same as MFO
+#stop(here"); glb2Sav(); all.equal(glb_models_df, sav_models_df)    
     ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
         id.prefix = "Random", type = glb_model_type, trainControl.method = "none",
         train.method = "myrandom_classfr")),
@@ -4558,7 +4529,7 @@ if (glb_is_classification)
 ```
 
 ```
-## [1] "fitting model: Random.myrandom_classfr"
+## [1] "fitting model: Random###myrandom_classfr"
 ## [1] "    indep_vars: .rnorm"
 ## Fitting parameter = none on full training set
 ##             Length Class      Mode     
@@ -4574,9 +4545,6 @@ if (glb_is_classification)
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-3.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-4.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Random.myrandom_classfr.Y
-## 1            N                                           3941
-## 2            Y                                            863
 ##          Prediction
 ## Reference    N    Y
 ##         N    0 3941
@@ -4591,9 +4559,6 @@ if (glb_is_classification)
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-5.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-6.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Random.myrandom_classfr.Y
-## 1            N                                           1498
-## 2            Y                                            230
 ##          Prediction
 ## Reference    N    Y
 ##         N    0 1498
@@ -4602,10 +4567,10 @@ if (glb_is_classification)
 ##      0.1331019      0.0000000      0.1174298      0.1500310      0.8668981 
 ## AccuracyPValue  McnemarPValue 
 ##      1.0000000      0.0000000 
-##                        id  feats max.nTuningRuns
-## 1 Random.myrandom_classfr .rnorm               0
+##                          id  feats max.nTuningRuns
+## 1 Random###myrandom_classfr .rnorm               0
 ##   min.elapsedtime.everything min.elapsedtime.final max.AUCpROC.fit
-## 1                      0.269                 0.001       0.4990604
+## 1                      0.274                 0.002       0.4990604
 ##   max.Sens.fit max.Spec.fit max.AUCROCR.fit opt.prob.threshold.fit
 ## 1    0.8312611    0.1668598       0.4972757                    0.1
 ##   max.f.score.fit max.Accuracy.fit max.AccuracyLower.fit
@@ -4624,7 +4589,7 @@ if (glb_is_classification)
 #     ret_lst <- myfit_mdl(mdl_id = "Random", model_method = "myrandom_classfr",
 #                             model_type = glb_model_type,                         
 #                             indep_vars_vctr = ".rnorm",
-#                             rsp_var = glb_rsp_var, rsp_var_out = glb_rsp_var_out,
+#                             rsp_var = glb_rsp_var,
 #                             fit_df = glbObsFit, OOB_df = glbObsOOB)
 
 # Max.cor.Y
@@ -4638,7 +4603,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ```
 
 ```
-## [1] "fitting model: Max.cor.Y.rcv.1X1.glmnet"
+## [1] "fitting model: Max.cor.Y.rcv.1X1###glmnet"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
 ```
 
@@ -4765,12 +4730,6 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-8.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-9.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.1X1.glmnet.N
-## 1            N                                            3796
-## 2            Y                                             177
-##   Popular.fctr.predict.Max.cor.Y.rcv.1X1.glmnet.Y
-## 1                                             145
-## 2                                             686
 ##          Prediction
 ## Reference    N    Y
 ##         N 3796  145
@@ -4784,12 +4743,6 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-10.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-11.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.1X1.glmnet.N
-## 1            N                                            1151
-## 2            Y                                              67
-##   Popular.fctr.predict.Max.cor.Y.rcv.1X1.glmnet.Y
-## 1                                             347
-## 2                                             163
 ##          Prediction
 ## Reference    N    Y
 ##         N 1151  347
@@ -4798,10 +4751,10 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ##   7.604167e-01   3.148374e-01   7.395703e-01   7.803749e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   8.593187e-43 
-##                         id                            feats
-## 1 Max.cor.Y.rcv.1X1.glmnet WordCount.root2,NDSSName.my.fctr
+##                           id                            feats
+## 1 Max.cor.Y.rcv.1X1###glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               0                      0.972                 0.273
+## 1               0                      0.987                 0.273
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8790544    0.9632073    0.7949015       0.9608594
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -4847,7 +4800,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ```
 
 ```
-## [1] "fitting model: Max.cor.Y.rcv.3X1.glmnet"
+## [1] "fitting model: Max.cor.Y.rcv.3X1##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
 ## Aggregating results
 ## Selecting tuning parameters
@@ -4947,12 +4900,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-14.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-15.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.3X1.glmnet.N
-## 1            N                                            3796
-## 2            Y                                             177
-##   Popular.fctr.predict.Max.cor.Y.rcv.3X1.glmnet.Y
-## 1                                             145
-## 2                                             686
 ##          Prediction
 ## Reference    N    Y
 ##         N 3796  145
@@ -4966,12 +4913,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-16.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-17.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.3X1.glmnet.N
-## 1            N                                            1146
-## 2            Y                                              67
-##   Popular.fctr.predict.Max.cor.Y.rcv.3X1.glmnet.Y
-## 1                                             352
-## 2                                             163
 ##          Prediction
 ## Reference    N    Y
 ##         N 1146  352
@@ -4980,10 +4921,10 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##   7.575231e-01   3.107477e-01   7.365992e-01   7.775689e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   9.066396e-44 
-##                         id                            feats
-## 1 Max.cor.Y.rcv.3X1.glmnet WordCount.root2,NDSSName.my.fctr
+##                              id                            feats
+## 1 Max.cor.Y.rcv.3X1##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      2.826                  0.27
+## 1              25                      3.404                 0.273
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8767919     0.964476    0.7891078       0.9582555
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -4998,7 +4939,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ## 1             0.7365992             0.7775689     0.3107477
 ##   max.AccuracySD.fit max.KappaSD.fit
 ## 1        0.007015493      0.02403706
-## [1] "fitting model: Max.cor.Y.rcv.3X3.glmnet"
+## [1] "fitting model: Max.cor.Y.rcv.3X3##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
 ## Aggregating results
 ## Selecting tuning parameters
@@ -5098,12 +5039,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-20.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-21.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.3X3.glmnet.N
-## 1            N                                            3796
-## 2            Y                                             177
-##   Popular.fctr.predict.Max.cor.Y.rcv.3X3.glmnet.Y
-## 1                                             145
-## 2                                             686
 ##          Prediction
 ## Reference    N    Y
 ##         N 3796  145
@@ -5117,12 +5052,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-22.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-23.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.3X3.glmnet.N
-## 1            N                                            1146
-## 2            Y                                              67
-##   Popular.fctr.predict.Max.cor.Y.rcv.3X3.glmnet.Y
-## 1                                             352
-## 2                                             163
 ##          Prediction
 ## Reference    N    Y
 ##         N 1146  352
@@ -5131,10 +5060,10 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##   7.575231e-01   3.107477e-01   7.365992e-01   7.775689e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   9.066396e-44 
-##                         id                            feats
-## 1 Max.cor.Y.rcv.3X3.glmnet WordCount.root2,NDSSName.my.fctr
+##                              id                            feats
+## 1 Max.cor.Y.rcv.3X3##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      4.817                  0.27
+## 1              25                      4.879                 0.277
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8767919     0.964476    0.7891078       0.9582555
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5149,7 +5078,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ## 1             0.7365992             0.7775689     0.3107477
 ##   max.AccuracySD.fit max.KappaSD.fit
 ## 1        0.005178375      0.01754365
-## [1] "fitting model: Max.cor.Y.rcv.3X5.glmnet"
+## [1] "fitting model: Max.cor.Y.rcv.3X5##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
 ## Aggregating results
 ## Selecting tuning parameters
@@ -5249,12 +5178,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-26.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-27.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.3X5.glmnet.N
-## 1            N                                            3796
-## 2            Y                                             177
-##   Popular.fctr.predict.Max.cor.Y.rcv.3X5.glmnet.Y
-## 1                                             145
-## 2                                             686
 ##          Prediction
 ## Reference    N    Y
 ##         N 3796  145
@@ -5268,12 +5191,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-28.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-29.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.3X5.glmnet.N
-## 1            N                                            1146
-## 2            Y                                              67
-##   Popular.fctr.predict.Max.cor.Y.rcv.3X5.glmnet.Y
-## 1                                             352
-## 2                                             163
 ##          Prediction
 ## Reference    N    Y
 ##         N 1146  352
@@ -5282,10 +5199,10 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##   7.575231e-01   3.107477e-01   7.365992e-01   7.775689e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   9.066396e-44 
-##                         id                            feats
-## 1 Max.cor.Y.rcv.3X5.glmnet WordCount.root2,NDSSName.my.fctr
+##                              id                            feats
+## 1 Max.cor.Y.rcv.3X5##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      6.419                 0.269
+## 1              25                      6.364                 0.272
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8767919     0.964476    0.7891078       0.9582555
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5300,7 +5217,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ## 1             0.7365992             0.7775689     0.3107477
 ##   max.AccuracySD.fit max.KappaSD.fit
 ## 1        0.005396525      0.01835474
-## [1] "fitting model: Max.cor.Y.rcv.5X1.glmnet"
+## [1] "fitting model: Max.cor.Y.rcv.5X1##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
 ## Aggregating results
 ## Selecting tuning parameters
@@ -5422,12 +5339,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-32.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-33.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.5X1.glmnet.N
-## 1            N                                            3800
-## 2            Y                                             179
-##   Popular.fctr.predict.Max.cor.Y.rcv.5X1.glmnet.Y
-## 1                                             141
-## 2                                             684
 ##          Prediction
 ## Reference    N    Y
 ##         N 3800  141
@@ -5441,12 +5352,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-34.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-35.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.5X1.glmnet.N
-## 1            N                                            1137
-## 2            Y                                              53
-##   Popular.fctr.predict.Max.cor.Y.rcv.5X1.glmnet.Y
-## 1                                             361
-## 2                                             177
 ##          Prediction
 ## Reference    N    Y
 ##         N 1137  361
@@ -5455,10 +5360,10 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##   7.604167e-01   3.373693e-01   7.395703e-01   7.803749e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   1.935747e-51 
-##                         id                            feats
-## 1 Max.cor.Y.rcv.5X1.glmnet WordCount.root2,NDSSName.my.fctr
+##                              id                            feats
+## 1 Max.cor.Y.rcv.5X1##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      3.223                 0.267
+## 1              25                      3.258                 0.269
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8784031    0.9642223     0.792584       0.9607052
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5473,7 +5378,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ## 1             0.7395703             0.7803749     0.3373693
 ##   max.AccuracySD.fit max.KappaSD.fit
 ## 1        0.008837283      0.03133449
-## [1] "fitting model: Max.cor.Y.rcv.5X3.glmnet"
+## [1] "fitting model: Max.cor.Y.rcv.5X3##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
 ## Aggregating results
 ## Selecting tuning parameters
@@ -5595,12 +5500,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-38.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-39.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.5X3.glmnet.N
-## 1            N                                            3800
-## 2            Y                                             179
-##   Popular.fctr.predict.Max.cor.Y.rcv.5X3.glmnet.Y
-## 1                                             141
-## 2                                             684
 ##          Prediction
 ## Reference    N    Y
 ##         N 3800  141
@@ -5614,12 +5513,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-40.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-41.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.5X3.glmnet.N
-## 1            N                                            1137
-## 2            Y                                              53
-##   Popular.fctr.predict.Max.cor.Y.rcv.5X3.glmnet.Y
-## 1                                             361
-## 2                                             177
 ##          Prediction
 ## Reference    N    Y
 ##         N 1137  361
@@ -5628,10 +5521,10 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##   7.604167e-01   3.373693e-01   7.395703e-01   7.803749e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   1.935747e-51 
-##                         id                            feats
-## 1 Max.cor.Y.rcv.5X3.glmnet WordCount.root2,NDSSName.my.fctr
+##                              id                            feats
+## 1 Max.cor.Y.rcv.5X3##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      6.142                 0.267
+## 1              25                      6.419                 0.268
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8784031    0.9642223     0.792584       0.9607052
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5646,7 +5539,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ## 1             0.7395703             0.7803749     0.3373693
 ##   max.AccuracySD.fit max.KappaSD.fit
 ## 1        0.006138477      0.02161286
-## [1] "fitting model: Max.cor.Y.rcv.5X5.glmnet"
+## [1] "fitting model: Max.cor.Y.rcv.5X5##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
 ## Aggregating results
 ## Selecting tuning parameters
@@ -5768,12 +5661,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-44.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-45.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.5X5.glmnet.N
-## 1            N                                            3800
-## 2            Y                                             179
-##   Popular.fctr.predict.Max.cor.Y.rcv.5X5.glmnet.Y
-## 1                                             141
-## 2                                             684
 ##          Prediction
 ## Reference    N    Y
 ##         N 3800  141
@@ -5787,12 +5674,6 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-46.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-47.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.5X5.glmnet.N
-## 1            N                                            1137
-## 2            Y                                              53
-##   Popular.fctr.predict.Max.cor.Y.rcv.5X5.glmnet.Y
-## 1                                             361
-## 2                                             177
 ##          Prediction
 ## Reference    N    Y
 ##         N 1137  361
@@ -5801,10 +5682,10 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##   7.604167e-01   3.373693e-01   7.395703e-01   7.803749e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   1.935747e-51 
-##                         id                            feats
-## 1 Max.cor.Y.rcv.5X5.glmnet WordCount.root2,NDSSName.my.fctr
+##                              id                            feats
+## 1 Max.cor.Y.rcv.5X5##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      8.908                 0.268
+## 1              25                      9.052                 0.266
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8784031    0.9642223     0.792584       0.9607052
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5844,7 +5725,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ```
 
 ```
-## [1] "fitting model: Max.cor.Y.rcv.1X1.cp.0.rpart"
+## [1] "fitting model: Max.cor.Y.rcv.1X1.cp.0###rpart"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
 ```
 
@@ -6615,12 +6496,6 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-50.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-51.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.1X1.cp.0.rpart.N
-## 1            N                                                3814
-## 2            Y                                                 170
-##   Popular.fctr.predict.Max.cor.Y.rcv.1X1.cp.0.rpart.Y
-## 1                                                 127
-## 2                                                 693
 ##          Prediction
 ## Reference    N    Y
 ##         N 3814  127
@@ -6634,12 +6509,6 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-52.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-53.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rcv.1X1.cp.0.rpart.N
-## 1            N                                                1180
-## 2            Y                                                  84
-##   Popular.fctr.predict.Max.cor.Y.rcv.1X1.cp.0.rpart.Y
-## 1                                                 318
-## 2                                                 146
 ##          Prediction
 ## Reference    N    Y
 ##         N 1180  318
@@ -6648,10 +6517,10 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ##   7.673611e-01   2.953321e-01   7.467059e-01   7.871043e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   3.224022e-31 
-##                             id                            feats
-## 1 Max.cor.Y.rcv.1X1.cp.0.rpart WordCount.root2,NDSSName.my.fctr
+##                               id                            feats
+## 1 Max.cor.Y.rcv.1X1.cp.0###rpart WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               0                      0.863                  0.07
+## 1               0                      0.866                  0.07
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8821543    0.9705658    0.7937428       0.9504198
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -6667,7 +6536,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ```
 
 ```r
-#stop(here"); glb_to_sav(); all.equal(glb_models_df, sav_models_df)
+#stop(here"); glb2Sav(); all.equal(glb_models_df, sav_models_df)
 # if (glb_is_regression || glb_is_binomial) # For multinomials this model will be run next by default
 ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
     id.prefix="Max.cor.Y", 
@@ -6684,7 +6553,7 @@ trainControl.allowParallel = FALSE,
 ```
 
 ```
-## [1] "fitting model: Max.cor.Y.rpart"
+## [1] "fitting model: Max.cor.Y##rcv#rpart"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
 ## + Fold1.Rep1: cp=0.01043 
 ## - Fold1.Rep1: cp=0.01043 
@@ -6833,12 +6702,6 @@ trainControl.allowParallel = FALSE,
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-56.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-57.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rpart.N
-## 1            N                                   3796
-## 2            Y                                    191
-##   Popular.fctr.predict.Max.cor.Y.rpart.Y
-## 1                                    145
-## 2                                    672
 ##          Prediction
 ## Reference    N    Y
 ##         N 3796  145
@@ -6852,12 +6715,6 @@ trainControl.allowParallel = FALSE,
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-58.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-59.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Max.cor.Y.rpart.N
-## 1            N                                   1355
-## 2            Y                                    168
-##   Popular.fctr.predict.Max.cor.Y.rpart.Y
-## 1                                    143
-## 2                                     62
 ##          Prediction
 ## Reference    N    Y
 ##         N 1355  143
@@ -6866,10 +6723,10 @@ trainControl.allowParallel = FALSE,
 ##      0.8200231      0.1825002      0.8010821      0.8378705      0.8668981 
 ## AccuracyPValue  McnemarPValue 
 ##      1.0000000      0.1735405 
-##                id                            feats max.nTuningRuns
-## 1 Max.cor.Y.rpart WordCount.root2,NDSSName.my.fctr               5
+##                     id                            feats max.nTuningRuns
+## 1 Max.cor.Y##rcv#rpart WordCount.root2,NDSSName.my.fctr               5
 ##   min.elapsedtime.everything min.elapsedtime.final max.AUCpROC.fit
-## 1                      2.882                 0.071       0.8709432
+## 1                      2.851                 0.075       0.8709432
 ##   max.Sens.fit max.Spec.fit max.AUCROCR.fit opt.prob.threshold.fit
 ## 1    0.9632073     0.778679       0.8746354                    0.6
 ##   max.f.score.fit max.Accuracy.fit max.AccuracyLower.fit
@@ -6893,7 +6750,7 @@ if (!is.null(glb_date_vars) &&
 #                                         ifelse(glb_is_binomial, "glm", "rpart")),
 #                      model_type=glb_model_type,
 #                         indep_vars_vctr=c(max_cor_y_x_vars, paste0(glb_date_vars, ".day.minutes")),
-#                         rsp_var=glb_rsp_var, rsp_var_out=glb_rsp_var_out,
+#                         rsp_var=glb_rsp_var,
 #                         fit_df=glbObsFit, OOB_df=glbObsOOB,
 #                         n_cv_folds=glb_rcv_n_folds, tune_models_df=NULL)
 # 
@@ -6904,7 +6761,7 @@ ret_lst <- myfit_mdl(mdl_id="Max.cor.Y.TmSrs.poly",
                         indep_vars_vctr=c(max_cor_y_x_vars, 
             grep(paste(glb_date_vars, "\\.day\\.minutes\\.poly\\.", sep=""),
                         names(glbObsAll), value=TRUE)),
-                        rsp_var=glb_rsp_var, rsp_var_out=glb_rsp_var_out,
+                        rsp_var=glb_rsp_var,
                         fit_df=glbObsFit, OOB_df=glbObsOOB,
                         n_cv_folds=glb_rcv_n_folds, tune_models_df=NULL)
 }
@@ -6928,7 +6785,7 @@ if (length(int_feats <- setdiff(setdiff(unique(glb_feats_df$cor.high.X), NA),
 ```
 
 ```
-## [1] "fitting model: Interact.High.cor.Y.glmnet"
+## [1] "fitting model: Interact.High.cor.Y##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2"
 ## Aggregating results
 ## Selecting tuning parameters
@@ -7028,12 +6885,6 @@ if (length(int_feats <- setdiff(setdiff(unique(glb_feats_df$cor.high.X), NA),
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-62.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-63.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Interact.High.cor.Y.glmnet.N
-## 1            N                                              3796
-## 2            Y                                               177
-##   Popular.fctr.predict.Interact.High.cor.Y.glmnet.Y
-## 1                                               145
-## 2                                               686
 ##          Prediction
 ## Reference    N    Y
 ##         N 3796  145
@@ -7047,12 +6898,6 @@ if (length(int_feats <- setdiff(setdiff(unique(glb_feats_df$cor.high.X), NA),
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-64.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-65.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Interact.High.cor.Y.glmnet.N
-## 1            N                                              1146
-## 2            Y                                                67
-##   Popular.fctr.predict.Interact.High.cor.Y.glmnet.Y
-## 1                                               352
-## 2                                               163
 ##          Prediction
 ## Reference    N    Y
 ##         N 1146  352
@@ -7061,12 +6906,12 @@ if (length(int_feats <- setdiff(setdiff(unique(glb_feats_df$cor.high.X), NA),
 ##   7.575231e-01   3.107477e-01   7.365992e-01   7.775689e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   9.066396e-44 
-##                           id
-## 1 Interact.High.cor.Y.glmnet
+##                                id
+## 1 Interact.High.cor.Y##rcv#glmnet
 ##                                                              feats
 ## 1 WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      4.395                  0.27
+## 1              25                      4.407                  0.27
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8767919     0.964476    0.7891078       0.9582555
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -7106,7 +6951,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ```
 
 ```
-## [1] "fitting model: Low.cor.X.glmnet"
+## [1] "fitting model: Low.cor.X##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr,.rnorm,WordCount.nexp"
 ## Aggregating results
 ## Selecting tuning parameters
@@ -7206,12 +7051,6 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-68.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-69.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Low.cor.X.glmnet.N
-## 1            N                                    3796
-## 2            Y                                     177
-##   Popular.fctr.predict.Low.cor.X.glmnet.Y
-## 1                                     145
-## 2                                     686
 ##          Prediction
 ## Reference    N    Y
 ##         N 3796  145
@@ -7225,12 +7064,6 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ![](NYTBlogs3_base_files/figure-html/fit.models_0-70.png) ![](NYTBlogs3_base_files/figure-html/fit.models_0-71.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Low.cor.X.glmnet.N
-## 1            N                                    1146
-## 2            Y                                      67
-##   Popular.fctr.predict.Low.cor.X.glmnet.Y
-## 1                                     352
-## 2                                     163
 ##          Prediction
 ## Reference    N    Y
 ##         N 1146  352
@@ -7239,24 +7072,24 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ##   7.575231e-01   3.107477e-01   7.365992e-01   7.775689e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   9.066396e-44 
-##                 id                                                  feats
-## 1 Low.cor.X.glmnet WordCount.root2,NDSSName.my.fctr,.rnorm,WordCount.nexp
-##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      4.549                 0.293
-##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8767919     0.964476    0.7891078       0.9582555
-##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.4       0.8099174        0.9333193
-##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9255302             0.9398832     0.7690803
-##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5962443    0.9098798    0.2826087       0.8067975
-##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4375839        0.7575231
-##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7365992             0.7775689     0.3107477
-##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.005178375      0.01754365
+##                      id
+## 1 Low.cor.X##rcv#glmnet
+##                                                    feats max.nTuningRuns
+## 1 WordCount.root2,NDSSName.my.fctr,.rnorm,WordCount.nexp              25
+##   min.elapsedtime.everything min.elapsedtime.final max.AUCpROC.fit
+## 1                      5.416                 0.291       0.8767919
+##   max.Sens.fit max.Spec.fit max.AUCROCR.fit opt.prob.threshold.fit
+## 1     0.964476    0.7891078       0.9582555                    0.4
+##   max.f.score.fit max.Accuracy.fit max.AccuracyLower.fit
+## 1       0.8099174        0.9333193             0.9255302
+##   max.AccuracyUpper.fit max.Kappa.fit max.AUCpROC.OOB max.Sens.OOB
+## 1             0.9398832     0.7690803       0.5962443    0.9098798
+##   max.Spec.OOB max.AUCROCR.OOB opt.prob.threshold.OOB max.f.score.OOB
+## 1    0.2826087       0.8067975                    0.1       0.4375839
+##   max.Accuracy.OOB max.AccuracyLower.OOB max.AccuracyUpper.OOB
+## 1        0.7575231             0.7365992             0.7775689
+##   max.Kappa.OOB max.AccuracySD.fit max.KappaSD.fit
+## 1     0.3107477        0.005178375      0.01754365
 ```
 
 ```r
@@ -7266,9 +7099,9 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc=FALSE)
 ```
 
 ```
-##         label step_major step_minor label_minor     bgn    end elapsed
-## 10 fit.models          6          0           0  35.238 139.59 104.352
-## 11 fit.models          6          1           1 139.591     NA      NA
+##         label step_major step_minor label_minor     bgn     end elapsed
+## 10 fit.models          6          0           0  35.523 150.047 114.525
+## 11 fit.models          6          1           1 150.048      NA      NA
 ```
 
 
@@ -7278,11 +7111,11 @@ fit.models_1_chunk_df <- myadd_chunk(NULL, "fit.models_1_bgn", label.minor="setu
 
 ```
 ##              label step_major step_minor label_minor     bgn end elapsed
-## 1 fit.models_1_bgn          1          0       setup 151.043  NA      NA
+## 1 fit.models_1_bgn          1          0       setup 161.225  NA      NA
 ```
 
 ```r
-#stop(here"); glb_to_sav(); all.equal(glb_models_df, sav_models_df)
+#stop(here"); glb2Sav(); all.equal(glb_models_df, sav_models_df)
 topindep_var <- NULL; interact_vars <- NULL;
 for (mdl_id_pfx in names(glb_mdl_family_lst)) {
     fit.models_1_chunk_df <- 
@@ -7425,10 +7258,10 @@ for (mdl_id_pfx in names(glb_mdl_family_lst)) {
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 1   fit.models_1_bgn          1          0       setup 151.043 151.052
-## 2 fit.models_1_All.X          1          1       setup 151.052      NA
+## 1   fit.models_1_bgn          1          0       setup 161.225 161.235
+## 2 fit.models_1_All.X          1          1       setup 161.235      NA
 ##   elapsed
-## 1   0.009
+## 1    0.01
 ## 2      NA
 ```
 
@@ -7439,12 +7272,12 @@ for (mdl_id_pfx in names(glb_mdl_family_lst)) {
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 2 fit.models_1_All.X          1          1       setup 151.052 151.059
-## 3 fit.models_1_All.X          1          2      glmnet 151.060      NA
+## 2 fit.models_1_All.X          1          1       setup 161.235 161.241
+## 3 fit.models_1_All.X          1          2      glmnet 161.242      NA
 ##   elapsed
-## 2   0.007
+## 2   0.006
 ## 3      NA
-## [1] "fitting model: All.X.glmnet"
+## [1] "fitting model: All.X##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp"
 ## Aggregating results
 ## Selecting tuning parameters
@@ -7560,12 +7393,6 @@ for (mdl_id_pfx in names(glb_mdl_family_lst)) {
 ![](NYTBlogs3_base_files/figure-html/fit.models_1-3.png) ![](NYTBlogs3_base_files/figure-html/fit.models_1-4.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.All.X.glmnet.N
-## 1            N                                3793
-## 2            Y                                 176
-##   Popular.fctr.predict.All.X.glmnet.Y
-## 1                                 148
-## 2                                 687
 ##          Prediction
 ## Reference    N    Y
 ##         N 3793  148
@@ -7579,12 +7406,6 @@ for (mdl_id_pfx in names(glb_mdl_family_lst)) {
 ![](NYTBlogs3_base_files/figure-html/fit.models_1-5.png) ![](NYTBlogs3_base_files/figure-html/fit.models_1-6.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.All.X.glmnet.N
-## 1            N                                1176
-## 2            Y                                  77
-##   Popular.fctr.predict.All.X.glmnet.Y
-## 1                                 322
-## 2                                 153
 ##          Prediction
 ## Reference    N    Y
 ##         N 1176  322
@@ -7593,12 +7414,12 @@ for (mdl_id_pfx in names(glb_mdl_family_lst)) {
 ##   7.690972e-01   3.103487e-01   7.484910e-01   7.887855e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   2.576173e-34 
-##             id
-## 1 All.X.glmnet
+##                  id
+## 1 All.X##rcv#glmnet
 ##                                                                    feats
 ## 1 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      4.817                 0.294
+## 1              25                      4.837                 0.289
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8771175    0.9639685    0.7902665       0.9589072
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -7623,11 +7444,11 @@ fit.models_1_chunk_df <-
 ```
 
 ```
-##                  label step_major step_minor label_minor     bgn     end
-## 3   fit.models_1_All.X          1          2      glmnet 151.060 161.253
-## 4 fit.models_1_preProc          1          3     preProc 161.253      NA
+##                  label step_major step_minor label_minor     bgn    end
+## 3   fit.models_1_All.X          1          2      glmnet 161.242 171.91
+## 4 fit.models_1_preProc          1          3     preProc 171.911     NA
 ##   elapsed
-## 3  10.193
+## 3  10.668
 ## 4      NA
 ```
 
@@ -7690,7 +7511,7 @@ for (prePr in glb_preproc_methods) {
 #         ret_lst <- myfit_mdl(mdl_id=paste0(mdl_id_pfx, ".cp.0"), model_method=method,
 #                                 indep_vars_vctr=indep_vars_vctr,
 #                                 model_type=glb_model_type,
-#                                 rsp_var=glb_rsp_var, rsp_var_out=glb_rsp_var_out,
+#                                 rsp_var=glb_rsp_var,
 #                                 fit_df=glbObsFit, OOB_df=glbObsOOB,        
 #             n_cv_folds=0, tune_models_df=data.frame(parameter="cp", min=0.0, max=0.0, by=0.1))
 
@@ -7725,7 +7546,7 @@ for (prePr in glb_preproc_methods) {
 #     ret_lst <- myfit_mdl(mdl_id=mdl_id, model_method=method,
 #                                 indep_vars_vctr=indep_vars_vctr,
 #                                 model_type=glb_model_type,
-#                                 rsp_var=glb_rsp_var, rsp_var_out=glb_rsp_var_out,
+#                                 rsp_var=glb_rsp_var,
 #                                 fit_df=glbObsFit, OOB_df=glbObsOOB,
 #                     n_cv_folds=glb_rcv_n_folds, tune_models_df=glb_tune_models_df)
 #     csm_mdl_id <- paste0(mdl_id, ".", method)
@@ -7762,7 +7583,7 @@ for (prePr in glb_preproc_methods) {
     
 #     ret_lst <- myfit_mdl_fn(mdl_id=paste0(mdl_id_pfx, ""), model_method=method,
 #                             indep_vars_vctr=indep_vars_vctr,
-#                             rsp_var=glb_rsp_var, rsp_var_out=glb_rsp_var_out,
+#                             rsp_var=glb_rsp_var,
 #                             fit_df=glbObsFit, OOB_df=glbObsOOB,
 #                             n_cv_folds=glb_rcv_n_folds, tune_models_df=glb_tune_models_df,
 #                             model_loss_mtrx=glbMdlMetric_terms,
@@ -7785,216 +7606,216 @@ print(glb_models_df)
 ```
 
 ```
-##                                                        id
-## MFO.myMFO_classfr                       MFO.myMFO_classfr
-## Random.myrandom_classfr           Random.myrandom_classfr
-## Max.cor.Y.rcv.1X1.glmnet         Max.cor.Y.rcv.1X1.glmnet
-## Max.cor.Y.rcv.3X1.glmnet         Max.cor.Y.rcv.3X1.glmnet
-## Max.cor.Y.rcv.3X3.glmnet         Max.cor.Y.rcv.3X3.glmnet
-## Max.cor.Y.rcv.3X5.glmnet         Max.cor.Y.rcv.3X5.glmnet
-## Max.cor.Y.rcv.5X1.glmnet         Max.cor.Y.rcv.5X1.glmnet
-## Max.cor.Y.rcv.5X3.glmnet         Max.cor.Y.rcv.5X3.glmnet
-## Max.cor.Y.rcv.5X5.glmnet         Max.cor.Y.rcv.5X5.glmnet
-## Max.cor.Y.rcv.1X1.cp.0.rpart Max.cor.Y.rcv.1X1.cp.0.rpart
-## Max.cor.Y.rpart                           Max.cor.Y.rpart
-## Interact.High.cor.Y.glmnet     Interact.High.cor.Y.glmnet
-## Low.cor.X.glmnet                         Low.cor.X.glmnet
-## All.X.glmnet                                 All.X.glmnet
-##                                                                                               feats
-## MFO.myMFO_classfr                                                                            .rnorm
-## Random.myrandom_classfr                                                                      .rnorm
-## Max.cor.Y.rcv.1X1.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X1.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X3.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X5.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X1.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X3.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X5.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.1X1.cp.0.rpart                                       WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rpart                                                    WordCount.root2,NDSSName.my.fctr
-## Interact.High.cor.Y.glmnet         WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2
-## Low.cor.X.glmnet                             WordCount.root2,NDSSName.my.fctr,.rnorm,WordCount.nexp
-## All.X.glmnet                 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
-##                              max.nTuningRuns min.elapsedtime.everything
-## MFO.myMFO_classfr                          0                      0.269
-## Random.myrandom_classfr                    0                      0.269
-## Max.cor.Y.rcv.1X1.glmnet                   0                      0.972
-## Max.cor.Y.rcv.3X1.glmnet                  25                      2.826
-## Max.cor.Y.rcv.3X3.glmnet                  25                      4.817
-## Max.cor.Y.rcv.3X5.glmnet                  25                      6.419
-## Max.cor.Y.rcv.5X1.glmnet                  25                      3.223
-## Max.cor.Y.rcv.5X3.glmnet                  25                      6.142
-## Max.cor.Y.rcv.5X5.glmnet                  25                      8.908
-## Max.cor.Y.rcv.1X1.cp.0.rpart               0                      0.863
-## Max.cor.Y.rpart                            5                      2.882
-## Interact.High.cor.Y.glmnet                25                      4.395
-## Low.cor.X.glmnet                          25                      4.549
-## All.X.glmnet                              25                      4.817
-##                              min.elapsedtime.final max.AUCpROC.fit
-## MFO.myMFO_classfr                            0.003       0.5000000
-## Random.myrandom_classfr                      0.001       0.4990604
-## Max.cor.Y.rcv.1X1.glmnet                     0.273       0.8790544
-## Max.cor.Y.rcv.3X1.glmnet                     0.270       0.8767919
-## Max.cor.Y.rcv.3X3.glmnet                     0.270       0.8767919
-## Max.cor.Y.rcv.3X5.glmnet                     0.269       0.8767919
-## Max.cor.Y.rcv.5X1.glmnet                     0.267       0.8784031
-## Max.cor.Y.rcv.5X3.glmnet                     0.267       0.8784031
-## Max.cor.Y.rcv.5X5.glmnet                     0.268       0.8784031
-## Max.cor.Y.rcv.1X1.cp.0.rpart                 0.070       0.8821543
-## Max.cor.Y.rpart                              0.071       0.8709432
-## Interact.High.cor.Y.glmnet                   0.270       0.8767919
-## Low.cor.X.glmnet                             0.293       0.8767919
-## All.X.glmnet                                 0.294       0.8771175
-##                              max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## MFO.myMFO_classfr               1.0000000    0.0000000       0.5000000
-## Random.myrandom_classfr         0.8312611    0.1668598       0.4972757
-## Max.cor.Y.rcv.1X1.glmnet        0.9632073    0.7949015       0.9608594
-## Max.cor.Y.rcv.3X1.glmnet        0.9644760    0.7891078       0.9582555
-## Max.cor.Y.rcv.3X3.glmnet        0.9644760    0.7891078       0.9582555
-## Max.cor.Y.rcv.3X5.glmnet        0.9644760    0.7891078       0.9582555
-## Max.cor.Y.rcv.5X1.glmnet        0.9642223    0.7925840       0.9607052
-## Max.cor.Y.rcv.5X3.glmnet        0.9642223    0.7925840       0.9607052
-## Max.cor.Y.rcv.5X5.glmnet        0.9642223    0.7925840       0.9607052
-## Max.cor.Y.rcv.1X1.cp.0.rpart    0.9705658    0.7937428       0.9504198
-## Max.cor.Y.rpart                 0.9632073    0.7786790       0.8746354
-## Interact.High.cor.Y.glmnet      0.9644760    0.7891078       0.9582555
-## Low.cor.X.glmnet                0.9644760    0.7891078       0.9582555
-## All.X.glmnet                    0.9639685    0.7902665       0.9589072
-##                              opt.prob.threshold.fit max.f.score.fit
-## MFO.myMFO_classfr                               0.1       0.3045703
-## Random.myrandom_classfr                         0.1       0.3045703
-## Max.cor.Y.rcv.1X1.glmnet                        0.5       0.8099174
-## Max.cor.Y.rcv.3X1.glmnet                        0.4       0.8099174
-## Max.cor.Y.rcv.3X3.glmnet                        0.4       0.8099174
-## Max.cor.Y.rcv.3X5.glmnet                        0.4       0.8099174
-## Max.cor.Y.rcv.5X1.glmnet                        0.5       0.8104265
-## Max.cor.Y.rcv.5X3.glmnet                        0.5       0.8104265
-## Max.cor.Y.rcv.5X5.glmnet                        0.5       0.8104265
-## Max.cor.Y.rcv.1X1.cp.0.rpart                    0.4       0.8235294
-## Max.cor.Y.rpart                                 0.6       0.8000000
-## Interact.High.cor.Y.glmnet                      0.4       0.8099174
-## Low.cor.X.glmnet                                0.4       0.8099174
-## All.X.glmnet                                    0.4       0.8091873
-##                              max.Accuracy.fit max.AccuracyLower.fit
-## MFO.myMFO_classfr                   0.1796420             0.1688795
-## Random.myrandom_classfr             0.1796420             0.1688795
-## Max.cor.Y.rcv.1X1.glmnet            0.9329725             0.9255302
-## Max.cor.Y.rcv.3X1.glmnet            0.9335973             0.9255302
-## Max.cor.Y.rcv.3X3.glmnet            0.9333193             0.9255302
-## Max.cor.Y.rcv.3X5.glmnet            0.9332218             0.9255302
-## Max.cor.Y.rcv.5X1.glmnet            0.9331818             0.9259666
-## Max.cor.Y.rcv.5X3.glmnet            0.9333905             0.9259666
-## Max.cor.Y.rcv.5X5.glmnet            0.9331816             0.9259666
-## Max.cor.Y.rcv.1X1.cp.0.rpart        0.9381765             0.9309917
-## Max.cor.Y.rpart                     0.9296422             0.9224771
-## Interact.High.cor.Y.glmnet          0.9333193             0.9255302
-## Low.cor.X.glmnet                    0.9333193             0.9255302
-## All.X.glmnet                        0.9326952             0.9250938
-##                              max.AccuracyUpper.fit max.Kappa.fit
-## MFO.myMFO_classfr                        0.1907952     0.0000000
-## Random.myrandom_classfr                  0.1907952     0.0000000
-## Max.cor.Y.rcv.1X1.glmnet                 0.9398832     0.7692476
-## Max.cor.Y.rcv.3X1.glmnet                 0.9398832     0.7691678
-## Max.cor.Y.rcv.3X3.glmnet                 0.9398832     0.7690803
-## Max.cor.Y.rcv.3X5.glmnet                 0.9398832     0.7686375
-## Max.cor.Y.rcv.5X1.glmnet                 0.9402789     0.7689055
-## Max.cor.Y.rcv.5X3.glmnet                 0.9402789     0.7698577
-## Max.cor.Y.rcv.5X5.glmnet                 0.9402789     0.7691429
-## Max.cor.Y.rcv.1X1.cp.0.rpart             0.9448229     0.7860827
-## Max.cor.Y.rpart                          0.9371115     0.7515134
-## Interact.High.cor.Y.glmnet               0.9398832     0.7690803
-## Low.cor.X.glmnet                         0.9398832     0.7690803
-## All.X.glmnet                             0.9394875     0.7668828
-##                              max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB
-## MFO.myMFO_classfr                  0.5000000    1.0000000    0.0000000
-## Random.myrandom_classfr            0.5125675    0.8077437    0.2173913
-## Max.cor.Y.rcv.1X1.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X1.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X3.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X5.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X1.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X3.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X5.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.1X1.cp.0.rpart       0.6174697    0.9218959    0.3130435
-## Max.cor.Y.rpart                    0.5870523    0.9045394    0.2695652
-## Interact.High.cor.Y.glmnet         0.5962443    0.9098798    0.2826087
-## Low.cor.X.glmnet                   0.5962443    0.9098798    0.2826087
-## All.X.glmnet                       0.5965780    0.9105474    0.2826087
-##                              max.AUCROCR.OOB opt.prob.threshold.OOB
-## MFO.myMFO_classfr                  0.5000000                    0.1
-## Random.myrandom_classfr            0.4857956                    0.1
-## Max.cor.Y.rcv.1X1.glmnet           0.8116126                    0.1
-## Max.cor.Y.rcv.3X1.glmnet           0.8067975                    0.1
-## Max.cor.Y.rcv.3X3.glmnet           0.8067975                    0.1
-## Max.cor.Y.rcv.3X5.glmnet           0.8067975                    0.1
-## Max.cor.Y.rcv.5X1.glmnet           0.8114863                    0.1
-## Max.cor.Y.rcv.5X3.glmnet           0.8114863                    0.1
-## Max.cor.Y.rcv.5X5.glmnet           0.8114863                    0.1
-## Max.cor.Y.rcv.1X1.cp.0.rpart       0.7773858                    0.1
-## Max.cor.Y.rpart                    0.5892132                    0.6
-## Interact.High.cor.Y.glmnet         0.8067975                    0.1
-## Low.cor.X.glmnet                   0.8067975                    0.1
-## All.X.glmnet                       0.8061009                    0.1
-##                              max.f.score.OOB max.Accuracy.OOB
-## MFO.myMFO_classfr                  0.2349336        0.1331019
-## Random.myrandom_classfr            0.2349336        0.1331019
-## Max.cor.Y.rcv.1X1.glmnet           0.4405405        0.7604167
-## Max.cor.Y.rcv.3X1.glmnet           0.4375839        0.7575231
-## Max.cor.Y.rcv.3X3.glmnet           0.4375839        0.7575231
-## Max.cor.Y.rcv.3X5.glmnet           0.4375839        0.7575231
-## Max.cor.Y.rcv.5X1.glmnet           0.4609375        0.7604167
-## Max.cor.Y.rcv.5X3.glmnet           0.4609375        0.7604167
-## Max.cor.Y.rcv.5X5.glmnet           0.4609375        0.7604167
-## Max.cor.Y.rcv.1X1.cp.0.rpart       0.4207493        0.7673611
-## Max.cor.Y.rpart                    0.2850575        0.8200231
-## Interact.High.cor.Y.glmnet         0.4375839        0.7575231
-## Low.cor.X.glmnet                   0.4375839        0.7575231
-## All.X.glmnet                       0.4340426        0.7690972
-##                              max.AccuracyLower.OOB max.AccuracyUpper.OOB
-## MFO.myMFO_classfr                        0.1174298             0.1500310
-## Random.myrandom_classfr                  0.1174298             0.1500310
-## Max.cor.Y.rcv.1X1.glmnet                 0.7395703             0.7803749
-## Max.cor.Y.rcv.3X1.glmnet                 0.7365992             0.7775689
-## Max.cor.Y.rcv.3X3.glmnet                 0.7365992             0.7775689
-## Max.cor.Y.rcv.3X5.glmnet                 0.7365992             0.7775689
-## Max.cor.Y.rcv.5X1.glmnet                 0.7395703             0.7803749
-## Max.cor.Y.rcv.5X3.glmnet                 0.7395703             0.7803749
-## Max.cor.Y.rcv.5X5.glmnet                 0.7395703             0.7803749
-## Max.cor.Y.rcv.1X1.cp.0.rpart             0.7467059             0.7871043
-## Max.cor.Y.rpart                          0.8010821             0.8378705
-## Interact.High.cor.Y.glmnet               0.7365992             0.7775689
-## Low.cor.X.glmnet                         0.7365992             0.7775689
-## All.X.glmnet                             0.7484910             0.7887855
-##                              max.Kappa.OOB max.AccuracySD.fit
-## MFO.myMFO_classfr                0.0000000                 NA
-## Random.myrandom_classfr          0.0000000                 NA
-## Max.cor.Y.rcv.1X1.glmnet         0.3148374                 NA
-## Max.cor.Y.rcv.3X1.glmnet         0.3107477        0.007015493
-## Max.cor.Y.rcv.3X3.glmnet         0.3107477        0.005178375
-## Max.cor.Y.rcv.3X5.glmnet         0.3107477        0.005396525
-## Max.cor.Y.rcv.5X1.glmnet         0.3373693        0.008837283
-## Max.cor.Y.rcv.5X3.glmnet         0.3373693        0.006138477
-## Max.cor.Y.rcv.5X5.glmnet         0.3373693        0.006213800
-## Max.cor.Y.rcv.1X1.cp.0.rpart     0.2953321                 NA
-## Max.cor.Y.rpart                  0.1825002        0.005069520
-## Interact.High.cor.Y.glmnet       0.3107477        0.005178375
-## Low.cor.X.glmnet                 0.3107477        0.005178375
-## All.X.glmnet                     0.3103487        0.004892081
-##                              max.KappaSD.fit
-## MFO.myMFO_classfr                         NA
-## Random.myrandom_classfr                   NA
-## Max.cor.Y.rcv.1X1.glmnet                  NA
-## Max.cor.Y.rcv.3X1.glmnet          0.02403706
-## Max.cor.Y.rcv.3X3.glmnet          0.01754365
-## Max.cor.Y.rcv.3X5.glmnet          0.01835474
-## Max.cor.Y.rcv.5X1.glmnet          0.03133449
-## Max.cor.Y.rcv.5X3.glmnet          0.02161286
-## Max.cor.Y.rcv.5X5.glmnet          0.02210061
-## Max.cor.Y.rcv.1X1.cp.0.rpart              NA
-## Max.cor.Y.rpart                   0.01910910
-## Interact.High.cor.Y.glmnet        0.01754365
-## Low.cor.X.glmnet                  0.01754365
-## All.X.glmnet                      0.01659075
+##                                                              id
+## MFO###myMFO_classfr                         MFO###myMFO_classfr
+## Random###myrandom_classfr             Random###myrandom_classfr
+## Max.cor.Y.rcv.1X1###glmnet           Max.cor.Y.rcv.1X1###glmnet
+## Max.cor.Y.rcv.3X1##rcv#glmnet     Max.cor.Y.rcv.3X1##rcv#glmnet
+## Max.cor.Y.rcv.3X3##rcv#glmnet     Max.cor.Y.rcv.3X3##rcv#glmnet
+## Max.cor.Y.rcv.3X5##rcv#glmnet     Max.cor.Y.rcv.3X5##rcv#glmnet
+## Max.cor.Y.rcv.5X1##rcv#glmnet     Max.cor.Y.rcv.5X1##rcv#glmnet
+## Max.cor.Y.rcv.5X3##rcv#glmnet     Max.cor.Y.rcv.5X3##rcv#glmnet
+## Max.cor.Y.rcv.5X5##rcv#glmnet     Max.cor.Y.rcv.5X5##rcv#glmnet
+## Max.cor.Y.rcv.1X1.cp.0###rpart   Max.cor.Y.rcv.1X1.cp.0###rpart
+## Max.cor.Y##rcv#rpart                       Max.cor.Y##rcv#rpart
+## Interact.High.cor.Y##rcv#glmnet Interact.High.cor.Y##rcv#glmnet
+## Low.cor.X##rcv#glmnet                     Low.cor.X##rcv#glmnet
+## All.X##rcv#glmnet                             All.X##rcv#glmnet
+##                                                                                                  feats
+## MFO###myMFO_classfr                                                                             .rnorm
+## Random###myrandom_classfr                                                                       .rnorm
+## Max.cor.Y.rcv.1X1###glmnet                                            WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.3X1##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.3X3##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.3X5##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.5X1##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.5X3##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.5X5##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.1X1.cp.0###rpart                                        WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y##rcv#rpart                                                  WordCount.root2,NDSSName.my.fctr
+## Interact.High.cor.Y##rcv#glmnet       WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2
+## Low.cor.X##rcv#glmnet                           WordCount.root2,NDSSName.my.fctr,.rnorm,WordCount.nexp
+## All.X##rcv#glmnet               WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
+##                                 max.nTuningRuns min.elapsedtime.everything
+## MFO###myMFO_classfr                           0                      0.271
+## Random###myrandom_classfr                     0                      0.274
+## Max.cor.Y.rcv.1X1###glmnet                    0                      0.987
+## Max.cor.Y.rcv.3X1##rcv#glmnet                25                      3.404
+## Max.cor.Y.rcv.3X3##rcv#glmnet                25                      4.879
+## Max.cor.Y.rcv.3X5##rcv#glmnet                25                      6.364
+## Max.cor.Y.rcv.5X1##rcv#glmnet                25                      3.258
+## Max.cor.Y.rcv.5X3##rcv#glmnet                25                      6.419
+## Max.cor.Y.rcv.5X5##rcv#glmnet                25                      9.052
+## Max.cor.Y.rcv.1X1.cp.0###rpart                0                      0.866
+## Max.cor.Y##rcv#rpart                          5                      2.851
+## Interact.High.cor.Y##rcv#glmnet              25                      4.407
+## Low.cor.X##rcv#glmnet                        25                      5.416
+## All.X##rcv#glmnet                            25                      4.837
+##                                 min.elapsedtime.final max.AUCpROC.fit
+## MFO###myMFO_classfr                             0.003       0.5000000
+## Random###myrandom_classfr                       0.002       0.4990604
+## Max.cor.Y.rcv.1X1###glmnet                      0.273       0.8790544
+## Max.cor.Y.rcv.3X1##rcv#glmnet                   0.273       0.8767919
+## Max.cor.Y.rcv.3X3##rcv#glmnet                   0.277       0.8767919
+## Max.cor.Y.rcv.3X5##rcv#glmnet                   0.272       0.8767919
+## Max.cor.Y.rcv.5X1##rcv#glmnet                   0.269       0.8784031
+## Max.cor.Y.rcv.5X3##rcv#glmnet                   0.268       0.8784031
+## Max.cor.Y.rcv.5X5##rcv#glmnet                   0.266       0.8784031
+## Max.cor.Y.rcv.1X1.cp.0###rpart                  0.070       0.8821543
+## Max.cor.Y##rcv#rpart                            0.075       0.8709432
+## Interact.High.cor.Y##rcv#glmnet                 0.270       0.8767919
+## Low.cor.X##rcv#glmnet                           0.291       0.8767919
+## All.X##rcv#glmnet                               0.289       0.8771175
+##                                 max.Sens.fit max.Spec.fit max.AUCROCR.fit
+## MFO###myMFO_classfr                1.0000000    0.0000000       0.5000000
+## Random###myrandom_classfr          0.8312611    0.1668598       0.4972757
+## Max.cor.Y.rcv.1X1###glmnet         0.9632073    0.7949015       0.9608594
+## Max.cor.Y.rcv.3X1##rcv#glmnet      0.9644760    0.7891078       0.9582555
+## Max.cor.Y.rcv.3X3##rcv#glmnet      0.9644760    0.7891078       0.9582555
+## Max.cor.Y.rcv.3X5##rcv#glmnet      0.9644760    0.7891078       0.9582555
+## Max.cor.Y.rcv.5X1##rcv#glmnet      0.9642223    0.7925840       0.9607052
+## Max.cor.Y.rcv.5X3##rcv#glmnet      0.9642223    0.7925840       0.9607052
+## Max.cor.Y.rcv.5X5##rcv#glmnet      0.9642223    0.7925840       0.9607052
+## Max.cor.Y.rcv.1X1.cp.0###rpart     0.9705658    0.7937428       0.9504198
+## Max.cor.Y##rcv#rpart               0.9632073    0.7786790       0.8746354
+## Interact.High.cor.Y##rcv#glmnet    0.9644760    0.7891078       0.9582555
+## Low.cor.X##rcv#glmnet              0.9644760    0.7891078       0.9582555
+## All.X##rcv#glmnet                  0.9639685    0.7902665       0.9589072
+##                                 opt.prob.threshold.fit max.f.score.fit
+## MFO###myMFO_classfr                                0.1       0.3045703
+## Random###myrandom_classfr                          0.1       0.3045703
+## Max.cor.Y.rcv.1X1###glmnet                         0.5       0.8099174
+## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.4       0.8099174
+## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.4       0.8099174
+## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.4       0.8099174
+## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.5       0.8104265
+## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.5       0.8104265
+## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.5       0.8104265
+## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.4       0.8235294
+## Max.cor.Y##rcv#rpart                               0.6       0.8000000
+## Interact.High.cor.Y##rcv#glmnet                    0.4       0.8099174
+## Low.cor.X##rcv#glmnet                              0.4       0.8099174
+## All.X##rcv#glmnet                                  0.4       0.8091873
+##                                 max.Accuracy.fit max.AccuracyLower.fit
+## MFO###myMFO_classfr                    0.1796420             0.1688795
+## Random###myrandom_classfr              0.1796420             0.1688795
+## Max.cor.Y.rcv.1X1###glmnet             0.9329725             0.9255302
+## Max.cor.Y.rcv.3X1##rcv#glmnet          0.9335973             0.9255302
+## Max.cor.Y.rcv.3X3##rcv#glmnet          0.9333193             0.9255302
+## Max.cor.Y.rcv.3X5##rcv#glmnet          0.9332218             0.9255302
+## Max.cor.Y.rcv.5X1##rcv#glmnet          0.9331818             0.9259666
+## Max.cor.Y.rcv.5X3##rcv#glmnet          0.9333905             0.9259666
+## Max.cor.Y.rcv.5X5##rcv#glmnet          0.9331816             0.9259666
+## Max.cor.Y.rcv.1X1.cp.0###rpart         0.9381765             0.9309917
+## Max.cor.Y##rcv#rpart                   0.9296422             0.9224771
+## Interact.High.cor.Y##rcv#glmnet        0.9333193             0.9255302
+## Low.cor.X##rcv#glmnet                  0.9333193             0.9255302
+## All.X##rcv#glmnet                      0.9326952             0.9250938
+##                                 max.AccuracyUpper.fit max.Kappa.fit
+## MFO###myMFO_classfr                         0.1907952     0.0000000
+## Random###myrandom_classfr                   0.1907952     0.0000000
+## Max.cor.Y.rcv.1X1###glmnet                  0.9398832     0.7692476
+## Max.cor.Y.rcv.3X1##rcv#glmnet               0.9398832     0.7691678
+## Max.cor.Y.rcv.3X3##rcv#glmnet               0.9398832     0.7690803
+## Max.cor.Y.rcv.3X5##rcv#glmnet               0.9398832     0.7686375
+## Max.cor.Y.rcv.5X1##rcv#glmnet               0.9402789     0.7689055
+## Max.cor.Y.rcv.5X3##rcv#glmnet               0.9402789     0.7698577
+## Max.cor.Y.rcv.5X5##rcv#glmnet               0.9402789     0.7691429
+## Max.cor.Y.rcv.1X1.cp.0###rpart              0.9448229     0.7860827
+## Max.cor.Y##rcv#rpart                        0.9371115     0.7515134
+## Interact.High.cor.Y##rcv#glmnet             0.9398832     0.7690803
+## Low.cor.X##rcv#glmnet                       0.9398832     0.7690803
+## All.X##rcv#glmnet                           0.9394875     0.7668828
+##                                 max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB
+## MFO###myMFO_classfr                   0.5000000    1.0000000    0.0000000
+## Random###myrandom_classfr             0.5125675    0.8077437    0.2173913
+## Max.cor.Y.rcv.1X1###glmnet            0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.3X1##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.3X3##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.3X5##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.5X1##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.5X3##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.5X5##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.1X1.cp.0###rpart        0.6174697    0.9218959    0.3130435
+## Max.cor.Y##rcv#rpart                  0.5870523    0.9045394    0.2695652
+## Interact.High.cor.Y##rcv#glmnet       0.5962443    0.9098798    0.2826087
+## Low.cor.X##rcv#glmnet                 0.5962443    0.9098798    0.2826087
+## All.X##rcv#glmnet                     0.5965780    0.9105474    0.2826087
+##                                 max.AUCROCR.OOB opt.prob.threshold.OOB
+## MFO###myMFO_classfr                   0.5000000                    0.1
+## Random###myrandom_classfr             0.4857956                    0.1
+## Max.cor.Y.rcv.1X1###glmnet            0.8116126                    0.1
+## Max.cor.Y.rcv.3X1##rcv#glmnet         0.8067975                    0.1
+## Max.cor.Y.rcv.3X3##rcv#glmnet         0.8067975                    0.1
+## Max.cor.Y.rcv.3X5##rcv#glmnet         0.8067975                    0.1
+## Max.cor.Y.rcv.5X1##rcv#glmnet         0.8114863                    0.1
+## Max.cor.Y.rcv.5X3##rcv#glmnet         0.8114863                    0.1
+## Max.cor.Y.rcv.5X5##rcv#glmnet         0.8114863                    0.1
+## Max.cor.Y.rcv.1X1.cp.0###rpart        0.7773858                    0.1
+## Max.cor.Y##rcv#rpart                  0.5892132                    0.6
+## Interact.High.cor.Y##rcv#glmnet       0.8067975                    0.1
+## Low.cor.X##rcv#glmnet                 0.8067975                    0.1
+## All.X##rcv#glmnet                     0.8061009                    0.1
+##                                 max.f.score.OOB max.Accuracy.OOB
+## MFO###myMFO_classfr                   0.2349336        0.1331019
+## Random###myrandom_classfr             0.2349336        0.1331019
+## Max.cor.Y.rcv.1X1###glmnet            0.4405405        0.7604167
+## Max.cor.Y.rcv.3X1##rcv#glmnet         0.4375839        0.7575231
+## Max.cor.Y.rcv.3X3##rcv#glmnet         0.4375839        0.7575231
+## Max.cor.Y.rcv.3X5##rcv#glmnet         0.4375839        0.7575231
+## Max.cor.Y.rcv.5X1##rcv#glmnet         0.4609375        0.7604167
+## Max.cor.Y.rcv.5X3##rcv#glmnet         0.4609375        0.7604167
+## Max.cor.Y.rcv.5X5##rcv#glmnet         0.4609375        0.7604167
+## Max.cor.Y.rcv.1X1.cp.0###rpart        0.4207493        0.7673611
+## Max.cor.Y##rcv#rpart                  0.2850575        0.8200231
+## Interact.High.cor.Y##rcv#glmnet       0.4375839        0.7575231
+## Low.cor.X##rcv#glmnet                 0.4375839        0.7575231
+## All.X##rcv#glmnet                     0.4340426        0.7690972
+##                                 max.AccuracyLower.OOB
+## MFO###myMFO_classfr                         0.1174298
+## Random###myrandom_classfr                   0.1174298
+## Max.cor.Y.rcv.1X1###glmnet                  0.7395703
+## Max.cor.Y.rcv.3X1##rcv#glmnet               0.7365992
+## Max.cor.Y.rcv.3X3##rcv#glmnet               0.7365992
+## Max.cor.Y.rcv.3X5##rcv#glmnet               0.7365992
+## Max.cor.Y.rcv.5X1##rcv#glmnet               0.7395703
+## Max.cor.Y.rcv.5X3##rcv#glmnet               0.7395703
+## Max.cor.Y.rcv.5X5##rcv#glmnet               0.7395703
+## Max.cor.Y.rcv.1X1.cp.0###rpart              0.7467059
+## Max.cor.Y##rcv#rpart                        0.8010821
+## Interact.High.cor.Y##rcv#glmnet             0.7365992
+## Low.cor.X##rcv#glmnet                       0.7365992
+## All.X##rcv#glmnet                           0.7484910
+##                                 max.AccuracyUpper.OOB max.Kappa.OOB
+## MFO###myMFO_classfr                         0.1500310     0.0000000
+## Random###myrandom_classfr                   0.1500310     0.0000000
+## Max.cor.Y.rcv.1X1###glmnet                  0.7803749     0.3148374
+## Max.cor.Y.rcv.3X1##rcv#glmnet               0.7775689     0.3107477
+## Max.cor.Y.rcv.3X3##rcv#glmnet               0.7775689     0.3107477
+## Max.cor.Y.rcv.3X5##rcv#glmnet               0.7775689     0.3107477
+## Max.cor.Y.rcv.5X1##rcv#glmnet               0.7803749     0.3373693
+## Max.cor.Y.rcv.5X3##rcv#glmnet               0.7803749     0.3373693
+## Max.cor.Y.rcv.5X5##rcv#glmnet               0.7803749     0.3373693
+## Max.cor.Y.rcv.1X1.cp.0###rpart              0.7871043     0.2953321
+## Max.cor.Y##rcv#rpart                        0.8378705     0.1825002
+## Interact.High.cor.Y##rcv#glmnet             0.7775689     0.3107477
+## Low.cor.X##rcv#glmnet                       0.7775689     0.3107477
+## All.X##rcv#glmnet                           0.7887855     0.3103487
+##                                 max.AccuracySD.fit max.KappaSD.fit
+## MFO###myMFO_classfr                             NA              NA
+## Random###myrandom_classfr                       NA              NA
+## Max.cor.Y.rcv.1X1###glmnet                      NA              NA
+## Max.cor.Y.rcv.3X1##rcv#glmnet          0.007015493      0.02403706
+## Max.cor.Y.rcv.3X3##rcv#glmnet          0.005178375      0.01754365
+## Max.cor.Y.rcv.3X5##rcv#glmnet          0.005396525      0.01835474
+## Max.cor.Y.rcv.5X1##rcv#glmnet          0.008837283      0.03133449
+## Max.cor.Y.rcv.5X3##rcv#glmnet          0.006138477      0.02161286
+## Max.cor.Y.rcv.5X5##rcv#glmnet          0.006213800      0.02210061
+## Max.cor.Y.rcv.1X1.cp.0###rpart                  NA              NA
+## Max.cor.Y##rcv#rpart                   0.005069520      0.01910910
+## Interact.High.cor.Y##rcv#glmnet        0.005178375      0.01754365
+## Low.cor.X##rcv#glmnet                  0.005178375      0.01754365
+## All.X##rcv#glmnet                      0.004892081      0.01659075
 ```
 
 ```r
@@ -8005,11 +7826,11 @@ fit.models_1_chunk_df <-
 ```
 
 ```
-##                  label step_major step_minor label_minor     bgn    end
-## 4 fit.models_1_preProc          1          3     preProc 161.253 161.32
-## 5     fit.models_1_end          1          4    teardown 161.320     NA
+##                  label step_major step_minor label_minor     bgn     end
+## 4 fit.models_1_preProc          1          3     preProc 171.911 171.979
+## 5     fit.models_1_end          1          4    teardown 171.980      NA
 ##   elapsed
-## 4   0.067
+## 4   0.068
 ## 5      NA
 ```
 
@@ -8019,8 +7840,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc = FALSE)
 
 ```
 ##         label step_major step_minor label_minor     bgn     end elapsed
-## 11 fit.models          6          1           1 139.591 161.329  21.738
-## 12 fit.models          6          2           2 161.330      NA      NA
+## 11 fit.models          6          1           1 150.048 171.988   21.94
+## 12 fit.models          6          2           2 171.989      NA      NA
 ```
 
 
@@ -8031,47 +7852,10 @@ fit.models_2_chunk_df <-
 
 ```
 ##              label step_major step_minor label_minor     bgn end elapsed
-## 1 fit.models_2_bgn          1          0       setup 163.004  NA      NA
+## 1 fit.models_2_bgn          1          0       setup 173.661  NA      NA
 ```
 
 ```r
-#stop(here"); glb_to_sav(); all.equal(glb_models_df, sav_models_df)
-# if (!is.null(glbMdlMetricSummaryFn)) {
-#     stats_df <- glb_models_df[, "id", FALSE]
-# 
-#     stats_mdl_df <- data.frame()
-#     for (mdl_id in stats_df$id) {
-#         stats_mdl_df <- rbind(stats_mdl_df, 
-#             mypredict_mdl(glb_models_lst[[mdl_id]], glbObsFit, glb_rsp_var, 
-#                           glb_rsp_var_out, mdl_id, "fit",
-#         						glbMdlMetricSummaryFn, glbMdlMetricSummary, 
-#         						glbMdlMetricMaximize, ret_type="stats"))
-#     }
-#     stats_df <- merge(stats_df, stats_mdl_df, all.x=TRUE)
-#     
-#     stats_mdl_df <- data.frame()
-#     for (mdl_id in stats_df$id) {
-#         stats_mdl_df <- rbind(stats_mdl_df, 
-#             mypredict_mdl(glb_models_lst[[mdl_id]], glbObsOOB, glb_rsp_var, 
-#                           glb_rsp_var_out, mdl_id, "OOB",
-#             					glbMdlMetricSummaryFn, glbMdlMetricSummary, 
-#         						glbMdlMetricMaximize, ret_type="stats"))
-#     }
-#     stats_df <- merge(stats_df, stats_mdl_df, all.x=TRUE)
-#     
-#     print("Merging following data into glb_models_df:")
-#     print(stats_mrg_df <- stats_df[, c(1, grep(glbMdlMetricSummary, names(stats_df)))])
-#     print(tmp_models_df <- orderBy(~id, glb_models_df[, c("id",
-#                                     grep(glbMdlMetricSummary, names(stats_df), value=TRUE))]))
-# 
-#     tmp2_models_df <- glb_models_df[, c("id", setdiff(names(glb_models_df),
-#                                     grep(glbMdlMetricSummary, names(stats_df), value=TRUE)))]
-#     tmp3_models_df <- merge(tmp2_models_df, stats_mrg_df, all.x=TRUE, sort=FALSE)
-#     print(tmp3_models_df)
-#     print(names(tmp3_models_df))
-#     print(glb_models_df <- subset(tmp3_models_df, select=-id.1))
-# }
-
 plt_models_df <- glb_models_df[, -grep("SD|Upper|Lower", names(glb_models_df))]
 for (var in grep("^min.", names(plt_models_df), value=TRUE)) {
     plt_models_df[, sub("min.", "inv.", var)] <- 
@@ -8083,171 +7867,171 @@ print(plt_models_df)
 ```
 
 ```
-##                                                        id
-## MFO.myMFO_classfr                       MFO.myMFO_classfr
-## Random.myrandom_classfr           Random.myrandom_classfr
-## Max.cor.Y.rcv.1X1.glmnet         Max.cor.Y.rcv.1X1.glmnet
-## Max.cor.Y.rcv.3X1.glmnet         Max.cor.Y.rcv.3X1.glmnet
-## Max.cor.Y.rcv.3X3.glmnet         Max.cor.Y.rcv.3X3.glmnet
-## Max.cor.Y.rcv.3X5.glmnet         Max.cor.Y.rcv.3X5.glmnet
-## Max.cor.Y.rcv.5X1.glmnet         Max.cor.Y.rcv.5X1.glmnet
-## Max.cor.Y.rcv.5X3.glmnet         Max.cor.Y.rcv.5X3.glmnet
-## Max.cor.Y.rcv.5X5.glmnet         Max.cor.Y.rcv.5X5.glmnet
-## Max.cor.Y.rcv.1X1.cp.0.rpart Max.cor.Y.rcv.1X1.cp.0.rpart
-## Max.cor.Y.rpart                           Max.cor.Y.rpart
-## Interact.High.cor.Y.glmnet     Interact.High.cor.Y.glmnet
-## Low.cor.X.glmnet                         Low.cor.X.glmnet
-## All.X.glmnet                                 All.X.glmnet
-##                                                                                               feats
-## MFO.myMFO_classfr                                                                            .rnorm
-## Random.myrandom_classfr                                                                      .rnorm
-## Max.cor.Y.rcv.1X1.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X1.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X3.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X5.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X1.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X3.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X5.glmnet                                           WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.1X1.cp.0.rpart                                       WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rpart                                                    WordCount.root2,NDSSName.my.fctr
-## Interact.High.cor.Y.glmnet         WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2
-## Low.cor.X.glmnet                             WordCount.root2,NDSSName.my.fctr,.rnorm,WordCount.nexp
-## All.X.glmnet                 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
-##                              max.nTuningRuns max.AUCpROC.fit max.Sens.fit
-## MFO.myMFO_classfr                          0       0.5000000    1.0000000
-## Random.myrandom_classfr                    0       0.4990604    0.8312611
-## Max.cor.Y.rcv.1X1.glmnet                   0       0.8790544    0.9632073
-## Max.cor.Y.rcv.3X1.glmnet                  25       0.8767919    0.9644760
-## Max.cor.Y.rcv.3X3.glmnet                  25       0.8767919    0.9644760
-## Max.cor.Y.rcv.3X5.glmnet                  25       0.8767919    0.9644760
-## Max.cor.Y.rcv.5X1.glmnet                  25       0.8784031    0.9642223
-## Max.cor.Y.rcv.5X3.glmnet                  25       0.8784031    0.9642223
-## Max.cor.Y.rcv.5X5.glmnet                  25       0.8784031    0.9642223
-## Max.cor.Y.rcv.1X1.cp.0.rpart               0       0.8821543    0.9705658
-## Max.cor.Y.rpart                            5       0.8709432    0.9632073
-## Interact.High.cor.Y.glmnet                25       0.8767919    0.9644760
-## Low.cor.X.glmnet                          25       0.8767919    0.9644760
-## All.X.glmnet                              25       0.8771175    0.9639685
-##                              max.Spec.fit max.AUCROCR.fit
-## MFO.myMFO_classfr               0.0000000       0.5000000
-## Random.myrandom_classfr         0.1668598       0.4972757
-## Max.cor.Y.rcv.1X1.glmnet        0.7949015       0.9608594
-## Max.cor.Y.rcv.3X1.glmnet        0.7891078       0.9582555
-## Max.cor.Y.rcv.3X3.glmnet        0.7891078       0.9582555
-## Max.cor.Y.rcv.3X5.glmnet        0.7891078       0.9582555
-## Max.cor.Y.rcv.5X1.glmnet        0.7925840       0.9607052
-## Max.cor.Y.rcv.5X3.glmnet        0.7925840       0.9607052
-## Max.cor.Y.rcv.5X5.glmnet        0.7925840       0.9607052
-## Max.cor.Y.rcv.1X1.cp.0.rpart    0.7937428       0.9504198
-## Max.cor.Y.rpart                 0.7786790       0.8746354
-## Interact.High.cor.Y.glmnet      0.7891078       0.9582555
-## Low.cor.X.glmnet                0.7891078       0.9582555
-## All.X.glmnet                    0.7902665       0.9589072
-##                              opt.prob.threshold.fit max.f.score.fit
-## MFO.myMFO_classfr                               0.1       0.3045703
-## Random.myrandom_classfr                         0.1       0.3045703
-## Max.cor.Y.rcv.1X1.glmnet                        0.5       0.8099174
-## Max.cor.Y.rcv.3X1.glmnet                        0.4       0.8099174
-## Max.cor.Y.rcv.3X3.glmnet                        0.4       0.8099174
-## Max.cor.Y.rcv.3X5.glmnet                        0.4       0.8099174
-## Max.cor.Y.rcv.5X1.glmnet                        0.5       0.8104265
-## Max.cor.Y.rcv.5X3.glmnet                        0.5       0.8104265
-## Max.cor.Y.rcv.5X5.glmnet                        0.5       0.8104265
-## Max.cor.Y.rcv.1X1.cp.0.rpart                    0.4       0.8235294
-## Max.cor.Y.rpart                                 0.6       0.8000000
-## Interact.High.cor.Y.glmnet                      0.4       0.8099174
-## Low.cor.X.glmnet                                0.4       0.8099174
-## All.X.glmnet                                    0.4       0.8091873
-##                              max.Accuracy.fit max.Kappa.fit
-## MFO.myMFO_classfr                   0.1796420     0.0000000
-## Random.myrandom_classfr             0.1796420     0.0000000
-## Max.cor.Y.rcv.1X1.glmnet            0.9329725     0.7692476
-## Max.cor.Y.rcv.3X1.glmnet            0.9335973     0.7691678
-## Max.cor.Y.rcv.3X3.glmnet            0.9333193     0.7690803
-## Max.cor.Y.rcv.3X5.glmnet            0.9332218     0.7686375
-## Max.cor.Y.rcv.5X1.glmnet            0.9331818     0.7689055
-## Max.cor.Y.rcv.5X3.glmnet            0.9333905     0.7698577
-## Max.cor.Y.rcv.5X5.glmnet            0.9331816     0.7691429
-## Max.cor.Y.rcv.1X1.cp.0.rpart        0.9381765     0.7860827
-## Max.cor.Y.rpart                     0.9296422     0.7515134
-## Interact.High.cor.Y.glmnet          0.9333193     0.7690803
-## Low.cor.X.glmnet                    0.9333193     0.7690803
-## All.X.glmnet                        0.9326952     0.7668828
-##                              max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB
-## MFO.myMFO_classfr                  0.5000000    1.0000000    0.0000000
-## Random.myrandom_classfr            0.5125675    0.8077437    0.2173913
-## Max.cor.Y.rcv.1X1.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X1.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X3.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X5.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X1.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X3.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X5.glmnet           0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.1X1.cp.0.rpart       0.6174697    0.9218959    0.3130435
-## Max.cor.Y.rpart                    0.5870523    0.9045394    0.2695652
-## Interact.High.cor.Y.glmnet         0.5962443    0.9098798    0.2826087
-## Low.cor.X.glmnet                   0.5962443    0.9098798    0.2826087
-## All.X.glmnet                       0.5965780    0.9105474    0.2826087
-##                              max.AUCROCR.OOB opt.prob.threshold.OOB
-## MFO.myMFO_classfr                  0.5000000                    0.1
-## Random.myrandom_classfr            0.4857956                    0.1
-## Max.cor.Y.rcv.1X1.glmnet           0.8116126                    0.1
-## Max.cor.Y.rcv.3X1.glmnet           0.8067975                    0.1
-## Max.cor.Y.rcv.3X3.glmnet           0.8067975                    0.1
-## Max.cor.Y.rcv.3X5.glmnet           0.8067975                    0.1
-## Max.cor.Y.rcv.5X1.glmnet           0.8114863                    0.1
-## Max.cor.Y.rcv.5X3.glmnet           0.8114863                    0.1
-## Max.cor.Y.rcv.5X5.glmnet           0.8114863                    0.1
-## Max.cor.Y.rcv.1X1.cp.0.rpart       0.7773858                    0.1
-## Max.cor.Y.rpart                    0.5892132                    0.6
-## Interact.High.cor.Y.glmnet         0.8067975                    0.1
-## Low.cor.X.glmnet                   0.8067975                    0.1
-## All.X.glmnet                       0.8061009                    0.1
-##                              max.f.score.OOB max.Accuracy.OOB
-## MFO.myMFO_classfr                  0.2349336        0.1331019
-## Random.myrandom_classfr            0.2349336        0.1331019
-## Max.cor.Y.rcv.1X1.glmnet           0.4405405        0.7604167
-## Max.cor.Y.rcv.3X1.glmnet           0.4375839        0.7575231
-## Max.cor.Y.rcv.3X3.glmnet           0.4375839        0.7575231
-## Max.cor.Y.rcv.3X5.glmnet           0.4375839        0.7575231
-## Max.cor.Y.rcv.5X1.glmnet           0.4609375        0.7604167
-## Max.cor.Y.rcv.5X3.glmnet           0.4609375        0.7604167
-## Max.cor.Y.rcv.5X5.glmnet           0.4609375        0.7604167
-## Max.cor.Y.rcv.1X1.cp.0.rpart       0.4207493        0.7673611
-## Max.cor.Y.rpart                    0.2850575        0.8200231
-## Interact.High.cor.Y.glmnet         0.4375839        0.7575231
-## Low.cor.X.glmnet                   0.4375839        0.7575231
-## All.X.glmnet                       0.4340426        0.7690972
-##                              max.Kappa.OOB inv.elapsedtime.everything
-## MFO.myMFO_classfr                0.0000000                  3.7174721
-## Random.myrandom_classfr          0.0000000                  3.7174721
-## Max.cor.Y.rcv.1X1.glmnet         0.3148374                  1.0288066
-## Max.cor.Y.rcv.3X1.glmnet         0.3107477                  0.3538570
-## Max.cor.Y.rcv.3X3.glmnet         0.3107477                  0.2075981
-## Max.cor.Y.rcv.3X5.glmnet         0.3107477                  0.1557875
-## Max.cor.Y.rcv.5X1.glmnet         0.3373693                  0.3102699
-## Max.cor.Y.rcv.5X3.glmnet         0.3373693                  0.1628134
-## Max.cor.Y.rcv.5X5.glmnet         0.3373693                  0.1122586
-## Max.cor.Y.rcv.1X1.cp.0.rpart     0.2953321                  1.1587486
-## Max.cor.Y.rpart                  0.1825002                  0.3469813
-## Interact.High.cor.Y.glmnet       0.3107477                  0.2275313
-## Low.cor.X.glmnet                 0.3107477                  0.2198285
-## All.X.glmnet                     0.3103487                  0.2075981
-##                              inv.elapsedtime.final
-## MFO.myMFO_classfr                       333.333333
-## Random.myrandom_classfr                1000.000000
-## Max.cor.Y.rcv.1X1.glmnet                  3.663004
-## Max.cor.Y.rcv.3X1.glmnet                  3.703704
-## Max.cor.Y.rcv.3X3.glmnet                  3.703704
-## Max.cor.Y.rcv.3X5.glmnet                  3.717472
-## Max.cor.Y.rcv.5X1.glmnet                  3.745318
-## Max.cor.Y.rcv.5X3.glmnet                  3.745318
-## Max.cor.Y.rcv.5X5.glmnet                  3.731343
-## Max.cor.Y.rcv.1X1.cp.0.rpart             14.285714
-## Max.cor.Y.rpart                          14.084507
-## Interact.High.cor.Y.glmnet                3.703704
-## Low.cor.X.glmnet                          3.412969
-## All.X.glmnet                              3.401361
+##                                                              id
+## MFO###myMFO_classfr                         MFO###myMFO_classfr
+## Random###myrandom_classfr             Random###myrandom_classfr
+## Max.cor.Y.rcv.1X1###glmnet           Max.cor.Y.rcv.1X1###glmnet
+## Max.cor.Y.rcv.3X1##rcv#glmnet     Max.cor.Y.rcv.3X1##rcv#glmnet
+## Max.cor.Y.rcv.3X3##rcv#glmnet     Max.cor.Y.rcv.3X3##rcv#glmnet
+## Max.cor.Y.rcv.3X5##rcv#glmnet     Max.cor.Y.rcv.3X5##rcv#glmnet
+## Max.cor.Y.rcv.5X1##rcv#glmnet     Max.cor.Y.rcv.5X1##rcv#glmnet
+## Max.cor.Y.rcv.5X3##rcv#glmnet     Max.cor.Y.rcv.5X3##rcv#glmnet
+## Max.cor.Y.rcv.5X5##rcv#glmnet     Max.cor.Y.rcv.5X5##rcv#glmnet
+## Max.cor.Y.rcv.1X1.cp.0###rpart   Max.cor.Y.rcv.1X1.cp.0###rpart
+## Max.cor.Y##rcv#rpart                       Max.cor.Y##rcv#rpart
+## Interact.High.cor.Y##rcv#glmnet Interact.High.cor.Y##rcv#glmnet
+## Low.cor.X##rcv#glmnet                     Low.cor.X##rcv#glmnet
+## All.X##rcv#glmnet                             All.X##rcv#glmnet
+##                                                                                                  feats
+## MFO###myMFO_classfr                                                                             .rnorm
+## Random###myrandom_classfr                                                                       .rnorm
+## Max.cor.Y.rcv.1X1###glmnet                                            WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.3X1##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.3X3##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.3X5##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.5X1##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.5X3##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.5X5##rcv#glmnet                                         WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y.rcv.1X1.cp.0###rpart                                        WordCount.root2,NDSSName.my.fctr
+## Max.cor.Y##rcv#rpart                                                  WordCount.root2,NDSSName.my.fctr
+## Interact.High.cor.Y##rcv#glmnet       WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2
+## Low.cor.X##rcv#glmnet                           WordCount.root2,NDSSName.my.fctr,.rnorm,WordCount.nexp
+## All.X##rcv#glmnet               WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
+##                                 max.nTuningRuns max.AUCpROC.fit
+## MFO###myMFO_classfr                           0       0.5000000
+## Random###myrandom_classfr                     0       0.4990604
+## Max.cor.Y.rcv.1X1###glmnet                    0       0.8790544
+## Max.cor.Y.rcv.3X1##rcv#glmnet                25       0.8767919
+## Max.cor.Y.rcv.3X3##rcv#glmnet                25       0.8767919
+## Max.cor.Y.rcv.3X5##rcv#glmnet                25       0.8767919
+## Max.cor.Y.rcv.5X1##rcv#glmnet                25       0.8784031
+## Max.cor.Y.rcv.5X3##rcv#glmnet                25       0.8784031
+## Max.cor.Y.rcv.5X5##rcv#glmnet                25       0.8784031
+## Max.cor.Y.rcv.1X1.cp.0###rpart                0       0.8821543
+## Max.cor.Y##rcv#rpart                          5       0.8709432
+## Interact.High.cor.Y##rcv#glmnet              25       0.8767919
+## Low.cor.X##rcv#glmnet                        25       0.8767919
+## All.X##rcv#glmnet                            25       0.8771175
+##                                 max.Sens.fit max.Spec.fit max.AUCROCR.fit
+## MFO###myMFO_classfr                1.0000000    0.0000000       0.5000000
+## Random###myrandom_classfr          0.8312611    0.1668598       0.4972757
+## Max.cor.Y.rcv.1X1###glmnet         0.9632073    0.7949015       0.9608594
+## Max.cor.Y.rcv.3X1##rcv#glmnet      0.9644760    0.7891078       0.9582555
+## Max.cor.Y.rcv.3X3##rcv#glmnet      0.9644760    0.7891078       0.9582555
+## Max.cor.Y.rcv.3X5##rcv#glmnet      0.9644760    0.7891078       0.9582555
+## Max.cor.Y.rcv.5X1##rcv#glmnet      0.9642223    0.7925840       0.9607052
+## Max.cor.Y.rcv.5X3##rcv#glmnet      0.9642223    0.7925840       0.9607052
+## Max.cor.Y.rcv.5X5##rcv#glmnet      0.9642223    0.7925840       0.9607052
+## Max.cor.Y.rcv.1X1.cp.0###rpart     0.9705658    0.7937428       0.9504198
+## Max.cor.Y##rcv#rpart               0.9632073    0.7786790       0.8746354
+## Interact.High.cor.Y##rcv#glmnet    0.9644760    0.7891078       0.9582555
+## Low.cor.X##rcv#glmnet              0.9644760    0.7891078       0.9582555
+## All.X##rcv#glmnet                  0.9639685    0.7902665       0.9589072
+##                                 opt.prob.threshold.fit max.f.score.fit
+## MFO###myMFO_classfr                                0.1       0.3045703
+## Random###myrandom_classfr                          0.1       0.3045703
+## Max.cor.Y.rcv.1X1###glmnet                         0.5       0.8099174
+## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.4       0.8099174
+## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.4       0.8099174
+## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.4       0.8099174
+## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.5       0.8104265
+## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.5       0.8104265
+## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.5       0.8104265
+## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.4       0.8235294
+## Max.cor.Y##rcv#rpart                               0.6       0.8000000
+## Interact.High.cor.Y##rcv#glmnet                    0.4       0.8099174
+## Low.cor.X##rcv#glmnet                              0.4       0.8099174
+## All.X##rcv#glmnet                                  0.4       0.8091873
+##                                 max.Accuracy.fit max.Kappa.fit
+## MFO###myMFO_classfr                    0.1796420     0.0000000
+## Random###myrandom_classfr              0.1796420     0.0000000
+## Max.cor.Y.rcv.1X1###glmnet             0.9329725     0.7692476
+## Max.cor.Y.rcv.3X1##rcv#glmnet          0.9335973     0.7691678
+## Max.cor.Y.rcv.3X3##rcv#glmnet          0.9333193     0.7690803
+## Max.cor.Y.rcv.3X5##rcv#glmnet          0.9332218     0.7686375
+## Max.cor.Y.rcv.5X1##rcv#glmnet          0.9331818     0.7689055
+## Max.cor.Y.rcv.5X3##rcv#glmnet          0.9333905     0.7698577
+## Max.cor.Y.rcv.5X5##rcv#glmnet          0.9331816     0.7691429
+## Max.cor.Y.rcv.1X1.cp.0###rpart         0.9381765     0.7860827
+## Max.cor.Y##rcv#rpart                   0.9296422     0.7515134
+## Interact.High.cor.Y##rcv#glmnet        0.9333193     0.7690803
+## Low.cor.X##rcv#glmnet                  0.9333193     0.7690803
+## All.X##rcv#glmnet                      0.9326952     0.7668828
+##                                 max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB
+## MFO###myMFO_classfr                   0.5000000    1.0000000    0.0000000
+## Random###myrandom_classfr             0.5125675    0.8077437    0.2173913
+## Max.cor.Y.rcv.1X1###glmnet            0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.3X1##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.3X3##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.3X5##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.5X1##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.5X3##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.5X5##rcv#glmnet         0.5962443    0.9098798    0.2826087
+## Max.cor.Y.rcv.1X1.cp.0###rpart        0.6174697    0.9218959    0.3130435
+## Max.cor.Y##rcv#rpart                  0.5870523    0.9045394    0.2695652
+## Interact.High.cor.Y##rcv#glmnet       0.5962443    0.9098798    0.2826087
+## Low.cor.X##rcv#glmnet                 0.5962443    0.9098798    0.2826087
+## All.X##rcv#glmnet                     0.5965780    0.9105474    0.2826087
+##                                 max.AUCROCR.OOB opt.prob.threshold.OOB
+## MFO###myMFO_classfr                   0.5000000                    0.1
+## Random###myrandom_classfr             0.4857956                    0.1
+## Max.cor.Y.rcv.1X1###glmnet            0.8116126                    0.1
+## Max.cor.Y.rcv.3X1##rcv#glmnet         0.8067975                    0.1
+## Max.cor.Y.rcv.3X3##rcv#glmnet         0.8067975                    0.1
+## Max.cor.Y.rcv.3X5##rcv#glmnet         0.8067975                    0.1
+## Max.cor.Y.rcv.5X1##rcv#glmnet         0.8114863                    0.1
+## Max.cor.Y.rcv.5X3##rcv#glmnet         0.8114863                    0.1
+## Max.cor.Y.rcv.5X5##rcv#glmnet         0.8114863                    0.1
+## Max.cor.Y.rcv.1X1.cp.0###rpart        0.7773858                    0.1
+## Max.cor.Y##rcv#rpart                  0.5892132                    0.6
+## Interact.High.cor.Y##rcv#glmnet       0.8067975                    0.1
+## Low.cor.X##rcv#glmnet                 0.8067975                    0.1
+## All.X##rcv#glmnet                     0.8061009                    0.1
+##                                 max.f.score.OOB max.Accuracy.OOB
+## MFO###myMFO_classfr                   0.2349336        0.1331019
+## Random###myrandom_classfr             0.2349336        0.1331019
+## Max.cor.Y.rcv.1X1###glmnet            0.4405405        0.7604167
+## Max.cor.Y.rcv.3X1##rcv#glmnet         0.4375839        0.7575231
+## Max.cor.Y.rcv.3X3##rcv#glmnet         0.4375839        0.7575231
+## Max.cor.Y.rcv.3X5##rcv#glmnet         0.4375839        0.7575231
+## Max.cor.Y.rcv.5X1##rcv#glmnet         0.4609375        0.7604167
+## Max.cor.Y.rcv.5X3##rcv#glmnet         0.4609375        0.7604167
+## Max.cor.Y.rcv.5X5##rcv#glmnet         0.4609375        0.7604167
+## Max.cor.Y.rcv.1X1.cp.0###rpart        0.4207493        0.7673611
+## Max.cor.Y##rcv#rpart                  0.2850575        0.8200231
+## Interact.High.cor.Y##rcv#glmnet       0.4375839        0.7575231
+## Low.cor.X##rcv#glmnet                 0.4375839        0.7575231
+## All.X##rcv#glmnet                     0.4340426        0.7690972
+##                                 max.Kappa.OOB inv.elapsedtime.everything
+## MFO###myMFO_classfr                 0.0000000                  3.6900369
+## Random###myrandom_classfr           0.0000000                  3.6496350
+## Max.cor.Y.rcv.1X1###glmnet          0.3148374                  1.0131712
+## Max.cor.Y.rcv.3X1##rcv#glmnet       0.3107477                  0.2937720
+## Max.cor.Y.rcv.3X3##rcv#glmnet       0.3107477                  0.2049600
+## Max.cor.Y.rcv.3X5##rcv#glmnet       0.3107477                  0.1571339
+## Max.cor.Y.rcv.5X1##rcv#glmnet       0.3373693                  0.3069368
+## Max.cor.Y.rcv.5X3##rcv#glmnet       0.3373693                  0.1557875
+## Max.cor.Y.rcv.5X5##rcv#glmnet       0.3373693                  0.1104728
+## Max.cor.Y.rcv.1X1.cp.0###rpart      0.2953321                  1.1547344
+## Max.cor.Y##rcv#rpart                0.1825002                  0.3507541
+## Interact.High.cor.Y##rcv#glmnet     0.3107477                  0.2269117
+## Low.cor.X##rcv#glmnet               0.3107477                  0.1846381
+## All.X##rcv#glmnet                   0.3103487                  0.2067397
+##                                 inv.elapsedtime.final
+## MFO###myMFO_classfr                        333.333333
+## Random###myrandom_classfr                  500.000000
+## Max.cor.Y.rcv.1X1###glmnet                   3.663004
+## Max.cor.Y.rcv.3X1##rcv#glmnet                3.663004
+## Max.cor.Y.rcv.3X3##rcv#glmnet                3.610108
+## Max.cor.Y.rcv.3X5##rcv#glmnet                3.676471
+## Max.cor.Y.rcv.5X1##rcv#glmnet                3.717472
+## Max.cor.Y.rcv.5X3##rcv#glmnet                3.731343
+## Max.cor.Y.rcv.5X5##rcv#glmnet                3.759398
+## Max.cor.Y.rcv.1X1.cp.0###rpart              14.285714
+## Max.cor.Y##rcv#rpart                        13.333333
+## Interact.High.cor.Y##rcv#glmnet              3.703704
+## Low.cor.X##rcv#glmnet                        3.436426
+## All.X##rcv#glmnet                            3.460208
 ```
 
 ```r
@@ -8431,66 +8215,81 @@ print(dsp_models_df <- orderBy(get_model_sel_frmla(), glb_models_df)[, dsp_model
 ```
 
 ```
-##                                                        id max.Accuracy.OOB
-## Max.cor.Y.rpart                           Max.cor.Y.rpart        0.8200231
-## All.X.glmnet                                 All.X.glmnet        0.7690972
-## Max.cor.Y.rcv.1X1.cp.0.rpart Max.cor.Y.rcv.1X1.cp.0.rpart        0.7673611
-## Max.cor.Y.rcv.1X1.glmnet         Max.cor.Y.rcv.1X1.glmnet        0.7604167
-## Max.cor.Y.rcv.5X3.glmnet         Max.cor.Y.rcv.5X3.glmnet        0.7604167
-## Max.cor.Y.rcv.5X1.glmnet         Max.cor.Y.rcv.5X1.glmnet        0.7604167
-## Max.cor.Y.rcv.5X5.glmnet         Max.cor.Y.rcv.5X5.glmnet        0.7604167
-## Max.cor.Y.rcv.3X1.glmnet         Max.cor.Y.rcv.3X1.glmnet        0.7575231
-## Max.cor.Y.rcv.3X3.glmnet         Max.cor.Y.rcv.3X3.glmnet        0.7575231
-## Interact.High.cor.Y.glmnet     Interact.High.cor.Y.glmnet        0.7575231
-## Low.cor.X.glmnet                         Low.cor.X.glmnet        0.7575231
-## Max.cor.Y.rcv.3X5.glmnet         Max.cor.Y.rcv.3X5.glmnet        0.7575231
-## MFO.myMFO_classfr                       MFO.myMFO_classfr        0.1331019
-## Random.myrandom_classfr           Random.myrandom_classfr        0.1331019
-##                              max.AUCROCR.OOB max.AUCpROC.OOB
-## Max.cor.Y.rpart                    0.5892132       0.5870523
-## All.X.glmnet                       0.8061009       0.5965780
-## Max.cor.Y.rcv.1X1.cp.0.rpart       0.7773858       0.6174697
-## Max.cor.Y.rcv.1X1.glmnet           0.8116126       0.5962443
-## Max.cor.Y.rcv.5X3.glmnet           0.8114863       0.5962443
-## Max.cor.Y.rcv.5X1.glmnet           0.8114863       0.5962443
-## Max.cor.Y.rcv.5X5.glmnet           0.8114863       0.5962443
-## Max.cor.Y.rcv.3X1.glmnet           0.8067975       0.5962443
-## Max.cor.Y.rcv.3X3.glmnet           0.8067975       0.5962443
-## Interact.High.cor.Y.glmnet         0.8067975       0.5962443
-## Low.cor.X.glmnet                   0.8067975       0.5962443
-## Max.cor.Y.rcv.3X5.glmnet           0.8067975       0.5962443
-## MFO.myMFO_classfr                  0.5000000       0.5000000
-## Random.myrandom_classfr            0.4857956       0.5125675
-##                              max.Accuracy.fit opt.prob.threshold.fit
-## Max.cor.Y.rpart                     0.9296422                    0.6
-## All.X.glmnet                        0.9326952                    0.4
-## Max.cor.Y.rcv.1X1.cp.0.rpart        0.9381765                    0.4
-## Max.cor.Y.rcv.1X1.glmnet            0.9329725                    0.5
-## Max.cor.Y.rcv.5X3.glmnet            0.9333905                    0.5
-## Max.cor.Y.rcv.5X1.glmnet            0.9331818                    0.5
-## Max.cor.Y.rcv.5X5.glmnet            0.9331816                    0.5
-## Max.cor.Y.rcv.3X1.glmnet            0.9335973                    0.4
-## Max.cor.Y.rcv.3X3.glmnet            0.9333193                    0.4
-## Interact.High.cor.Y.glmnet          0.9333193                    0.4
-## Low.cor.X.glmnet                    0.9333193                    0.4
-## Max.cor.Y.rcv.3X5.glmnet            0.9332218                    0.4
-## MFO.myMFO_classfr                   0.1796420                    0.1
-## Random.myrandom_classfr             0.1796420                    0.1
-##                              opt.prob.threshold.OOB
-## Max.cor.Y.rpart                                 0.6
-## All.X.glmnet                                    0.1
-## Max.cor.Y.rcv.1X1.cp.0.rpart                    0.1
-## Max.cor.Y.rcv.1X1.glmnet                        0.1
-## Max.cor.Y.rcv.5X3.glmnet                        0.1
-## Max.cor.Y.rcv.5X1.glmnet                        0.1
-## Max.cor.Y.rcv.5X5.glmnet                        0.1
-## Max.cor.Y.rcv.3X1.glmnet                        0.1
-## Max.cor.Y.rcv.3X3.glmnet                        0.1
-## Interact.High.cor.Y.glmnet                      0.1
-## Low.cor.X.glmnet                                0.1
-## Max.cor.Y.rcv.3X5.glmnet                        0.1
-## MFO.myMFO_classfr                               0.1
-## Random.myrandom_classfr                         0.1
+##                                                              id
+## Max.cor.Y##rcv#rpart                       Max.cor.Y##rcv#rpart
+## All.X##rcv#glmnet                             All.X##rcv#glmnet
+## Max.cor.Y.rcv.1X1.cp.0###rpart   Max.cor.Y.rcv.1X1.cp.0###rpart
+## Max.cor.Y.rcv.1X1###glmnet           Max.cor.Y.rcv.1X1###glmnet
+## Max.cor.Y.rcv.5X3##rcv#glmnet     Max.cor.Y.rcv.5X3##rcv#glmnet
+## Max.cor.Y.rcv.5X1##rcv#glmnet     Max.cor.Y.rcv.5X1##rcv#glmnet
+## Max.cor.Y.rcv.5X5##rcv#glmnet     Max.cor.Y.rcv.5X5##rcv#glmnet
+## Max.cor.Y.rcv.3X1##rcv#glmnet     Max.cor.Y.rcv.3X1##rcv#glmnet
+## Max.cor.Y.rcv.3X3##rcv#glmnet     Max.cor.Y.rcv.3X3##rcv#glmnet
+## Interact.High.cor.Y##rcv#glmnet Interact.High.cor.Y##rcv#glmnet
+## Low.cor.X##rcv#glmnet                     Low.cor.X##rcv#glmnet
+## Max.cor.Y.rcv.3X5##rcv#glmnet     Max.cor.Y.rcv.3X5##rcv#glmnet
+## MFO###myMFO_classfr                         MFO###myMFO_classfr
+## Random###myrandom_classfr             Random###myrandom_classfr
+##                                 max.Accuracy.OOB max.AUCROCR.OOB
+## Max.cor.Y##rcv#rpart                   0.8200231       0.5892132
+## All.X##rcv#glmnet                      0.7690972       0.8061009
+## Max.cor.Y.rcv.1X1.cp.0###rpart         0.7673611       0.7773858
+## Max.cor.Y.rcv.1X1###glmnet             0.7604167       0.8116126
+## Max.cor.Y.rcv.5X3##rcv#glmnet          0.7604167       0.8114863
+## Max.cor.Y.rcv.5X1##rcv#glmnet          0.7604167       0.8114863
+## Max.cor.Y.rcv.5X5##rcv#glmnet          0.7604167       0.8114863
+## Max.cor.Y.rcv.3X1##rcv#glmnet          0.7575231       0.8067975
+## Max.cor.Y.rcv.3X3##rcv#glmnet          0.7575231       0.8067975
+## Interact.High.cor.Y##rcv#glmnet        0.7575231       0.8067975
+## Low.cor.X##rcv#glmnet                  0.7575231       0.8067975
+## Max.cor.Y.rcv.3X5##rcv#glmnet          0.7575231       0.8067975
+## MFO###myMFO_classfr                    0.1331019       0.5000000
+## Random###myrandom_classfr              0.1331019       0.4857956
+##                                 max.AUCpROC.OOB max.Accuracy.fit
+## Max.cor.Y##rcv#rpart                  0.5870523        0.9296422
+## All.X##rcv#glmnet                     0.5965780        0.9326952
+## Max.cor.Y.rcv.1X1.cp.0###rpart        0.6174697        0.9381765
+## Max.cor.Y.rcv.1X1###glmnet            0.5962443        0.9329725
+## Max.cor.Y.rcv.5X3##rcv#glmnet         0.5962443        0.9333905
+## Max.cor.Y.rcv.5X1##rcv#glmnet         0.5962443        0.9331818
+## Max.cor.Y.rcv.5X5##rcv#glmnet         0.5962443        0.9331816
+## Max.cor.Y.rcv.3X1##rcv#glmnet         0.5962443        0.9335973
+## Max.cor.Y.rcv.3X3##rcv#glmnet         0.5962443        0.9333193
+## Interact.High.cor.Y##rcv#glmnet       0.5962443        0.9333193
+## Low.cor.X##rcv#glmnet                 0.5962443        0.9333193
+## Max.cor.Y.rcv.3X5##rcv#glmnet         0.5962443        0.9332218
+## MFO###myMFO_classfr                   0.5000000        0.1796420
+## Random###myrandom_classfr             0.5125675        0.1796420
+##                                 opt.prob.threshold.fit
+## Max.cor.Y##rcv#rpart                               0.6
+## All.X##rcv#glmnet                                  0.4
+## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.4
+## Max.cor.Y.rcv.1X1###glmnet                         0.5
+## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.5
+## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.5
+## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.5
+## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.4
+## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.4
+## Interact.High.cor.Y##rcv#glmnet                    0.4
+## Low.cor.X##rcv#glmnet                              0.4
+## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.4
+## MFO###myMFO_classfr                                0.1
+## Random###myrandom_classfr                          0.1
+##                                 opt.prob.threshold.OOB
+## Max.cor.Y##rcv#rpart                               0.6
+## All.X##rcv#glmnet                                  0.1
+## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.1
+## Max.cor.Y.rcv.1X1###glmnet                         0.1
+## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.1
+## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.1
+## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.1
+## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.1
+## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.1
+## Interact.High.cor.Y##rcv#glmnet                    0.1
+## Low.cor.X##rcv#glmnet                              0.1
+## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.1
+## MFO###myMFO_classfr                                0.1
+## Random###myrandom_classfr                          0.1
 ```
 
 ```r
@@ -8536,7 +8335,7 @@ print("Metrics used for model selection:"); print(get_model_sel_frmla())
 ```
 ## ~-max.Accuracy.OOB - max.AUCROCR.OOB - max.AUCpROC.OOB - max.Accuracy.fit - 
 ##     opt.prob.threshold.OOB
-## <environment: 0x7ff241329310>
+## <environment: 0x7f8ffcad0550>
 ```
 
 ```r
@@ -8544,33 +8343,32 @@ print(sprintf("Best model id: %s", dsp_models_df[1, "id"]))
 ```
 
 ```
-## [1] "Best model id: Max.cor.Y.rpart"
+## [1] "Best model id: Max.cor.Y##rcv#rpart"
 ```
 
 ```r
-glb_get_predictions <- function(df, mdl_id, rsp_var_out, prob_threshold_def=NULL, verbose=FALSE) {
+glb_get_predictions <- function(df, mdl_id, rsp_var, prob_threshold_def=NULL, verbose=FALSE) {
     mdl <- glb_models_lst[[mdl_id]]
-    #rsp_var_out <- paste0(rsp_var_out, mdl_id)
-    
-    rsp_var_out <- paste0(glb_rsp_var, ".predict.")
-    predct_var_name <- paste0(rsp_var_out, mdl_id)        
-    predct_prob_var_name <- paste0(rsp_var_out, mdl_id, ".prob")    
-    predct_accurate_var_name <- paste0(rsp_var_out, mdl_id, ".accurate")
-    predct_error_var_name <- paste0(rsp_var_out, mdl_id, ".err")
-    predct_erabs_var_name <- paste0(rsp_var_out, mdl_id, ".err.abs")
+
+    clmnNames <- mygetPredictIds(rsp_var, mdl_id)
+    predct_var_name <- clmnNames$value        
+    predct_prob_var_name <- clmnNames$prob
+    predct_accurate_var_name <- clmnNames$is.acc
+    predct_error_var_name <- clmnNames$err
+    predct_erabs_var_name <- clmnNames$err.abs
 
     if (glb_is_regression) {
         df[, predct_var_name] <- predict(mdl, newdata=df, type="raw")
         if (verbose) print(myplot_scatter(df, glb_rsp_var, predct_var_name) + 
-                  facet_wrap(reformulate(glb_category_var), scales = "free") + 
+                  facet_wrap(reformulate(glbFeatsCategory), scales = "free") + 
                   stat_smooth(method="glm"))
 
         df[, predct_error_var_name] <- df[, predct_var_name] - df[, glb_rsp_var]
         if (verbose) print(myplot_scatter(df, predct_var_name, predct_error_var_name) + 
-                  #facet_wrap(reformulate(glb_category_var), scales = "free") + 
+                  #facet_wrap(reformulate(glbFeatsCategory), scales = "free") + 
                   stat_smooth(method="auto"))
         if (verbose) print(myplot_scatter(df, glb_rsp_var, predct_error_var_name) + 
-                  #facet_wrap(reformulate(glb_category_var), scales = "free") + 
+                  #facet_wrap(reformulate(glbFeatsCategory), scales = "free") + 
                   stat_smooth(method="glm"))
         
         df[, predct_erabs_var_name] <- abs(df[, predct_error_var_name])
@@ -8595,15 +8393,15 @@ glb_get_predictions <- function(df, mdl_id, rsp_var_out, prob_threshold_def=NULL
     					prob_threshold) * 1 + 1], levels(df[, glb_rsp_var]))
     
 #         if (verbose) print(myplot_scatter(df, glb_rsp_var, predct_var_name) + 
-#                   facet_wrap(reformulate(glb_category_var), scales = "free") + 
+#                   facet_wrap(reformulate(glbFeatsCategory), scales = "free") + 
 #                   stat_smooth(method="glm"))
 
         df[, predct_error_var_name] <- df[, predct_var_name] != df[, glb_rsp_var]
 #         if (verbose) print(myplot_scatter(df, predct_var_name, predct_error_var_name) + 
-#                   #facet_wrap(reformulate(glb_category_var), scales = "free") + 
+#                   #facet_wrap(reformulate(glbFeatsCategory), scales = "free") + 
 #                   stat_smooth(method="auto"))
 #         if (verbose) print(myplot_scatter(df, glb_rsp_var, predct_error_var_name) + 
-#                   #facet_wrap(reformulate(glb_category_var), scales = "free") + 
+#                   #facet_wrap(reformulate(glbFeatsCategory), scales = "free") + 
 #                   stat_smooth(method="glm"))
         
         # if prediction is a TP (true +ve), measure distance from 1.0
@@ -8646,40 +8444,42 @@ glb_get_predictions <- function(df, mdl_id, rsp_var_out, prob_threshold_def=NULL
     return(df)
 }    
 
-#stop(here"); glb_to_sav(); glbObsAll <- sav_allobs_df; glbObsTrn <- sav_trnobs_df; glbObsFit <- sav_fitobs_df; glbObsOOB <- sav_OOBobs_df; sav_models_df <- glb_models_df; glb_models_df <- sav_models_df; glb_featsimp_df <- sav_featsimp_df    
+#stop(here"); glb2Sav(); glbObsAll <- savObsAll; glbObsTrn <- savObsTrn; glbObsFit <- savObsFit; glbObsOOB <- savObsOOB; sav_models_df <- glb_models_df; glb_models_df <- sav_models_df; glb_featsimp_df <- sav_featsimp_df    
 
 myget_category_stats <- function(obs_df, mdl_id, label) {
     require(dplyr)
     require(lazyeval)
     
-    predct_var_name <- paste0(glb_rsp_var_out, mdl_id)        
-    predct_error_var_name <- paste0(glb_rsp_var_out, mdl_id, ".err.abs")
+    predct_var_name <- mygetPredictIds(glb_rsp_var, mdl_id)$value        
+    predct_error_var_name <- mygetPredictIds(glb_rsp_var, mdl_id)$err.abs
     
     if (!predct_var_name %in% names(obs_df))
-        obs_df <- glb_get_predictions(obs_df, mdl_id, glb_rsp_var_out)
+        obs_df <- glb_get_predictions(obs_df, mdl_id, glb_rsp_var)
     
-    tmp_obs_df <- obs_df %>%
-        dplyr::select_(glb_category_var, glb_rsp_var, predct_var_name, predct_error_var_name) 
+    tmp_obs_df <- obs_df[, c(glbFeatsCategory, glb_rsp_var, 
+                             predct_var_name, predct_error_var_name)]
+#     tmp_obs_df <- obs_df %>%
+#         dplyr::select_(glbFeatsCategory, glb_rsp_var, predct_var_name, predct_error_var_name) 
     #dplyr::rename(startprice.log10.predict.RFE.X.glmnet.err=error_abs_OOB)
     names(tmp_obs_df)[length(names(tmp_obs_df))] <- paste0("err.abs.", label)
     
     ret_ctgry_df <- tmp_obs_df %>%
-        dplyr::group_by_(glb_category_var) %>%
+        dplyr::group_by_(glbFeatsCategory) %>%
         dplyr::summarise_(#interp(~sum(abs(var)), var=as.name(glb_rsp_var)), 
             interp(~sum(var), var=as.name(paste0("err.abs.", label))), 
             interp(~mean(var), var=as.name(paste0("err.abs.", label))),
             interp(~n()))
-    names(ret_ctgry_df) <- c(glb_category_var, 
+    names(ret_ctgry_df) <- c(glbFeatsCategory, 
                              #paste0(glb_rsp_var, ".abs.", label, ".sum"),
-                             paste0("err.abs.", label, ".sum"),                             
+                             paste0("err.abs.", label, ".sum"),         
                              paste0("err.abs.", label, ".mean"), 
                              paste0(".n.", label))
     ret_ctgry_df <- dplyr::ungroup(ret_ctgry_df)
-    #colSums(ret_ctgry_df[, -grep(glb_category_var, names(ret_ctgry_df))])
+    #colSums(ret_ctgry_df[, -grep(glbFeatsCategory, names(ret_ctgry_df))])
     
     return(ret_ctgry_df)    
 }
-#print(colSums((ctgry_df <- myget_category_stats(obs_df=glbObsFit, mdl_id="", label="fit"))[, -grep(glb_category_var, names(ctgry_df))]))
+#print(colSums((ctgry_df <- myget_category_stats(obs_df=glbObsFit, mdl_id="", label="fit"))[, -grep(glbFeatsCategory, names(ctgry_df))]))
 
 if (!is.null(glb_mdl_ensemble)) {
     fit.models_2_chunk_df <- myadd_chunk(fit.models_2_chunk_df, 
@@ -8714,18 +8514,16 @@ if (!is.null(glb_mdl_ensemble)) {
             warning("Model ", mdl_id, " in glb_model_ensemble not found !")
             next
         }
-        glbObsFit <- glb_get_predictions(df = glbObsFit, mdl_id,
-                                             glb_rsp_var_out)
-        glbObsOOB <- glb_get_predictions(df = glbObsOOB, mdl_id,
-                                             glb_rsp_var_out)
+        glbObsFit <- glb_get_predictions(df = glbObsFit, mdl_id, glb_rsp_var)
+        glbObsOOB <- glb_get_predictions(df = glbObsOOB, mdl_id, glb_rsp_var)
     }
     
 #mdl_id_pfx <- "Ensemble.RFE"; mdlId <- paste0(mdl_id_pfx, ".glmnet")
-#glb_mdl_ensemble <- gsub(glb_rsp_var_out, "", grep("RFE\\.X\\.(?!Interact)", row.names(glb_featsimp_df), perl = TRUE, value = TRUE), fixed = TRUE)
+#glb_mdl_ensemble <- gsub(mygetPredictIds$value, "", grep("RFE\\.X\\.(?!Interact)", row.names(glb_featsimp_df), perl = TRUE, value = TRUE), fixed = TRUE)
 #varImp(glb_models_lst[[mdlId]])
     
-#cor_df <- data.frame(cor=cor(glbObsFit[, glb_rsp_var], glbObsFit[, paste(glb_rsp_var_out, glb_mdl_ensemble)], use="pairwise.complete.obs"))
-#glbObsFit <- glb_get_predictions(df=glbObsFit, "Ensemble.glmnet", glb_rsp_var_out);print(colSums((ctgry_df <- myget_category_stats(obs_df=glbObsFit, mdl_id="Ensemble.glmnet", label="fit"))[, -grep(glb_category_var, names(ctgry_df))]))
+#cor_df <- data.frame(cor=cor(glbObsFit[, glb_rsp_var], glbObsFit[, paste(mygetPredictIds$value, glb_mdl_ensemble)], use="pairwise.complete.obs"))
+#glbObsFit <- glb_get_predictions(df=glbObsFit, "Ensemble.glmnet", glb_rsp_var);print(colSums((ctgry_df <- myget_category_stats(obs_df=glbObsFit, mdl_id="Ensemble.glmnet", label="fit"))[, -grep(glbFeatsCategory, names(ctgry_df))]))
     
     ### bid0_sp
     #  Better than MFO; models.n=28; min.RMSE.fit=0.0521233; err.abs.fit.sum=7.3631895
@@ -8743,13 +8541,13 @@ if (!is.null(glb_mdl_ensemble)) {
     # "RFE.X.*"; err.abs.fit.sum=; min.RMSE.fit=0.221114
     ### bid1_sp
 
-    indep_vars <- paste(glb_rsp_var_out, glb_mdl_ensemble, sep = "")
+    indep_vars <- paste(mygetPredictIds(glb_rsp_var)$value, glb_mdl_ensemble, sep = "")
     if (glb_is_classification)
         indep_vars <- paste(indep_vars, ".prob", sep = "")
     # Some models in glb_mdl_ensemble might not be fitted e.g. RFE.X.Interact
     indep_vars <- intersect(indep_vars, names(glbObsFit))
     
-#     indep_vars <- grep(glb_rsp_var_out, names(glbObsFit), fixed=TRUE, value=TRUE)
+#     indep_vars <- grep(mygetPredictIds(glb_rsp_var)$value, names(glbObsFit), fixed=TRUE, value=TRUE)
 #     if (glb_is_regression)
 #         indep_vars <- indep_vars[!grepl("(err\\.abs|accurate)$", indep_vars)]
 #     if (glb_is_classification && glb_is_binomial)
@@ -8798,7 +8596,7 @@ if (is.null(glb_sel_mdl_id))
 ```
 
 ```
-## [1] "User specified selection: All.X.glmnet"
+## [1] "User specified selection: All.X##rcv#glmnet"
 ```
 
 ```r
@@ -8917,22 +8715,22 @@ print(sprintf("%s fit prediction diagnostics:", glb_sel_mdl_id))
 ```
 
 ```
-## [1] "All.X.glmnet fit prediction diagnostics:"
+## [1] "All.X##rcv#glmnet fit prediction diagnostics:"
 ```
 
 ```r
-glbObsFit <- glb_get_predictions(df=glbObsFit, mdl_id=glb_sel_mdl_id, 
-                                     rsp_var_out=glb_rsp_var_out)
+glbObsFit <- glb_get_predictions(df = glbObsFit, mdl_id = glb_sel_mdl_id, 
+                                 rsp_var = glb_rsp_var)
 print(sprintf("%s OOB prediction diagnostics:", glb_sel_mdl_id))
 ```
 
 ```
-## [1] "All.X.glmnet OOB prediction diagnostics:"
+## [1] "All.X##rcv#glmnet OOB prediction diagnostics:"
 ```
 
 ```r
 glbObsOOB <- glb_get_predictions(df = glbObsOOB, mdl_id = glb_sel_mdl_id, 
-                                     rsp_var_out = glb_rsp_var_out)
+                                     rsp_var = glb_rsp_var)
 
 glb_featsimp_df <- 
     myget_feats_importance(mdl=glb_sel_mdl, featsimp_df=NULL)
@@ -8969,31 +8767,31 @@ print(glb_featsimp_df)
 ## NDSSName.my.fctr#U.S.#Education                      18.25900
 ## NDSSName.my.fctrTStyle##                             17.36032
 ## NDSSName.my.fctr#Opinion#RoomForDebate                0.00000
-##                                                    All.X.glmnet.importance
-## NDSSName.my.fctrOpEd#Opinion#                                    100.00000
-## NDSSName.my.fctrBusiness#Crosswords/Games#                        98.38173
-## NDSSName.my.fctr#Opinion#ThePublicEditor                          87.34197
-## NDSSName.my.fctrScience#Health#                                   84.05064
-## NDSSName.my.fctrStyles#U.S.#                                      80.66804
-## NDSSName.my.fctrBusiness#Technology#                              43.29623
-## WordCount.log1p                                                   34.01597
-## WordCount.root2                                                   32.29795
-## .rnorm                                                            31.33944
-## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                     31.33944
-## NDSSName.my.fctrCulture##                                         31.33944
-## NDSSName.my.fctrCulture#Arts#                                     31.33944
-## NDSSName.my.fctrMetro#N.Y./Region#                                31.33944
-## WordCount.nexp                                                    31.33944
-## NDSSName.my.fctrTravel#Travel#                                    31.31570
-## NDSSName.my.fctrForeign#World#                                    30.00852
-## NDSSName.my.fctr#Multimedia#                                      28.91940
-## NDSSName.my.fctrmyOther                                           27.85141
-## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                27.78546
-## NDSSName.my.fctrStyles##Fashion                                   22.02991
-## NDSSName.my.fctrForeign#World#AsiaPacific                         19.29994
-## NDSSName.my.fctr#U.S.#Education                                   18.25900
-## NDSSName.my.fctrTStyle##                                          17.36032
-## NDSSName.my.fctr#Opinion#RoomForDebate                             0.00000
+##                                                    All.X##rcv#glmnet.importance
+## NDSSName.my.fctrOpEd#Opinion#                                         100.00000
+## NDSSName.my.fctrBusiness#Crosswords/Games#                             98.38173
+## NDSSName.my.fctr#Opinion#ThePublicEditor                               87.34197
+## NDSSName.my.fctrScience#Health#                                        84.05064
+## NDSSName.my.fctrStyles#U.S.#                                           80.66804
+## NDSSName.my.fctrBusiness#Technology#                                   43.29623
+## WordCount.log1p                                                        34.01597
+## WordCount.root2                                                        32.29795
+## .rnorm                                                                 31.33944
+## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                          31.33944
+## NDSSName.my.fctrCulture##                                              31.33944
+## NDSSName.my.fctrCulture#Arts#                                          31.33944
+## NDSSName.my.fctrMetro#N.Y./Region#                                     31.33944
+## WordCount.nexp                                                         31.33944
+## NDSSName.my.fctrTravel#Travel#                                         31.31570
+## NDSSName.my.fctrForeign#World#                                         30.00852
+## NDSSName.my.fctr#Multimedia#                                           28.91940
+## NDSSName.my.fctrmyOther                                                27.85141
+## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                     27.78546
+## NDSSName.my.fctrStyles##Fashion                                        22.02991
+## NDSSName.my.fctrForeign#World#AsiaPacific                              19.29994
+## NDSSName.my.fctr#U.S.#Education                                        18.25900
+## NDSSName.my.fctrTStyle##                                               17.36032
+## NDSSName.my.fctr#Opinion#RoomForDebate                                  0.00000
 ```
 
 ```r
@@ -9024,7 +8822,7 @@ glb_analytics_diag_plots <- function(obs_df, mdl_id, prob_threshold=NULL) {
         
     #     if (!all(is.na(featsimp_df$feat.interact)))
     #         stop("not implemented yet")
-        rsp_var_out <- paste0(glb_rsp_var_out, mdl_id)
+        rsp_var_out <- mygetPredictIds(glb_rsp_var, mdl_id)$value
         for (var in featsimp_df$feat) {
             plot_df <- melt(obs_df, id.vars = var, 
                             measure.vars = c(glb_rsp_var, rsp_var_out))
@@ -9067,183 +8865,185 @@ if (glb_is_classification && glb_is_binomial)
     glb_analytics_diag_plots(obs_df = glbObsOOB, mdl_id = glb_sel_mdl_id, 
             prob_threshold = glb_models_df[glb_models_df$id == glb_sel_mdl_id, 
                                            "opt.prob.threshold.OOB"]) else
-    glb_analytics_diag_plots(obs_df=glbObsOOB, mdl_id=glb_sel_mdl_id)                  
+    glb_analytics_diag_plots(obs_df = glbObsOOB, mdl_id = glb_sel_mdl_id)                  
 ```
 
 ![](NYTBlogs3_base_files/figure-html/fit.models_2-5.png) ![](NYTBlogs3_base_files/figure-html/fit.models_2-6.png) ![](NYTBlogs3_base_files/figure-html/fit.models_2-7.png) ![](NYTBlogs3_base_files/figure-html/fit.models_2-8.png) ![](NYTBlogs3_base_files/figure-html/fit.models_2-9.png) 
 
 ```
 ## [1] "Min/Max Boundaries: "
-##      UniqueID Popular.fctr Popular.fctr.predict.All.X.glmnet.prob
-## 1618     1618            N                            0.003961226
-## 6251     6251            Y                            0.933618142
-## 6435     6435            N                            0.110713384
-##      Popular.fctr.predict.All.X.glmnet
-## 1618                                 N
-## 6251                                 Y
-## 6435                                 Y
-##      Popular.fctr.predict.All.X.glmnet.err
-## 1618                                 FALSE
-## 6251                                 FALSE
-## 6435                                  TRUE
-##      Popular.fctr.predict.All.X.glmnet.err.abs
-## 1618                               0.003961226
-## 6251                               0.066381858
-## 6435                               0.110713384
-##      Popular.fctr.predict.All.X.glmnet.accurate
-## 1618                                       TRUE
-## 6251                                       TRUE
-## 6435                                      FALSE
-##      Popular.fctr.predict.All.X.glmnet.error .label
-## 1618                              0.00000000   1618
-## 6251                              0.00000000   6251
-## 6435                              0.01071338   6435
+##   UniqueID Popular.fctr Popular.fctr.All.X..rcv.glmnet.prob
+## 1     1618            N                         0.003961226
+## 2     6251            Y                         0.933618142
+## 3     6435            N                         0.110713384
+##   Popular.fctr.All.X..rcv.glmnet Popular.fctr.All.X..rcv.glmnet.err
+## 1                              N                              FALSE
+## 2                              Y                              FALSE
+## 3                              Y                               TRUE
+##   Popular.fctr.All.X..rcv.glmnet.err.abs
+## 1                            0.003961226
+## 2                            0.066381858
+## 3                            0.110713384
+##   Popular.fctr.All.X..rcv.glmnet.is.acc
+## 1                                  TRUE
+## 2                                  TRUE
+## 3                                 FALSE
+##   Popular.fctr.All.X..rcv.glmnet.accurate
+## 1                                    TRUE
+## 2                                    TRUE
+## 3                                   FALSE
+##   Popular.fctr.All.X..rcv.glmnet.error .label
+## 1                           0.00000000   1618
+## 2                           0.00000000   6251
+## 3                           0.01071338   6435
 ## [1] "Inaccurate: "
-##      UniqueID Popular.fctr Popular.fctr.predict.All.X.glmnet.prob
-## 4020     4020            Y                             0.01153216
-## 4352     4352            Y                             0.01557858
-## 4775     4775            Y                             0.01694357
-## 6354     6354            Y                             0.01942833
-## 4745     4745            Y                             0.02014592
-## 172       172            Y                             0.02244134
-##      Popular.fctr.predict.All.X.glmnet
-## 4020                                 N
-## 4352                                 N
-## 4775                                 N
-## 6354                                 N
-## 4745                                 N
-## 172                                  N
-##      Popular.fctr.predict.All.X.glmnet.err
-## 4020                                  TRUE
-## 4352                                  TRUE
-## 4775                                  TRUE
-## 6354                                  TRUE
-## 4745                                  TRUE
-## 172                                   TRUE
-##      Popular.fctr.predict.All.X.glmnet.err.abs
-## 4020                                 0.9884678
-## 4352                                 0.9844214
-## 4775                                 0.9830564
-## 6354                                 0.9805717
-## 4745                                 0.9798541
-## 172                                  0.9775587
-##      Popular.fctr.predict.All.X.glmnet.accurate
-## 4020                                      FALSE
-## 4352                                      FALSE
-## 4775                                      FALSE
-## 6354                                      FALSE
-## 4745                                      FALSE
-## 172                                       FALSE
-##      Popular.fctr.predict.All.X.glmnet.error
-## 4020                             -0.08846784
-## 4352                             -0.08442142
-## 4775                             -0.08305643
-## 6354                             -0.08057167
-## 4745                             -0.07985408
-## 172                              -0.07755866
-##      UniqueID Popular.fctr Popular.fctr.predict.All.X.glmnet.prob
-## 2545     2545            N                              0.1014865
-## 4917     4917            N                              0.1072512
-## 303       303            N                              0.1511238
-## 5087     5087            N                              0.5422170
-## 4962     4962            N                              0.6157458
-## 6511     6511            N                              0.8246298
-##      Popular.fctr.predict.All.X.glmnet
-## 2545                                 Y
-## 4917                                 Y
-## 303                                  Y
-## 5087                                 Y
-## 4962                                 Y
-## 6511                                 Y
-##      Popular.fctr.predict.All.X.glmnet.err
-## 2545                                  TRUE
-## 4917                                  TRUE
-## 303                                   TRUE
-## 5087                                  TRUE
-## 4962                                  TRUE
-## 6511                                  TRUE
-##      Popular.fctr.predict.All.X.glmnet.err.abs
-## 2545                                 0.1014865
-## 4917                                 0.1072512
-## 303                                  0.1511238
-## 5087                                 0.5422170
-## 4962                                 0.6157458
-## 6511                                 0.8246298
-##      Popular.fctr.predict.All.X.glmnet.accurate
-## 2545                                      FALSE
-## 4917                                      FALSE
-## 303                                       FALSE
-## 5087                                      FALSE
-## 4962                                      FALSE
-## 6511                                      FALSE
-##      Popular.fctr.predict.All.X.glmnet.error
-## 2545                             0.001486507
-## 4917                             0.007251173
-## 303                              0.051123801
-## 5087                             0.442216987
-## 4962                             0.515745834
-## 6511                             0.724629843
-##      UniqueID Popular.fctr Popular.fctr.predict.All.X.glmnet.prob
-## 770       770            N                              0.9698459
-## 6276     6276            N                              0.9721252
-## 221       221            N                              0.9729676
-## 3590     3590            N                              0.9730589
-## 472       472            N                              0.9740792
-## 2995     2995            N                              0.9744222
-##      Popular.fctr.predict.All.X.glmnet
-## 770                                  Y
-## 6276                                 Y
-## 221                                  Y
-## 3590                                 Y
-## 472                                  Y
-## 2995                                 Y
-##      Popular.fctr.predict.All.X.glmnet.err
-## 770                                   TRUE
-## 6276                                  TRUE
-## 221                                   TRUE
-## 3590                                  TRUE
-## 472                                   TRUE
-## 2995                                  TRUE
-##      Popular.fctr.predict.All.X.glmnet.err.abs
-## 770                                  0.9698459
-## 6276                                 0.9721252
-## 221                                  0.9729676
-## 3590                                 0.9730589
-## 472                                  0.9740792
-## 2995                                 0.9744222
-##      Popular.fctr.predict.All.X.glmnet.accurate
-## 770                                       FALSE
-## 6276                                      FALSE
-## 221                                       FALSE
-## 3590                                      FALSE
-## 472                                       FALSE
-## 2995                                      FALSE
-##      Popular.fctr.predict.All.X.glmnet.error
-## 770                                0.8698459
-## 6276                               0.8721252
-## 221                                0.8729676
-## 3590                               0.8730589
-## 472                                0.8740792
-## 2995                               0.8744222
+##   UniqueID Popular.fctr Popular.fctr.All.X..rcv.glmnet.prob
+## 1     4020            Y                          0.01153216
+## 2     4352            Y                          0.01557858
+## 3     4775            Y                          0.01694357
+## 4     6354            Y                          0.01942833
+## 5     4745            Y                          0.02014592
+## 6      172            Y                          0.02244134
+##   Popular.fctr.All.X..rcv.glmnet Popular.fctr.All.X..rcv.glmnet.err
+## 1                              N                               TRUE
+## 2                              N                               TRUE
+## 3                              N                               TRUE
+## 4                              N                               TRUE
+## 5                              N                               TRUE
+## 6                              N                               TRUE
+##   Popular.fctr.All.X..rcv.glmnet.err.abs
+## 1                              0.9884678
+## 2                              0.9844214
+## 3                              0.9830564
+## 4                              0.9805717
+## 5                              0.9798541
+## 6                              0.9775587
+##   Popular.fctr.All.X..rcv.glmnet.is.acc
+## 1                                 FALSE
+## 2                                 FALSE
+## 3                                 FALSE
+## 4                                 FALSE
+## 5                                 FALSE
+## 6                                 FALSE
+##   Popular.fctr.All.X..rcv.glmnet.accurate
+## 1                                   FALSE
+## 2                                   FALSE
+## 3                                   FALSE
+## 4                                   FALSE
+## 5                                   FALSE
+## 6                                   FALSE
+##   Popular.fctr.All.X..rcv.glmnet.error
+## 1                          -0.08846784
+## 2                          -0.08442142
+## 3                          -0.08305643
+## 4                          -0.08057167
+## 5                          -0.07985408
+## 6                          -0.07755866
+##     UniqueID Popular.fctr Popular.fctr.All.X..rcv.glmnet.prob
+## 84      2545            N                           0.1014865
+## 108     4917            N                           0.1072512
+## 210      303            N                           0.1511238
+## 278     5087            N                           0.5422170
+## 294     4962            N                           0.6157458
+## 359     6511            N                           0.8246298
+##     Popular.fctr.All.X..rcv.glmnet Popular.fctr.All.X..rcv.glmnet.err
+## 84                               Y                               TRUE
+## 108                              Y                               TRUE
+## 210                              Y                               TRUE
+## 278                              Y                               TRUE
+## 294                              Y                               TRUE
+## 359                              Y                               TRUE
+##     Popular.fctr.All.X..rcv.glmnet.err.abs
+## 84                               0.1014865
+## 108                              0.1072512
+## 210                              0.1511238
+## 278                              0.5422170
+## 294                              0.6157458
+## 359                              0.8246298
+##     Popular.fctr.All.X..rcv.glmnet.is.acc
+## 84                                  FALSE
+## 108                                 FALSE
+## 210                                 FALSE
+## 278                                 FALSE
+## 294                                 FALSE
+## 359                                 FALSE
+##     Popular.fctr.All.X..rcv.glmnet.accurate
+## 84                                    FALSE
+## 108                                   FALSE
+## 210                                   FALSE
+## 278                                   FALSE
+## 294                                   FALSE
+## 359                                   FALSE
+##     Popular.fctr.All.X..rcv.glmnet.error
+## 84                           0.001486507
+## 108                          0.007251173
+## 210                          0.051123801
+## 278                          0.442216987
+## 294                          0.515745834
+## 359                          0.724629843
+##     UniqueID Popular.fctr Popular.fctr.All.X..rcv.glmnet.prob
+## 394      770            N                           0.9698459
+## 395     6276            N                           0.9721252
+## 396      221            N                           0.9729676
+## 397     3590            N                           0.9730589
+## 398      472            N                           0.9740792
+## 399     2995            N                           0.9744222
+##     Popular.fctr.All.X..rcv.glmnet Popular.fctr.All.X..rcv.glmnet.err
+## 394                              Y                               TRUE
+## 395                              Y                               TRUE
+## 396                              Y                               TRUE
+## 397                              Y                               TRUE
+## 398                              Y                               TRUE
+## 399                              Y                               TRUE
+##     Popular.fctr.All.X..rcv.glmnet.err.abs
+## 394                              0.9698459
+## 395                              0.9721252
+## 396                              0.9729676
+## 397                              0.9730589
+## 398                              0.9740792
+## 399                              0.9744222
+##     Popular.fctr.All.X..rcv.glmnet.is.acc
+## 394                                 FALSE
+## 395                                 FALSE
+## 396                                 FALSE
+## 397                                 FALSE
+## 398                                 FALSE
+## 399                                 FALSE
+##     Popular.fctr.All.X..rcv.glmnet.accurate
+## 394                                   FALSE
+## 395                                   FALSE
+## 396                                   FALSE
+## 397                                   FALSE
+## 398                                   FALSE
+## 399                                   FALSE
+##     Popular.fctr.All.X..rcv.glmnet.error
+## 394                            0.8698459
+## 395                            0.8721252
+## 396                            0.8729676
+## 397                            0.8730589
+## 398                            0.8740792
+## 399                            0.8744222
 ```
 
 ![](NYTBlogs3_base_files/figure-html/fit.models_2-10.png) 
 
 ```r
-if (!is.null(glb_category_var)) {
-    glb_ctgry_df <- merge(glb_ctgry_df, 
-            myget_category_stats(obs_df = glbObsFit, mdl_id = glb_sel_mdl_id, label = "fit"),
-                          by = glb_category_var, all = TRUE)
-    row.names(glb_ctgry_df) <- glb_ctgry_df[, glb_category_var]
-    glb_ctgry_df <- merge(glb_ctgry_df, 
-                myget_category_stats(obs_df=glbObsOOB, mdl_id=glb_sel_mdl_id, label="OOB"),
-                          #by=glb_category_var, all=TRUE) glb_ctgry-df already contains .n.OOB ?
-                          all=TRUE)
-    row.names(glb_ctgry_df) <- glb_ctgry_df[, glb_category_var]
+if (!is.null(glbFeatsCategory)) {
+    glbLvlCategory <- merge(glbLvlCategory, 
+            myget_category_stats(obs_df = glbObsFit, mdl_id = glb_sel_mdl_id, 
+                                 label = "fit"), 
+                            by = glbFeatsCategory, all = TRUE)
+    row.names(glbLvlCategory) <- glbLvlCategory[, glbFeatsCategory]
+    glbLvlCategory <- merge(glbLvlCategory, 
+            myget_category_stats(obs_df = glbObsOOB, mdl_id = glb_sel_mdl_id,
+                                 label="OOB"),
+                          #by=glbFeatsCategory, all=TRUE) glb_ctgry-df already contains .n.OOB ?
+                          all = TRUE)
+    row.names(glbLvlCategory) <- glbLvlCategory[, glbFeatsCategory]
     if (any(grepl("OOB", glbMdlMetricsEval)))
-        print(orderBy(~-err.abs.OOB.mean, glb_ctgry_df)) else
-            print(orderBy(~-err.abs.fit.mean, glb_ctgry_df))
-    print(colSums(glb_ctgry_df[, -grep(glb_category_var, names(glb_ctgry_df))]))
+        print(orderBy(~-err.abs.OOB.mean, glbLvlCategory)) else
+            print(orderBy(~-err.abs.fit.mean, glbLvlCategory))
+    print(colSums(glbLvlCategory[, -grep(glbFeatsCategory, names(glbLvlCategory))]))
 }
 ```
 
@@ -9378,7 +9178,7 @@ fit.models_2_chunk_df <-
 
 ```
 ##              label step_major step_minor label_minor     bgn end elapsed
-## 1 fit.models_2_bgn          1          0    teardown 174.883  NA      NA
+## 1 fit.models_2_bgn          1          0    teardown 185.238  NA      NA
 ```
 
 ```r
@@ -9387,8 +9187,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc=FALSE)
 
 ```
 ##         label step_major step_minor label_minor     bgn     end elapsed
-## 12 fit.models          6          2           2 161.330 174.893  13.563
-## 13 fit.models          6          3           3 174.894      NA      NA
+## 12 fit.models          6          2           2 171.989 185.249   13.26
+## 13 fit.models          6          3           3 185.249      NA      NA
 ```
 
 
@@ -9396,7 +9196,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc=FALSE)
 # if (sum(is.na(glbObsAll$D.P.http)) > 0)
 #         stop("fit.models_3: Why is this happening ?")
 
-#stop(here"); glb_to_sav()
+#stop(here"); glb2Sav()
 sync_glb_obs_df <- function() {
     # Merge or cbind ?
     for (col in setdiff(names(glbObsFit), names(glbObsTrn)))
@@ -9458,10 +9258,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.data.training", major.inc=TRUE)
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 13        fit.models          6          3           3 174.894 181.343
-## 14 fit.data.training          7          0           0 181.344      NA
+## 13        fit.models          6          3           3 185.249 190.763
+## 14 fit.data.training          7          0           0 190.764      NA
 ##    elapsed
-## 13    6.45
+## 13   5.514
 ## 14      NA
 ```
 
@@ -9470,6 +9270,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.data.training", major.inc=TRUE)
 ```r
 #load(paste0(glb_inp_pfx, "dsk.RData"))
 
+#stop(here"); glb2Sav()
 if (!is.null(glb_fin_mdl_id) && (glb_fin_mdl_id %in% names(glb_models_lst))) {
     warning("Final model same as user selected model")
     glb_fin_mdl <- glb_models_lst[[glb_fin_mdl_id]]
@@ -9503,7 +9304,7 @@ if (!all(is.na(glbObsNew[, glb_rsp_var])))
         mdlimp_df <- subset(myget_feats_importance(glb_sel_mdl), importance > 5)
         # Fit selected models on glbObsTrn
         for (mdl_id in gsub(".prob", "", 
-                    gsub(glb_rsp_var_out, "", row.names(mdlimp_df), fixed = TRUE),
+gsub(mygetPredictIds(glb_rsp_var)$value, "", row.names(mdlimp_df), fixed = TRUE),
                             fixed = TRUE)) {
             mdl_id_components <- unlist(strsplit(mdl_id, "[.]"))
             mdlIdPfx <- paste0(c(head(mdl_id_components, -1), "Train"), 
@@ -9531,12 +9332,12 @@ if (!all(is.na(glbObsNew[, glb_rsp_var])))
             
             glbObsTrn <- glb_get_predictions(df = glbObsTrn,
                                                 mdl_id = tail(glb_models_df$id, 1), 
-                                                rsp_var_out = glb_rsp_var_out,
+                                                rsp_var = glb_rsp_var,
                                                 prob_threshold_def = 
                     subset(glb_models_df, id == mdl_id)$opt.prob.threshold.OOB)
             glbObsNew <- glb_get_predictions(df = glbObsNew,
                                                 mdl_id = tail(glb_models_df$id, 1), 
-                                                rsp_var_out = glb_rsp_var_out,
+                                                rsp_var = glb_rsp_var,
                                                 prob_threshold_def = 
                     subset(glb_models_df, id == mdl_id)$opt.prob.threshold.OOB)
         }    
@@ -9563,23 +9364,6 @@ if (!all(is.na(glbObsNew[, glb_rsp_var])))
                                                    glb_sel_mdl_id
                                                    , "feats"], "[,]")))
         
-    # Discontinuing use of tune_finmdl_df; 
-    #   since final model needs to be cved on glbObsTrn
-#     tune_finmdl_df <- NULL
-#     if (nrow(glb_sel_mdl$bestTune) > 0) {
-#         for (param in names(glb_sel_mdl$bestTune)) {
-#             #print(sprintf("param: %s", param))
-#             if (glb_sel_mdl$bestTune[1, param] != "none")
-#                 tune_finmdl_df <- rbind(tune_finmdl_df, 
-#                     data.frame(parameter=param, 
-#                                min=glb_sel_mdl$bestTune[1, param], 
-#                                max=glb_sel_mdl$bestTune[1, param], 
-#                                by=1)) # by val does not matter
-#         }
-#     } 
-    
-    # Sync with parameters in mydsutils.R
-#stop(here"); glb_to_sav(); glb_models_lst <- sav_models_lst; glb_models_df <- sav_models_df
     if (!is.null(glb_preproc_methods) &&
         ((match_pos <- regexpr(gsub(".", "\\.", 
                                     paste(glb_preproc_methods, collapse = "|"),
@@ -9595,8 +9379,7 @@ if (!all(is.na(glbObsNew[, glb_rsp_var])))
                             glbObsTrnOutliers[[mdl_id_pfx]]), ]
         
     # Force fitting of Final.glm to identify outliers
-    method_vctr <- 
-        unique(c("glm", tail(unlist(strsplit(glb_sel_mdl_id, "[.]")), 1)))
+    method_vctr <- unique(c("glm", myparseMdlId(glb_sel_mdl_id)$alg))
     for (method in method_vctr) {
         #source("caret_nominalTrainWorkflow.R")
         
@@ -9780,7 +9563,7 @@ trainControl.allowParallel = FALSE,
 ```
 
 ```
-## [1] "fitting model: Final.glm"
+## [1] "fitting model: Final##rcv#glm"
 ## [1] "    indep_vars: WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp"
 ## + Fold1.Rep1: parameter=none
 ```
@@ -9945,12 +9728,6 @@ trainControl.allowParallel = FALSE,
 ![](NYTBlogs3_base_files/figure-html/fit.data.training_0-6.png) ![](NYTBlogs3_base_files/figure-html/fit.data.training_0-7.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Final.glm.N
-## 1            N                             5172
-## 2            Y                              363
-##   Popular.fctr.predict.Final.glm.Y
-## 1                              267
-## 2                              730
 ##          Prediction
 ## Reference    N    Y
 ##         N 5172  267
@@ -9959,12 +9736,12 @@ trainControl.allowParallel = FALSE,
 ##   9.035517e-01   6.413003e-01   8.961350e-01   9.106059e-01   8.326699e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   7.824873e-61   1.537762e-04 
-##          id
-## 1 Final.glm
+##               id
+## 1 Final##rcv#glm
 ##                                                                    feats
 ## 1 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               1                      3.307                 0.261
+## 1               1                      3.191                 0.253
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.7989009    0.9610222    0.6367795       0.9333994
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -9973,7 +9750,7 @@ trainControl.allowParallel = FALSE,
 ## 1              0.896135             0.9106059     0.6371833
 ##   max.AccuracySD.fit max.KappaSD.fit
 ## 1        0.004986598      0.02341093
-## [1] "fitting model: Final.glmnet"
+## [1] "fitting model: Final##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp"
 ## + Fold1.Rep1: alpha=0.100, lambda=0.07781 
 ## - Fold1.Rep1: alpha=0.100, lambda=0.07781 
@@ -10179,12 +9956,6 @@ trainControl.allowParallel = FALSE,
 ![](NYTBlogs3_base_files/figure-html/fit.data.training_0-10.png) ![](NYTBlogs3_base_files/figure-html/fit.data.training_0-11.png) 
 
 ```
-##   Popular.fctr Popular.fctr.predict.Final.glmnet.N
-## 1            N                                5141
-## 2            Y                                 338
-##   Popular.fctr.predict.Final.glmnet.Y
-## 1                                 298
-## 2                                 755
 ##          Prediction
 ## Reference    N    Y
 ##         N 5141  298
@@ -10193,12 +9964,12 @@ trainControl.allowParallel = FALSE,
 ##   9.026332e-01   6.454065e-01   8.951865e-01   9.097181e-01   8.326699e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   3.401653e-59   1.219958e-01 
-##             id
-## 1 Final.glmnet
+##                  id
+## 1 Final##rcv#glmnet
 ##                                                                    feats
 ## 1 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                     19.047                 0.389
+## 1              25                     18.464                 0.378
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.7945167    0.9641478    0.6248856       0.9310545
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -10216,16 +9987,16 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.data.training", major.inc=FALSE
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 14 fit.data.training          7          0           0 181.344 222.039
-## 15 fit.data.training          7          1           1 222.039      NA
+## 14 fit.data.training          7          0           0 190.764 230.765
+## 15 fit.data.training          7          1           1 230.766      NA
 ##    elapsed
-## 14  40.695
+## 14  40.001
 ## 15      NA
 ```
 
 
 ```r
-#stop(here"); glb_to_sav()
+#stop(here"); glb2Sav()
 if (glb_is_classification && glb_is_binomial) 
     prob_threshold <- glb_models_df[glb_models_df$id == glb_sel_mdl_id,
                                         "opt.prob.threshold.OOB"] else 
@@ -10238,20 +10009,20 @@ if (grepl("Ensemble", glb_fin_mdl_id)) {
     if (glb_is_classification && glb_is_binomial)
         mdlEnsembleComps <- gsub("\\.prob$", "", mdlEnsembleComps)
     mdlEnsembleComps <- gsub(paste0("^", 
-                                    gsub(".", "\\.", glb_rsp_var_out, fixed = TRUE)),
+                        gsub(".", "\\.", mygetPredictIds(glb_rsp_var)$value, fixed = TRUE)),
                              "", mdlEnsembleComps)
     for (mdl_id in mdlEnsembleComps) {
-        glbObsTrn <- glb_get_predictions(df=glbObsTrn, mdl_id=mdl_id, 
-                                            rsp_var_out=glb_rsp_var_out,
-                                            prob_threshold_def=prob_threshold)
-        glbObsNew <- glb_get_predictions(df=glbObsNew, mdl_id=mdl_id, 
-                                            rsp_var_out=glb_rsp_var_out,
-                                            prob_threshold_def=prob_threshold)
+        glbObsTrn <- glb_get_predictions(df = glbObsTrn, mdl_id = mdl_id, 
+                                            rsp_var = glb_rsp_var,
+                                            prob_threshold_def = prob_threshold)
+        glbObsNew <- glb_get_predictions(df = glbObsNew, mdl_id = mdl_id, 
+                                            rsp_var = glb_rsp_var,
+                                            prob_threshold_def = prob_threshold)
     }    
 }
-glbObsTrn <- glb_get_predictions(df=glbObsTrn, mdl_id=glb_fin_mdl_id, 
-                                     rsp_var_out=glb_rsp_var_out,
-                                    prob_threshold_def=prob_threshold)
+glbObsTrn <- glb_get_predictions(df = glbObsTrn, mdl_id = glb_fin_mdl_id, 
+                                     rsp_var = glb_rsp_var,
+                                    prob_threshold_def = prob_threshold)
 ```
 
 ```
@@ -10267,31 +10038,31 @@ print(glb_featsimp_df)
 ```
 
 ```
-##                                                    All.X.glmnet.importance
-## NDSSName.my.fctrOpEd#Opinion#                                    100.00000
-## NDSSName.my.fctrBusiness#Crosswords/Games#                        98.38173
-## NDSSName.my.fctr#Opinion#ThePublicEditor                          87.34197
-## NDSSName.my.fctrScience#Health#                                   84.05064
-## NDSSName.my.fctrStyles#U.S.#                                      80.66804
-## NDSSName.my.fctrBusiness#Technology#                              43.29623
-## WordCount.log1p                                                   34.01597
-## WordCount.root2                                                   32.29795
-## .rnorm                                                            31.33944
-## NDSSName.my.fctrCulture##                                         31.33944
-## NDSSName.my.fctrCulture#Arts#                                     31.33944
-## NDSSName.my.fctrMetro#N.Y./Region#                                31.33944
-## WordCount.nexp                                                    31.33944
-## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                     31.33944
-## NDSSName.my.fctrTravel#Travel#                                    31.31570
-## NDSSName.my.fctrmyOther                                           27.85141
-## NDSSName.my.fctrForeign#World#                                    30.00852
-## NDSSName.my.fctr#Multimedia#                                      28.91940
-## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                27.78546
-## NDSSName.my.fctrStyles##Fashion                                   22.02991
-## NDSSName.my.fctrTStyle##                                          17.36032
-## NDSSName.my.fctrForeign#World#AsiaPacific                         19.29994
-## NDSSName.my.fctr#U.S.#Education                                   18.25900
-## NDSSName.my.fctr#Opinion#RoomForDebate                             0.00000
+##                                                    All.X##rcv#glmnet.importance
+## NDSSName.my.fctrOpEd#Opinion#                                         100.00000
+## NDSSName.my.fctrBusiness#Crosswords/Games#                             98.38173
+## NDSSName.my.fctr#Opinion#ThePublicEditor                               87.34197
+## NDSSName.my.fctrScience#Health#                                        84.05064
+## NDSSName.my.fctrStyles#U.S.#                                           80.66804
+## NDSSName.my.fctrBusiness#Technology#                                   43.29623
+## WordCount.log1p                                                        34.01597
+## WordCount.root2                                                        32.29795
+## .rnorm                                                                 31.33944
+## NDSSName.my.fctrCulture##                                              31.33944
+## NDSSName.my.fctrCulture#Arts#                                          31.33944
+## NDSSName.my.fctrMetro#N.Y./Region#                                     31.33944
+## WordCount.nexp                                                         31.33944
+## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                          31.33944
+## NDSSName.my.fctrTravel#Travel#                                         31.31570
+## NDSSName.my.fctrmyOther                                                27.85141
+## NDSSName.my.fctrForeign#World#                                         30.00852
+## NDSSName.my.fctr#Multimedia#                                           28.91940
+## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                     27.78546
+## NDSSName.my.fctrStyles##Fashion                                        22.02991
+## NDSSName.my.fctrTStyle##                                               17.36032
+## NDSSName.my.fctrForeign#World#AsiaPacific                              19.29994
+## NDSSName.my.fctr#U.S.#Education                                        18.25900
+## NDSSName.my.fctr#Opinion#RoomForDebate                                  0.00000
 ##                                                    importance
 ## NDSSName.my.fctrOpEd#Opinion#                       100.00000
 ## NDSSName.my.fctrBusiness#Crosswords/Games#           99.96082
@@ -10317,31 +10088,31 @@ print(glb_featsimp_df)
 ## NDSSName.my.fctrForeign#World#AsiaPacific            14.61070
 ## NDSSName.my.fctr#U.S.#Education                      14.34221
 ## NDSSName.my.fctr#Opinion#RoomForDebate                0.00000
-##                                                    Final.glmnet.importance
-## NDSSName.my.fctrOpEd#Opinion#                                    100.00000
-## NDSSName.my.fctrBusiness#Crosswords/Games#                        99.96082
-## NDSSName.my.fctr#Opinion#ThePublicEditor                          86.61487
-## NDSSName.my.fctrScience#Health#                                   82.33065
-## NDSSName.my.fctrStyles#U.S.#                                      77.12194
-## NDSSName.my.fctrBusiness#Technology#                              38.62774
-## WordCount.log1p                                                   37.41260
-## WordCount.root2                                                   32.88366
-## .rnorm                                                            31.93272
-## NDSSName.my.fctrCulture##                                         31.93272
-## NDSSName.my.fctrCulture#Arts#                                     31.93272
-## NDSSName.my.fctrMetro#N.Y./Region#                                31.93272
-## WordCount.nexp                                                    31.93272
-## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                     31.12990
-## NDSSName.my.fctrTravel#Travel#                                    29.62778
-## NDSSName.my.fctrmyOther                                           26.20874
-## NDSSName.my.fctrForeign#World#                                    25.48953
-## NDSSName.my.fctr#Multimedia#                                      24.73162
-## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                23.59037
-## NDSSName.my.fctrStyles##Fashion                                   21.10031
-## NDSSName.my.fctrTStyle##                                          16.67670
-## NDSSName.my.fctrForeign#World#AsiaPacific                         14.61070
-## NDSSName.my.fctr#U.S.#Education                                   14.34221
-## NDSSName.my.fctr#Opinion#RoomForDebate                             0.00000
+##                                                    Final##rcv#glmnet.importance
+## NDSSName.my.fctrOpEd#Opinion#                                         100.00000
+## NDSSName.my.fctrBusiness#Crosswords/Games#                             99.96082
+## NDSSName.my.fctr#Opinion#ThePublicEditor                               86.61487
+## NDSSName.my.fctrScience#Health#                                        82.33065
+## NDSSName.my.fctrStyles#U.S.#                                           77.12194
+## NDSSName.my.fctrBusiness#Technology#                                   38.62774
+## WordCount.log1p                                                        37.41260
+## WordCount.root2                                                        32.88366
+## .rnorm                                                                 31.93272
+## NDSSName.my.fctrCulture##                                              31.93272
+## NDSSName.my.fctrCulture#Arts#                                          31.93272
+## NDSSName.my.fctrMetro#N.Y./Region#                                     31.93272
+## WordCount.nexp                                                         31.93272
+## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                          31.12990
+## NDSSName.my.fctrTravel#Travel#                                         29.62778
+## NDSSName.my.fctrmyOther                                                26.20874
+## NDSSName.my.fctrForeign#World#                                         25.48953
+## NDSSName.my.fctr#Multimedia#                                           24.73162
+## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                     23.59037
+## NDSSName.my.fctrStyles##Fashion                                        21.10031
+## NDSSName.my.fctrTStyle##                                               16.67670
+## NDSSName.my.fctrForeign#World#AsiaPacific                              14.61070
+## NDSSName.my.fctr#U.S.#Education                                        14.34221
+## NDSSName.my.fctr#Opinion#RoomForDebate                                  0.00000
 ```
 
 ```r
@@ -10356,271 +10127,247 @@ if (glb_is_classification && glb_is_binomial)
 
 ```
 ## [1] "Min/Max Boundaries: "
-##      UniqueID Popular.fctr Popular.fctr.predict.All.X.glmnet.prob
-## 96         96            N                                     NA
-## 6370     6370            Y                              0.9608409
-##      Popular.fctr.predict.All.X.glmnet
-## 96                                <NA>
-## 6370                                 Y
-##      Popular.fctr.predict.All.X.glmnet.err
-## 96                                      NA
-## 6370                                 FALSE
-##      Popular.fctr.predict.All.X.glmnet.err.abs
-## 96                                          NA
-## 6370                                0.03915913
-##      Popular.fctr.predict.All.X.glmnet.accurate
-## 96                                           NA
-## 6370                                       TRUE
-##      Popular.fctr.predict.Final.glmnet.prob
-## 96                              0.006026625
-## 6370                            0.915289043
-##      Popular.fctr.predict.Final.glmnet
-## 96                                   N
-## 6370                                 Y
-##      Popular.fctr.predict.Final.glmnet.err
-## 96                                   FALSE
-## 6370                                 FALSE
-##      Popular.fctr.predict.Final.glmnet.err.abs
-## 96                                 0.006026625
-## 6370                               0.084710957
-##      Popular.fctr.predict.Final.glmnet.accurate
-## 96                                         TRUE
-## 6370                                       TRUE
-##      Popular.fctr.predict.Final.glmnet.error .label
-## 96                                         0     96
-## 6370                                       0   6370
+##   UniqueID Popular.fctr Popular.fctr.All.X..rcv.glmnet.prob
+## 1       96            N                                  NA
+## 2     6370            Y                           0.9608409
+##   Popular.fctr.All.X..rcv.glmnet Popular.fctr.All.X..rcv.glmnet.err
+## 1                           <NA>                                 NA
+## 2                              Y                              FALSE
+##   Popular.fctr.All.X..rcv.glmnet.err.abs
+## 1                                     NA
+## 2                             0.03915913
+##   Popular.fctr.All.X..rcv.glmnet.is.acc
+## 1                                    NA
+## 2                                  TRUE
+##   Popular.fctr.Final..rcv.glmnet.prob Popular.fctr.Final..rcv.glmnet
+## 1                         0.006026625                              N
+## 2                         0.915289043                              Y
+##   Popular.fctr.Final..rcv.glmnet.err
+## 1                              FALSE
+## 2                              FALSE
+##   Popular.fctr.Final..rcv.glmnet.err.abs
+## 1                            0.006026625
+## 2                            0.084710957
+##   Popular.fctr.Final..rcv.glmnet.is.acc
+## 1                                  TRUE
+## 2                                  TRUE
+##   Popular.fctr.Final..rcv.glmnet.accurate
+## 1                                    TRUE
+## 2                                    TRUE
+##   Popular.fctr.Final..rcv.glmnet.error .label
+## 1                                    0     96
+## 2                                    0   6370
 ## [1] "Inaccurate: "
-##      UniqueID Popular.fctr Popular.fctr.predict.All.X.glmnet.prob
-## 2182     2182            Y                            0.006633964
-## 4020     4020            Y                                     NA
-## 1696     1696            Y                            0.012803835
-## 4775     4775            Y                                     NA
-## 4721     4721            Y                            0.020278808
-## 364       364            Y                            0.019247847
-##      Popular.fctr.predict.All.X.glmnet
-## 2182                                 N
-## 4020                              <NA>
-## 1696                                 N
-## 4775                              <NA>
-## 4721                                 N
-## 364                                  N
-##      Popular.fctr.predict.All.X.glmnet.err
-## 2182                                  TRUE
-## 4020                                    NA
-## 1696                                  TRUE
-## 4775                                    NA
-## 4721                                  TRUE
-## 364                                   TRUE
-##      Popular.fctr.predict.All.X.glmnet.err.abs
-## 2182                                 0.9933660
-## 4020                                        NA
-## 1696                                 0.9871962
-## 4775                                        NA
-## 4721                                 0.9797212
-## 364                                  0.9807522
-##      Popular.fctr.predict.All.X.glmnet.accurate
-## 2182                                      FALSE
-## 4020                                         NA
-## 1696                                      FALSE
-## 4775                                         NA
-## 4721                                      FALSE
-## 364                                       FALSE
-##      Popular.fctr.predict.Final.glmnet.prob
-## 2182                             0.01576970
-## 4020                             0.02182292
-## 1696                             0.02432199
-## 4775                             0.03213481
-## 4721                             0.03466036
-## 364                              0.03629580
-##      Popular.fctr.predict.Final.glmnet
-## 2182                                 N
-## 4020                                 N
-## 1696                                 N
-## 4775                                 N
-## 4721                                 N
-## 364                                  N
-##      Popular.fctr.predict.Final.glmnet.err
-## 2182                                  TRUE
-## 4020                                  TRUE
-## 1696                                  TRUE
-## 4775                                  TRUE
-## 4721                                  TRUE
-## 364                                   TRUE
-##      Popular.fctr.predict.Final.glmnet.err.abs
-## 2182                                 0.9842303
-## 4020                                 0.9781771
-## 1696                                 0.9756780
-## 4775                                 0.9678652
-## 4721                                 0.9653396
-## 364                                  0.9637042
-##      Popular.fctr.predict.Final.glmnet.accurate
-## 2182                                      FALSE
-## 4020                                      FALSE
-## 1696                                      FALSE
-## 4775                                      FALSE
-## 4721                                      FALSE
-## 364                                       FALSE
-##      Popular.fctr.predict.Final.glmnet.error
-## 2182                             -0.08423030
-## 4020                             -0.07817708
-## 1696                             -0.07567801
-## 4775                             -0.06786519
-## 4721                             -0.06533964
-## 364                              -0.06370420
-##      UniqueID Popular.fctr Popular.fctr.predict.All.X.glmnet.prob
-## 3029     3029            N                                     NA
-## 323       323            N                             0.07847085
-## 1181     1181            N                                     NA
-## 2064     2064            N                             0.26251870
-## 5287     5287            N                             0.60379585
-## 4786     4786            N                             0.91965114
-##      Popular.fctr.predict.All.X.glmnet
-## 3029                              <NA>
-## 323                                  N
-## 1181                              <NA>
-## 2064                                 Y
-## 5287                                 Y
-## 4786                                 Y
-##      Popular.fctr.predict.All.X.glmnet.err
-## 3029                                    NA
-## 323                                  FALSE
-## 1181                                    NA
-## 2064                                  TRUE
-## 5287                                  TRUE
-## 4786                                  TRUE
-##      Popular.fctr.predict.All.X.glmnet.err.abs
-## 3029                                        NA
-## 323                                 0.07847085
-## 1181                                        NA
-## 2064                                0.26251870
-## 5287                                0.60379585
-## 4786                                0.91965114
-##      Popular.fctr.predict.All.X.glmnet.accurate
-## 3029                                         NA
-## 323                                        TRUE
-## 1181                                         NA
-## 2064                                      FALSE
-## 5287                                      FALSE
-## 4786                                      FALSE
-##      Popular.fctr.predict.Final.glmnet.prob
-## 3029                              0.1051303
-## 323                               0.1168606
-## 1181                              0.1702228
-## 2064                              0.2950796
-## 5287                              0.4139998
-## 4786                              0.8143734
-##      Popular.fctr.predict.Final.glmnet
-## 3029                                 Y
-## 323                                  Y
-## 1181                                 Y
-## 2064                                 Y
-## 5287                                 Y
-## 4786                                 Y
-##      Popular.fctr.predict.Final.glmnet.err
-## 3029                                  TRUE
-## 323                                   TRUE
-## 1181                                  TRUE
-## 2064                                  TRUE
-## 5287                                  TRUE
-## 4786                                  TRUE
-##      Popular.fctr.predict.Final.glmnet.err.abs
-## 3029                                 0.1051303
-## 323                                  0.1168606
-## 1181                                 0.1702228
-## 2064                                 0.2950796
-## 5287                                 0.4139998
-## 4786                                 0.8143734
-##      Popular.fctr.predict.Final.glmnet.accurate
-## 3029                                      FALSE
-## 323                                       FALSE
-## 1181                                      FALSE
-## 2064                                      FALSE
-## 5287                                      FALSE
-## 4786                                      FALSE
-##      Popular.fctr.predict.Final.glmnet.error
-## 3029                             0.005130305
-## 323                              0.016860557
-## 1181                             0.070222845
-## 2064                             0.195079625
-## 5287                             0.313999830
-## 4786                             0.714373384
-##      UniqueID Popular.fctr Popular.fctr.predict.All.X.glmnet.prob
-## 221       221            N                                     NA
-## 3590     3590            N                                     NA
-## 472       472            N                                     NA
-## 2995     2995            N                                     NA
-## 6276     6276            N                                     NA
-## 3258     3258            N                              0.9735424
-##      Popular.fctr.predict.All.X.glmnet
-## 221                               <NA>
-## 3590                              <NA>
-## 472                               <NA>
-## 2995                              <NA>
-## 6276                              <NA>
-## 3258                                 Y
-##      Popular.fctr.predict.All.X.glmnet.err
-## 221                                     NA
-## 3590                                    NA
-## 472                                     NA
-## 2995                                    NA
-## 6276                                    NA
-## 3258                                  TRUE
-##      Popular.fctr.predict.All.X.glmnet.err.abs
-## 221                                         NA
-## 3590                                        NA
-## 472                                         NA
-## 2995                                        NA
-## 6276                                        NA
-## 3258                                 0.9735424
-##      Popular.fctr.predict.All.X.glmnet.accurate
-## 221                                          NA
-## 3590                                         NA
-## 472                                          NA
-## 2995                                         NA
-## 6276                                         NA
-## 3258                                      FALSE
-##      Popular.fctr.predict.Final.glmnet.prob
-## 221                               0.9169618
-## 3590                              0.9171703
-## 472                               0.9195159
-## 2995                              0.9203097
-## 6276                              0.9215804
-## 3258                              0.9245769
-##      Popular.fctr.predict.Final.glmnet
-## 221                                  Y
-## 3590                                 Y
-## 472                                  Y
-## 2995                                 Y
-## 6276                                 Y
-## 3258                                 Y
-##      Popular.fctr.predict.Final.glmnet.err
-## 221                                   TRUE
-## 3590                                  TRUE
-## 472                                   TRUE
-## 2995                                  TRUE
-## 6276                                  TRUE
-## 3258                                  TRUE
-##      Popular.fctr.predict.Final.glmnet.err.abs
-## 221                                  0.9169618
-## 3590                                 0.9171703
-## 472                                  0.9195159
-## 2995                                 0.9203097
-## 6276                                 0.9215804
-## 3258                                 0.9245769
-##      Popular.fctr.predict.Final.glmnet.accurate
-## 221                                       FALSE
-## 3590                                      FALSE
-## 472                                       FALSE
-## 2995                                      FALSE
-## 6276                                      FALSE
-## 3258                                      FALSE
-##      Popular.fctr.predict.Final.glmnet.error
-## 221                                0.8169618
-## 3590                               0.8171703
-## 472                                0.8195159
-## 2995                               0.8203097
-## 6276                               0.8215804
-## 3258                               0.8245769
+##   UniqueID Popular.fctr Popular.fctr.All.X..rcv.glmnet.prob
+## 1     2182            Y                         0.006633964
+## 2     4020            Y                                  NA
+## 3     1696            Y                         0.012803835
+## 4     4775            Y                                  NA
+## 5     4721            Y                         0.020278808
+## 6      364            Y                         0.019247847
+##   Popular.fctr.All.X..rcv.glmnet Popular.fctr.All.X..rcv.glmnet.err
+## 1                              N                               TRUE
+## 2                           <NA>                                 NA
+## 3                              N                               TRUE
+## 4                           <NA>                                 NA
+## 5                              N                               TRUE
+## 6                              N                               TRUE
+##   Popular.fctr.All.X..rcv.glmnet.err.abs
+## 1                              0.9933660
+## 2                                     NA
+## 3                              0.9871962
+## 4                                     NA
+## 5                              0.9797212
+## 6                              0.9807522
+##   Popular.fctr.All.X..rcv.glmnet.is.acc
+## 1                                 FALSE
+## 2                                    NA
+## 3                                 FALSE
+## 4                                    NA
+## 5                                 FALSE
+## 6                                 FALSE
+##   Popular.fctr.Final..rcv.glmnet.prob Popular.fctr.Final..rcv.glmnet
+## 1                          0.01576970                              N
+## 2                          0.02182292                              N
+## 3                          0.02432199                              N
+## 4                          0.03213481                              N
+## 5                          0.03466036                              N
+## 6                          0.03629580                              N
+##   Popular.fctr.Final..rcv.glmnet.err
+## 1                               TRUE
+## 2                               TRUE
+## 3                               TRUE
+## 4                               TRUE
+## 5                               TRUE
+## 6                               TRUE
+##   Popular.fctr.Final..rcv.glmnet.err.abs
+## 1                              0.9842303
+## 2                              0.9781771
+## 3                              0.9756780
+## 4                              0.9678652
+## 5                              0.9653396
+## 6                              0.9637042
+##   Popular.fctr.Final..rcv.glmnet.is.acc
+## 1                                 FALSE
+## 2                                 FALSE
+## 3                                 FALSE
+## 4                                 FALSE
+## 5                                 FALSE
+## 6                                 FALSE
+##   Popular.fctr.Final..rcv.glmnet.accurate
+## 1                                   FALSE
+## 2                                   FALSE
+## 3                                   FALSE
+## 4                                   FALSE
+## 5                                   FALSE
+## 6                                   FALSE
+##   Popular.fctr.Final..rcv.glmnet.error
+## 1                          -0.08423030
+## 2                          -0.07817708
+## 3                          -0.07567801
+## 4                          -0.06786519
+## 5                          -0.06533964
+## 6                          -0.06370420
+##      UniqueID Popular.fctr Popular.fctr.All.X..rcv.glmnet.prob
+## 159      3029            N                                  NA
+## 310       323            N                          0.07847085
+## 820      1181            N                                  NA
+## 1056     2064            N                          0.26251870
+## 1120     5287            N                          0.60379585
+## 1322     4786            N                          0.91965114
+##      Popular.fctr.All.X..rcv.glmnet Popular.fctr.All.X..rcv.glmnet.err
+## 159                            <NA>                                 NA
+## 310                               N                              FALSE
+## 820                            <NA>                                 NA
+## 1056                              Y                               TRUE
+## 1120                              Y                               TRUE
+## 1322                              Y                               TRUE
+##      Popular.fctr.All.X..rcv.glmnet.err.abs
+## 159                                      NA
+## 310                              0.07847085
+## 820                                      NA
+## 1056                             0.26251870
+## 1120                             0.60379585
+## 1322                             0.91965114
+##      Popular.fctr.All.X..rcv.glmnet.is.acc
+## 159                                     NA
+## 310                                   TRUE
+## 820                                     NA
+## 1056                                 FALSE
+## 1120                                 FALSE
+## 1322                                 FALSE
+##      Popular.fctr.Final..rcv.glmnet.prob Popular.fctr.Final..rcv.glmnet
+## 159                            0.1051303                              Y
+## 310                            0.1168606                              Y
+## 820                            0.1702228                              Y
+## 1056                           0.2950796                              Y
+## 1120                           0.4139998                              Y
+## 1322                           0.8143734                              Y
+##      Popular.fctr.Final..rcv.glmnet.err
+## 159                                TRUE
+## 310                                TRUE
+## 820                                TRUE
+## 1056                               TRUE
+## 1120                               TRUE
+## 1322                               TRUE
+##      Popular.fctr.Final..rcv.glmnet.err.abs
+## 159                               0.1051303
+## 310                               0.1168606
+## 820                               0.1702228
+## 1056                              0.2950796
+## 1120                              0.4139998
+## 1322                              0.8143734
+##      Popular.fctr.Final..rcv.glmnet.is.acc
+## 159                                  FALSE
+## 310                                  FALSE
+## 820                                  FALSE
+## 1056                                 FALSE
+## 1120                                 FALSE
+## 1322                                 FALSE
+##      Popular.fctr.Final..rcv.glmnet.accurate
+## 159                                    FALSE
+## 310                                    FALSE
+## 820                                    FALSE
+## 1056                                   FALSE
+## 1120                                   FALSE
+## 1322                                   FALSE
+##      Popular.fctr.Final..rcv.glmnet.error
+## 159                           0.005130305
+## 310                           0.016860557
+## 820                           0.070222845
+## 1056                          0.195079625
+## 1120                          0.313999830
+## 1322                          0.714373384
+##      UniqueID Popular.fctr Popular.fctr.All.X..rcv.glmnet.prob
+## 1352      221            N                                  NA
+## 1353     3590            N                                  NA
+## 1354      472            N                                  NA
+## 1355     2995            N                                  NA
+## 1356     6276            N                                  NA
+## 1357     3258            N                           0.9735424
+##      Popular.fctr.All.X..rcv.glmnet Popular.fctr.All.X..rcv.glmnet.err
+## 1352                           <NA>                                 NA
+## 1353                           <NA>                                 NA
+## 1354                           <NA>                                 NA
+## 1355                           <NA>                                 NA
+## 1356                           <NA>                                 NA
+## 1357                              Y                               TRUE
+##      Popular.fctr.All.X..rcv.glmnet.err.abs
+## 1352                                     NA
+## 1353                                     NA
+## 1354                                     NA
+## 1355                                     NA
+## 1356                                     NA
+## 1357                              0.9735424
+##      Popular.fctr.All.X..rcv.glmnet.is.acc
+## 1352                                    NA
+## 1353                                    NA
+## 1354                                    NA
+## 1355                                    NA
+## 1356                                    NA
+## 1357                                 FALSE
+##      Popular.fctr.Final..rcv.glmnet.prob Popular.fctr.Final..rcv.glmnet
+## 1352                           0.9169618                              Y
+## 1353                           0.9171703                              Y
+## 1354                           0.9195159                              Y
+## 1355                           0.9203097                              Y
+## 1356                           0.9215804                              Y
+## 1357                           0.9245769                              Y
+##      Popular.fctr.Final..rcv.glmnet.err
+## 1352                               TRUE
+## 1353                               TRUE
+## 1354                               TRUE
+## 1355                               TRUE
+## 1356                               TRUE
+## 1357                               TRUE
+##      Popular.fctr.Final..rcv.glmnet.err.abs
+## 1352                              0.9169618
+## 1353                              0.9171703
+## 1354                              0.9195159
+## 1355                              0.9203097
+## 1356                              0.9215804
+## 1357                              0.9245769
+##      Popular.fctr.Final..rcv.glmnet.is.acc
+## 1352                                 FALSE
+## 1353                                 FALSE
+## 1354                                 FALSE
+## 1355                                 FALSE
+## 1356                                 FALSE
+## 1357                                 FALSE
+##      Popular.fctr.Final..rcv.glmnet.accurate
+## 1352                                   FALSE
+## 1353                                   FALSE
+## 1354                                   FALSE
+## 1355                                   FALSE
+## 1356                                   FALSE
+## 1357                                   FALSE
+##      Popular.fctr.Final..rcv.glmnet.error
+## 1352                            0.8169618
+## 1353                            0.8171703
+## 1354                            0.8195159
+## 1355                            0.8203097
+## 1356                            0.8215804
+## 1357                            0.8245769
 ```
 
 ![](NYTBlogs3_base_files/figure-html/fit.data.training_1-6.png) 
@@ -10638,11 +10385,11 @@ print(setdiff(names(glbObsTrn), names(glbObsAll)))
 ```
 
 ```
-## [1] "Popular.fctr.predict.Final.glmnet.prob"    
-## [2] "Popular.fctr.predict.Final.glmnet"         
-## [3] "Popular.fctr.predict.Final.glmnet.err"     
-## [4] "Popular.fctr.predict.Final.glmnet.err.abs" 
-## [5] "Popular.fctr.predict.Final.glmnet.accurate"
+## [1] "Popular.fctr.Final..rcv.glmnet.prob"   
+## [2] "Popular.fctr.Final..rcv.glmnet"        
+## [3] "Popular.fctr.Final..rcv.glmnet.err"    
+## [4] "Popular.fctr.Final..rcv.glmnet.err.abs"
+## [5] "Popular.fctr.Final..rcv.glmnet.is.acc"
 ```
 
 ```r
@@ -10713,10 +10460,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 15 fit.data.training          7          1           1 222.039 233.199
-## 16  predict.data.new          8          0           0 233.199      NA
+## 15 fit.data.training          7          1           1 230.766 241.632
+## 16  predict.data.new          8          0           0 241.632      NA
 ##    elapsed
-## 15   11.16
+## 15  10.866
 ## 16      NA
 ```
 
@@ -10725,7 +10472,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ```r
 # Compute final model predictions
 
-#glb_to_sav(); all.equal(sav_allobs_df, glbObsAll); all.equal(sav_trnobs_df, glbObsTrn); all.equal(sav_newobs_df, glbObsNew)  
+#glb2Sav(); all.equal(savObsAll, glbObsAll); all.equal(savObsTrn, glbObsTrn); all.equal(savObsNew, glbObsNew)  
 if (glb_is_classification && glb_is_binomial)
     prob_threshold_def <- 
         glb_models_df[glb_models_df$id == glb_sel_mdl_id, "opt.prob.threshold.OOB"] else
@@ -10733,7 +10480,8 @@ if (glb_is_classification && glb_is_binomial)
 for (obsSet in c("trn", "new")) {
     obs_df <- switch(obsSet, all = glbObsAll, trn = glbObsTrn, new = glbObsNew)
     obs_df <- glb_get_predictions(obs_df, mdl_id = glb_fin_mdl_id, 
-                    rsp_var_out = glb_rsp_var_out, prob_threshold_def = prob_threshold_def)
+                                    rsp_var = glb_rsp_var, 
+                                    prob_threshold_def = prob_threshold_def)
     if (obsSet == "all") glbObsAll <- obs_df else
     if (obsSet == "trn") glbObsTrn <- obs_df else
     if (obsSet == "new") glbObsNew <- obs_df
@@ -10741,13 +10489,13 @@ for (obsSet in c("trn", "new")) {
 ```
 
 ```
-## Warning in glb_get_predictions(obs_df, mdl_id = glb_fin_mdl_id, rsp_var_out
-## = glb_rsp_var_out, : Using default probability threshold: 0.1
+## Warning in glb_get_predictions(obs_df, mdl_id = glb_fin_mdl_id, rsp_var =
+## glb_rsp_var, : Using default probability threshold: 0.1
 ```
 
 ```
-## Warning in glb_get_predictions(obs_df, mdl_id = glb_fin_mdl_id, rsp_var_out
-## = glb_rsp_var_out, : Using default probability threshold: 0.1
+## Warning in glb_get_predictions(obs_df, mdl_id = glb_fin_mdl_id, rsp_var =
+## glb_rsp_var, : Using default probability threshold: 0.1
 ```
 
 ```r
@@ -10825,66 +10573,16 @@ require(stringr)
 ```
 
 ```r
-if (glb_is_classification && glb_is_binomial) {
-    obsout_df <- obs_df[, glb_id_var, FALSE]
-    for (clmn in names(glb_out_vars_lst))
-        if (!grepl("^%<d-%", glb_out_vars_lst[[clmn]]))
-            obsout_df[, clmn] <- obs_df[, glb_out_vars_lst[[clmn]]] else {
+obsout_df <- obs_df[, glb_id_var, FALSE]
+for (clmn in names(glb_out_vars_lst))
+    if (!grepl("^%<d-%", glb_out_vars_lst[[clmn]]))
+        obsout_df[, clmn] <- obs_df[, glb_out_vars_lst[[clmn]]] else {
             feat <- str_trim(unlist(strsplit(glb_out_vars_lst[[clmn]], "%<d-%"))[2])
             obsout_df[, clmn] <- obs_df[, eval(parse(text = feat))]
-        }                                        
-    
-#     glb_force_prediction_lst <- list()
-#     glb_force_prediction_lst[["0"]] <- c(11885, 11907, 11932, 11943, 
-#                                          12050, 12115, 12171, 
-#                                          12253, 12285, 12367, 12388, 12399,
-#                                          12585)
-#     for (obs_id in glb_force_prediction_lst[["0"]]) {
-#         if (sum(glbObsAll[, glb_id_var] == obs_id) == 0)
-#             next
-#         if (is.na(glbObsAll[glbObsAll[, glb_id_var] == obs_id, ".grpid"]))
-#             stop(".grpid is NA")
-# #         submit_df[submit_df[, glb_id_var] == obs_id, "Probability1"] <-
-# #             max(0, submit_df[submit_df[, glb_id_var] == obs_id, "Probability1"] - 0.5)
-#     }    
-    
-#     glb_force_prediction_lst[["1"]] <- c(11871, 11875, 11886, 
-#                     11913, 11931, 11937, 11967, 11982, 11990, 11991, 11994, 11999,
-#                                 12000, 12002, 12004, 12018, 12021, 12065, 12072,
-#                                          12111, 12114, 12126, 12134, 12152, 12172,
-#                                          12213, 12214, 12233, 12265, 12278, 12299, 
-#                                          12446, 12491, 
-#                                          12505, 12576, 12608, 12630)
-#     for (obs_id in glb_force_prediction_lst[["1"]]) {
-#         if (sum(glbObsAll[, glb_id_var] == obs_id) == 0)
-#             next
-#         if (is.na(glbObsAll[glbObsAll[, glb_id_var] == obs_id, ".grpid"]))
-#             stop(".grpid is NA")
-# #         submit_df[submit_df[, glb_id_var] == obs_id, "Probability1"] <-
-# #             min(0.9999, submit_df[submit_df[, glb_id_var] == obs_id, "Probability1"] + 0.5)
-#     }    
-    
-#     rsp_var_out <- paste0(glb_rsp_var_out, glb_fin_mdl_id)
-#     for (obs_id in glbObsNew[!is.na(glbObsNew[, rsp_var_out]) & 
-#                                  (glbObsNew[, rsp_var_out] == "Y") & 
-#                                  (glbObsNew[ , "startprice"] > 675), "UniqueID"]) {
-# #         submit_df[submit_df[, glb_id_var] == obs_id, "Probability1"] <-
-# #             max(0, submit_df[submit_df[, glb_id_var] == obs_id, "Probability1"] - 0.5)
-#     }    
-} else {
-#     submit_df <- glbObsNew[, c(glb_id_var, 
-#                                    paste0(glb_rsp_var_out, glb_fin_mdl_id))]
-    obsout_df <- obs_df[, glb_id_var, FALSE]
-    for (clmn in names(glb_out_vars_lst))
-        if (!grepl("^%<d-%", glb_out_vars_lst[[clmn]]))
-            obsout_df[, clmn] <- obs_df[, glb_out_vars_lst[[clmn]]] else {
-            feat <- str_trim(unlist(strsplit(glb_out_vars_lst[[clmn]], "%<d-%"))[2])
-            obsout_df[, clmn] <- obs_df[, eval(parse(text=feat))]
-        }                                        
-}    
-
+    }        
+            
 if (glb_is_classification) {
-    rsp_var_out <- paste0(glb_rsp_var_out, glb_fin_mdl_id)
+    rsp_var_out <- paste0(mygetPredictIds(glb_rsp_var)$value, glb_fin_mdl_id)
     if (".grpid" %in% names(glbObsNew)) {
         # Dups were found in glbObsAll
         tmp_newobs_df <- subset(glbObsNew[, c(glb_id_var, ".grpid", rsp_var_out)],
@@ -10897,10 +10595,51 @@ if (glb_is_classification) {
             ((tmp_newobs_df$Probability1 > 0.5) & (tmp_newobs_df$sold.0 > 0) |
              (tmp_newobs_df$Probability1 < 0.5) & (tmp_newobs_df$sold.1 > 0))
         tmp_newobs_df <- orderBy(~UniqueID, subset(tmp_newobs_df, .err == TRUE))
-        print(sprintf("Prediction errors in duplicates: %d", nrow(tmp_newobs_df)))
+        print(sprintf("ObsNew Prediction errors in duplicates: %d",
+                      nrow(tmp_newobs_df)))
         print(tmp_newobs_df)
     }
     
+    # Check for prediction errors based on category X glb_rsp_var distribution
+    TrnLvlCategory <- 
+        mycreate_sqlxtab_df(glbObsTrn, c(glbFeatsCategory, glb_rsp_var)) %>%
+            tidyr::spread_(glb_rsp_var, ".n")
+    names(TrnLvlCategory)[2:ncol(TrnLvlCategory)] <- 
+        paste(".n.Trn.", names(TrnLvlCategory)[2:ncol(TrnLvlCategory)], sep = "")
+    glbLvlCategory <- 
+        merge(glbLvlCategory, TrnLvlCategory, by = glbFeatsCategory, all.x = TRUE)
+    
+    predctId <- mygetPredictIds(glb_rsp_var, glb_fin_mdl_id)$value
+    NewLvlCategory <- 
+        mycreate_sqlxtab_df(glbObsNew, c(glbFeatsCategory, predctId)) %>%
+            tidyr::spread_(predctId, ".n")
+    names(NewLvlCategory)[2:ncol(NewLvlCategory)] <- 
+        paste(".n.New.", names(NewLvlCategory)[2:ncol(NewLvlCategory)], sep = "")
+    glbLvlCategory <- 
+        merge(glbLvlCategory, NewLvlCategory, by = glbFeatsCategory, all.x = TRUE)
+    
+    tmpLvlCategory <- glbLvlCategory[, c(glbFeatsCategory, 
+                grep("\\.n\\.(.+)\\.", names(glbLvlCategory), value = TRUE))]
+    tmpLvlCategory <- tmpLvlCategory[rowSums(is.na(tmpLvlCategory)) > 0, ]
+    errLvlIx <- c(NULL)
+    for (clss in unique(glbObsTrn[, glb_rsp_var])) {
+        newClmn <- paste0(".n.New.", as.character(clss))
+        trnClmn <- paste0(".n.Trn.", as.character(clss))        
+        errLvlIx <- union(errLvlIx, 
+                            which(!is.na(tmpLvlCategory[, newClmn]) &
+                                (tmpLvlCategory[, newClmn] > 0) & 
+                                is.na(tmpLvlCategory[, trnClmn])))
+    }
+    if (length(errLvlIx) > 0) {
+        print("ObsNew Prediction errors in categories:")
+        print(tmpLvlCategory[errLvlIx, ])
+        print(colSums(tmpLvlCategory[errLvlIx, -1], na.rm = TRUE))
+        
+        # By definition .err columns will be NA !!!
+#predctId <- mygetPredictIds(glb_rsp_var, glb_fin_mdl_id)$value; errObsNew <- glbObsNew[(glbObsNew[, glbFeatsCategory] %in% tmpLvlCategory[, 1]), ]; myprint_df(errObsNew[(errObsNew[, glbFeatsCategory] %in% tmpLvlCategory[errLvlIx, glbFeatsCategory]) & (errObsNew[, predctId] == "Y"), union(c(glb_id_var, glbFeatsCategory, predctId), myextract_actual_feats(row.names(glb_featsimp_df[glb_featsimp_df[, paste0(glb_fin_mdl_id, ".importance")] > 10, ])))])
+    }
+    
+        
     tmp_newobs_df <- cbind(glbObsNew, obsout_df[, "Probability1", FALSE])
 
     # Check predictions that are outside of data ranges
@@ -10923,26 +10662,31 @@ if (glb_is_classification) {
 #     sav_ranges_new_df <- ranges_new_df; all.equal(sav_ranges_new_df, ranges_new_df)    
     get_ranges_df <- function(obs_df, feats, class_var) {
         require(tidyr)
-        ranges_df <- obs_df[, c(class_var, feats)] %>% 
-            dplyr::group_by_(class_var) %>%
+        
+        tmpClass <- gsub("\\*", "_", class_var)
+        tmpObs <- data.frame(.tmpClass = obs_df[, class_var])
+        names(tmpObs) <- tmpClass
+        tmpObs <- cbind(tmpObs, obs_df[, feats, FALSE])
+        ranges_df <- tmpObs %>% 
+            dplyr::group_by_(tmpClass) %>%
             dplyr::summarise_each(funs(min(., na.rm=TRUE), 
                                        max(., na.rm=TRUE))) %>%
             tidyr::gather(key, value, -1) %>%
             mutate(id=str_sub(key, 1, -5), 
-                   stat.vname=paste0(str_sub(key, -3), ".", class_var)) %>%
-            unite_("stat.class", c("stat.vname", class_var), sep=".") %>% 
+                   stat.vname=paste0(str_sub(key, -3), ".", tmpClass)) %>%
+            unite_("stat.class", c("stat.vname", tmpClass), sep=".") %>% 
             dplyr::select(-key) %>%
             spread(stat.class, value)
         return(ranges_df)
     }
-    rsp_var_out_OOB <- paste0(glb_rsp_var_out, glb_sel_mdl_id)
-    rsp_var_out_new <- paste0(glb_rsp_var_out, glb_fin_mdl_id)    
+    rsp_var_out_OOB <- mygetPredictIds(glb_rsp_var, glb_sel_mdl_id)$value
+    rsp_var_out_new <- mygetPredictIds(glb_rsp_var, glb_fin_mdl_id)$value
     ranges_trn_df <- get_ranges_df(obs_df=glbObsTrn, feats=tmp_feats_df$id, 
                                    class_var=glb_rsp_var)
     ranges_fit_df <- get_ranges_df(obs_df=glbObsFit, feats=tmp_feats_df$id, 
                                    class_var=glb_rsp_var)
-    ranges_OOB_df <- get_ranges_df(obs_df=glbObsOOB, feats=tmp_feats_df$id, 
-                                   class_var=rsp_var_out_OOB)
+    ranges_OOB_df <- get_ranges_df(obs_df = glbObsOOB, feats = tmp_feats_df$id, 
+                                   class_var = rsp_var_out_OOB)
     ranges_new_df <- get_ranges_df(obs_df=glbObsNew, feats=tmp_feats_df$id, 
                                    class_var=rsp_var_out_new)
 
@@ -10963,41 +10707,46 @@ if (glb_is_classification) {
         row.names(plt_feats_df) <- plt_feats_df$id
         range_outlier_ids <- c(NULL)
         for (clss in unique(obs_df[, rsp_var_out_obs])) {
+            tmp_rsp_var_out_obs <- gsub("\\*", "_", rsp_var_out_obs)
             for (stat in c("min", "max")) {
                 if (stat == "min") {
                     dsp_feats <- plt_feats_df[
-                            which(plt_feats_df[, paste("min", rsp_var_out_obs, clss, sep=".")] < 
-                                  plt_feats_df[, paste("min", glb_rsp_var, clss, sep=".")]), "id"]
+        which(plt_feats_df[, paste("min", tmp_rsp_var_out_obs, clss, sep = ".")] < 
+                plt_feats_df[, paste("min", glb_rsp_var, clss, sep = ".")]),
+                                            "id"]
                 } else {
                     dsp_feats <- plt_feats_df[
-                            which(plt_feats_df[, paste("max", rsp_var_out_obs, clss, sep=".")] > 
-                                  plt_feats_df[, paste("max", glb_rsp_var, clss, sep=".")]), "id"]
+        which(plt_feats_df[, paste("max", tmp_rsp_var_out_obs, clss, sep = ".")] > 
+                plt_feats_df[, paste("max", glb_rsp_var, clss, sep = ".")]),
+                                            "id"]
                 }
                 if (length(dsp_feats) > 0) {
                     ths_ids <- c(NULL)
                     for (feat in dsp_feats) {
                         if (stat == "min") {
                             ths_ids <- union(ths_ids, 
-                                             obs_df[(obs_df[, rsp_var_out_obs] == clss) &
-                                                           (obs_df[, feat] < 
-                plt_feats_df[plt_feats_df$id == feat, paste("min", glb_rsp_var, clss, sep=".")]), 
-                                                            glb_id_var])
+                                    obs_df[(obs_df[, rsp_var_out_obs] == clss) &
+                                    (obs_df[, feat] < 
+                                        plt_feats_df[plt_feats_df$id == feat, 
+                                    paste("min", glb_rsp_var, clss, sep = ".")]), 
+                                                    glb_id_var])
                         } else {
-                        ths_ids <- union(ths_ids, 
-                                             obs_df[(obs_df[, rsp_var_out_obs] == clss) &
-                                                           (obs_df[, feat] > 
-                plt_feats_df[plt_feats_df$id == feat, paste("max", glb_rsp_var, clss, sep=".")]), 
-                                                            glb_id_var])
+                            ths_ids <- union(ths_ids, 
+                                    obs_df[(obs_df[, rsp_var_out_obs] == clss) &
+                                    (obs_df[, feat] > 
+                                        plt_feats_df[plt_feats_df$id == feat,
+                                    paste("max", glb_rsp_var, clss, sep = ".")]), 
+                                                    glb_id_var])
                         }
                     }
                     tmp_obs_df <- obs_df[obs_df[, glb_id_var] %in% ths_ids, 
-                                                   c(glb_id_var, rsp_var_out_obs, dsp_feats)]
+                                        c(glb_id_var, rsp_var_out_obs, dsp_feats)]
                     if (stat == "min") {
                         print(sprintf("%s %s %s: min < min of Train range: %d", 
-                                      sprintf_pfx, rsp_var_out_obs, clss, nrow(tmp_obs_df)))
+                            sprintf_pfx, rsp_var_out_obs, clss, nrow(tmp_obs_df)))
                     } else {
                         print(sprintf("%s %s %s: max > max of Train range: %d", 
-                                      sprintf_pfx, rsp_var_out_obs, clss, nrow(tmp_obs_df)))
+                            sprintf_pfx, rsp_var_out_obs, clss, nrow(tmp_obs_df)))
                     }
                     myprint_df(tmp_obs_df)
                     print(subset(plt_feats_df, id %in% dsp_feats))
@@ -11013,6 +10762,17 @@ if (glb_is_classification) {
 ```
 
 ```
+## [1] "ObsNew Prediction errors in categories:"
+##    NDSSName.my.fctr .n.Trn.N .n.Trn.Y .n.New.N .n.New.Y
+## 5   #U.S.#Education      325       NA       84        5
+## 10        Culture##        1       NA       45       25
+## 12   Foreign#World#      172       NA       46        1
+## 21          myOther       38       NA        4        1
+## .n.Trn.N .n.Trn.Y .n.New.N .n.New.Y 
+##      536        0      179       32
+```
+
+```
 ## Loading required package: tidyr
 ## 
 ## Attaching package: 'tidyr'
@@ -11023,9 +10783,9 @@ if (glb_is_classification) {
 ```
 
 ```
-## [1] "OOBobs Popular.fctr.predict.All.X.glmnet Y: min < min of Train range: 1"
-##      UniqueID Popular.fctr.predict.All.X.glmnet WordCount.log1p
-## 6435     6435                                 Y               0
+## [1] "OOBobs Popular.fctr.All.X..rcv.glmnet Y: min < min of Train range: 1"
+##      UniqueID Popular.fctr.All.X..rcv.glmnet WordCount.log1p
+## 6435     6435                              Y               0
 ##      WordCount.root2
 ## 6435               0
 ##                              id     cor.y exclude.as.feat cor.y.abs
@@ -11043,33 +10803,33 @@ if (glb_is_classification) {
 ##                 max.Popular.fctr.N max.Popular.fctr.Y min.Popular.fctr.N
 ## WordCount.log1p           8.819665            9.29771                  0
 ## WordCount.root2          82.249620          104.46052                  0
-##                 min.Popular.fctr.Y max.Popular.fctr.predict.All.X.glmnet.N
-## WordCount.log1p            1.94591                                8.117014
-## WordCount.root2            2.44949                               57.879185
-##                 max.Popular.fctr.predict.All.X.glmnet.Y
-## WordCount.log1p                                9.140883
-## WordCount.root2                               96.581572
-##                 min.Popular.fctr.predict.All.X.glmnet.N
-## WordCount.log1p                                       0
-## WordCount.root2                                       0
-##                 min.Popular.fctr.predict.All.X.glmnet.Y
-## WordCount.log1p                                       0
-## WordCount.root2                                       0
-##                 max.Popular.fctr.predict.Final.glmnet.N
-## WordCount.log1p                                7.797702
-## WordCount.root2                               49.335586
-##                 max.Popular.fctr.predict.Final.glmnet.Y
-## WordCount.log1p                                8.692322
-## WordCount.root2                               77.175126
-##                 min.Popular.fctr.predict.Final.glmnet.N
-## WordCount.log1p                                       0
-## WordCount.root2                                       0
-##                 min.Popular.fctr.predict.Final.glmnet.Y
-## WordCount.log1p                                1.609438
-## WordCount.root2                                2.000000
-## [1] "OOBobs Popular.fctr.predict.All.X.glmnet Y: max > max of Train range: 1"
-##      UniqueID Popular.fctr.predict.All.X.glmnet WordCount.nexp
-## 6435     6435                                 Y              1
+##                 min.Popular.fctr.Y max.Popular.fctr.All.X..rcv.glmnet.N
+## WordCount.log1p            1.94591                             8.117014
+## WordCount.root2            2.44949                            57.879185
+##                 max.Popular.fctr.All.X..rcv.glmnet.Y
+## WordCount.log1p                             9.140883
+## WordCount.root2                            96.581572
+##                 min.Popular.fctr.All.X..rcv.glmnet.N
+## WordCount.log1p                                    0
+## WordCount.root2                                    0
+##                 min.Popular.fctr.All.X..rcv.glmnet.Y
+## WordCount.log1p                                    0
+## WordCount.root2                                    0
+##                 max.Popular.fctr.Final..rcv.glmnet.N
+## WordCount.log1p                             7.797702
+## WordCount.root2                            49.335586
+##                 max.Popular.fctr.Final..rcv.glmnet.Y
+## WordCount.log1p                             8.692322
+## WordCount.root2                            77.175126
+##                 min.Popular.fctr.Final..rcv.glmnet.N
+## WordCount.log1p                                    0
+## WordCount.root2                                    0
+##                 min.Popular.fctr.Final..rcv.glmnet.Y
+## WordCount.log1p                             1.609438
+## WordCount.root2                             2.000000
+## [1] "OOBobs Popular.fctr.All.X..rcv.glmnet Y: max > max of Train range: 1"
+##      UniqueID Popular.fctr.All.X..rcv.glmnet WordCount.nexp
+## 6435     6435                              Y              1
 ##                            id      cor.y exclude.as.feat cor.y.abs
 ## WordCount.nexp WordCount.nexp -0.0532084           FALSE 0.0532084
 ##                cor.high.X freqRatio percentUnique zeroVar   nzv
@@ -11080,26 +10840,26 @@ if (glb_is_classification) {
 ## WordCount.nexp       FALSE     NA      NA   1   0                  1
 ##                max.Popular.fctr.Y min.Popular.fctr.N min.Popular.fctr.Y
 ## WordCount.nexp        0.002478752                  0                  0
-##                max.Popular.fctr.predict.All.X.glmnet.N
-## WordCount.nexp                                       1
-##                max.Popular.fctr.predict.All.X.glmnet.Y
-## WordCount.nexp                                       1
-##                min.Popular.fctr.predict.All.X.glmnet.N
-## WordCount.nexp                                       0
-##                min.Popular.fctr.predict.All.X.glmnet.Y
-## WordCount.nexp                                       0
-##                max.Popular.fctr.predict.Final.glmnet.N
-## WordCount.nexp                                       1
-##                max.Popular.fctr.predict.Final.glmnet.Y
-## WordCount.nexp                              0.01831564
-##                min.Popular.fctr.predict.Final.glmnet.N
-## WordCount.nexp                                       0
-##                min.Popular.fctr.predict.Final.glmnet.Y
-## WordCount.nexp                                       0
+##                max.Popular.fctr.All.X..rcv.glmnet.N
+## WordCount.nexp                                    1
+##                max.Popular.fctr.All.X..rcv.glmnet.Y
+## WordCount.nexp                                    1
+##                min.Popular.fctr.All.X..rcv.glmnet.N
+## WordCount.nexp                                    0
+##                min.Popular.fctr.All.X..rcv.glmnet.Y
+## WordCount.nexp                                    0
+##                max.Popular.fctr.Final..rcv.glmnet.N
+## WordCount.nexp                                    1
+##                max.Popular.fctr.Final..rcv.glmnet.Y
+## WordCount.nexp                           0.01831564
+##                min.Popular.fctr.Final..rcv.glmnet.N
+## WordCount.nexp                                    0
+##                min.Popular.fctr.Final..rcv.glmnet.Y
+## WordCount.nexp                                    0
 ## [1] "OOBobs total range outliers: 1"
-## [1] "newobs Popular.fctr.predict.Final.glmnet Y: min < min of Train range: 1"
-##      UniqueID Popular.fctr.predict.Final.glmnet WordCount.log1p
-## 8217     8217                                 Y        1.609438
+## [1] "newobs Popular.fctr.Final..rcv.glmnet Y: min < min of Train range: 1"
+##      UniqueID Popular.fctr.Final..rcv.glmnet WordCount.log1p
+## 8217     8217                              Y        1.609438
 ##      WordCount.root2
 ## 8217               2
 ##                              id     cor.y exclude.as.feat cor.y.abs
@@ -11117,33 +10877,33 @@ if (glb_is_classification) {
 ##                 max.Popular.fctr.N max.Popular.fctr.Y min.Popular.fctr.N
 ## WordCount.log1p           8.819665            9.29771                  0
 ## WordCount.root2          82.249620          104.46052                  0
-##                 min.Popular.fctr.Y max.Popular.fctr.predict.All.X.glmnet.N
-## WordCount.log1p            1.94591                                8.117014
-## WordCount.root2            2.44949                               57.879185
-##                 max.Popular.fctr.predict.All.X.glmnet.Y
-## WordCount.log1p                                9.140883
-## WordCount.root2                               96.581572
-##                 min.Popular.fctr.predict.All.X.glmnet.N
-## WordCount.log1p                                       0
-## WordCount.root2                                       0
-##                 min.Popular.fctr.predict.All.X.glmnet.Y
-## WordCount.log1p                                       0
-## WordCount.root2                                       0
-##                 max.Popular.fctr.predict.Final.glmnet.N
-## WordCount.log1p                                7.797702
-## WordCount.root2                               49.335586
-##                 max.Popular.fctr.predict.Final.glmnet.Y
-## WordCount.log1p                                8.692322
-## WordCount.root2                               77.175126
-##                 min.Popular.fctr.predict.Final.glmnet.N
-## WordCount.log1p                                       0
-## WordCount.root2                                       0
-##                 min.Popular.fctr.predict.Final.glmnet.Y
-## WordCount.log1p                                1.609438
-## WordCount.root2                                2.000000
-## [1] "newobs Popular.fctr.predict.Final.glmnet Y: max > max of Train range: 1"
-##      UniqueID Popular.fctr.predict.Final.glmnet WordCount.nexp
-## 8217     8217                                 Y     0.01831564
+##                 min.Popular.fctr.Y max.Popular.fctr.All.X..rcv.glmnet.N
+## WordCount.log1p            1.94591                             8.117014
+## WordCount.root2            2.44949                            57.879185
+##                 max.Popular.fctr.All.X..rcv.glmnet.Y
+## WordCount.log1p                             9.140883
+## WordCount.root2                            96.581572
+##                 min.Popular.fctr.All.X..rcv.glmnet.N
+## WordCount.log1p                                    0
+## WordCount.root2                                    0
+##                 min.Popular.fctr.All.X..rcv.glmnet.Y
+## WordCount.log1p                                    0
+## WordCount.root2                                    0
+##                 max.Popular.fctr.Final..rcv.glmnet.N
+## WordCount.log1p                             7.797702
+## WordCount.root2                            49.335586
+##                 max.Popular.fctr.Final..rcv.glmnet.Y
+## WordCount.log1p                             8.692322
+## WordCount.root2                            77.175126
+##                 min.Popular.fctr.Final..rcv.glmnet.N
+## WordCount.log1p                                    0
+## WordCount.root2                                    0
+##                 min.Popular.fctr.Final..rcv.glmnet.Y
+## WordCount.log1p                             1.609438
+## WordCount.root2                             2.000000
+## [1] "newobs Popular.fctr.Final..rcv.glmnet Y: max > max of Train range: 1"
+##      UniqueID Popular.fctr.Final..rcv.glmnet WordCount.nexp
+## 8217     8217                              Y     0.01831564
 ##                            id      cor.y exclude.as.feat cor.y.abs
 ## WordCount.nexp WordCount.nexp -0.0532084           FALSE 0.0532084
 ##                cor.high.X freqRatio percentUnique zeroVar   nzv
@@ -11154,27 +10914,27 @@ if (glb_is_classification) {
 ## WordCount.nexp       FALSE     NA      NA   1   0                  1
 ##                max.Popular.fctr.Y min.Popular.fctr.N min.Popular.fctr.Y
 ## WordCount.nexp        0.002478752                  0                  0
-##                max.Popular.fctr.predict.All.X.glmnet.N
-## WordCount.nexp                                       1
-##                max.Popular.fctr.predict.All.X.glmnet.Y
-## WordCount.nexp                                       1
-##                min.Popular.fctr.predict.All.X.glmnet.N
-## WordCount.nexp                                       0
-##                min.Popular.fctr.predict.All.X.glmnet.Y
-## WordCount.nexp                                       0
-##                max.Popular.fctr.predict.Final.glmnet.N
-## WordCount.nexp                                       1
-##                max.Popular.fctr.predict.Final.glmnet.Y
-## WordCount.nexp                              0.01831564
-##                min.Popular.fctr.predict.Final.glmnet.N
-## WordCount.nexp                                       0
-##                min.Popular.fctr.predict.Final.glmnet.Y
-## WordCount.nexp                                       0
+##                max.Popular.fctr.All.X..rcv.glmnet.N
+## WordCount.nexp                                    1
+##                max.Popular.fctr.All.X..rcv.glmnet.Y
+## WordCount.nexp                                    1
+##                min.Popular.fctr.All.X..rcv.glmnet.N
+## WordCount.nexp                                    0
+##                min.Popular.fctr.All.X..rcv.glmnet.Y
+## WordCount.nexp                                    0
+##                max.Popular.fctr.Final..rcv.glmnet.N
+## WordCount.nexp                                    1
+##                max.Popular.fctr.Final..rcv.glmnet.Y
+## WordCount.nexp                           0.01831564
+##                min.Popular.fctr.Final..rcv.glmnet.N
+## WordCount.nexp                                    0
+##                min.Popular.fctr.Final..rcv.glmnet.Y
+## WordCount.nexp                                    0
 ## [1] "newobs total range outliers: 1"
 ```
 
 ```r
-#stop(here"); glb_to_sav(); sav_obsout_df <- obsout_df; all.equal(sav_obsout_df, obsout_df); obsout_df <- sav_obsout_df
+#stop(here"); glb2Sav(); sav_obsout_df <- obsout_df; all.equal(sav_obsout_df, obsout_df); obsout_df <- sav_obsout_df
 
 # This does not work for classification since AUC distribution might be different for different models
 #   -> Run glm on .prob from this glb_fin_mdl_id & .prob from stacked file & stack condition as a feature
@@ -11237,7 +10997,7 @@ print(sprintf("glb_sel_mdl_id: %s", glb_sel_mdl_id))
 ```
 
 ```
-## [1] "glb_sel_mdl_id: All.X.glmnet"
+## [1] "glb_sel_mdl_id: All.X##rcv#glmnet"
 ```
 
 ```r
@@ -11245,74 +11005,114 @@ print(sprintf("glb_fin_mdl_id: %s", glb_fin_mdl_id))
 ```
 
 ```
-## [1] "glb_fin_mdl_id: Final.glmnet"
+## [1] "glb_fin_mdl_id: Final##rcv#glmnet"
 ```
 
 ```r
-print(dsp_models_df)
+get_dsp_models_df()
 ```
 
 ```
-##                                                        id max.Accuracy.OOB
-## Max.cor.Y.rpart                           Max.cor.Y.rpart        0.8200231
-## All.X.glmnet                                 All.X.glmnet        0.7690972
-## Max.cor.Y.rcv.1X1.cp.0.rpart Max.cor.Y.rcv.1X1.cp.0.rpart        0.7673611
-## Max.cor.Y.rcv.1X1.glmnet         Max.cor.Y.rcv.1X1.glmnet        0.7604167
-## Max.cor.Y.rcv.5X3.glmnet         Max.cor.Y.rcv.5X3.glmnet        0.7604167
-## Max.cor.Y.rcv.5X1.glmnet         Max.cor.Y.rcv.5X1.glmnet        0.7604167
-## Max.cor.Y.rcv.5X5.glmnet         Max.cor.Y.rcv.5X5.glmnet        0.7604167
-## Max.cor.Y.rcv.3X1.glmnet         Max.cor.Y.rcv.3X1.glmnet        0.7575231
-## Max.cor.Y.rcv.3X3.glmnet         Max.cor.Y.rcv.3X3.glmnet        0.7575231
-## Interact.High.cor.Y.glmnet     Interact.High.cor.Y.glmnet        0.7575231
-## Low.cor.X.glmnet                         Low.cor.X.glmnet        0.7575231
-## Max.cor.Y.rcv.3X5.glmnet         Max.cor.Y.rcv.3X5.glmnet        0.7575231
-## MFO.myMFO_classfr                       MFO.myMFO_classfr        0.1331019
-## Random.myrandom_classfr           Random.myrandom_classfr        0.1331019
-##                              max.AUCROCR.OOB max.AUCpROC.OOB
-## Max.cor.Y.rpart                    0.5892132       0.5870523
-## All.X.glmnet                       0.8061009       0.5965780
-## Max.cor.Y.rcv.1X1.cp.0.rpart       0.7773858       0.6174697
-## Max.cor.Y.rcv.1X1.glmnet           0.8116126       0.5962443
-## Max.cor.Y.rcv.5X3.glmnet           0.8114863       0.5962443
-## Max.cor.Y.rcv.5X1.glmnet           0.8114863       0.5962443
-## Max.cor.Y.rcv.5X5.glmnet           0.8114863       0.5962443
-## Max.cor.Y.rcv.3X1.glmnet           0.8067975       0.5962443
-## Max.cor.Y.rcv.3X3.glmnet           0.8067975       0.5962443
-## Interact.High.cor.Y.glmnet         0.8067975       0.5962443
-## Low.cor.X.glmnet                   0.8067975       0.5962443
-## Max.cor.Y.rcv.3X5.glmnet           0.8067975       0.5962443
-## MFO.myMFO_classfr                  0.5000000       0.5000000
-## Random.myrandom_classfr            0.4857956       0.5125675
-##                              max.Accuracy.fit opt.prob.threshold.fit
-## Max.cor.Y.rpart                     0.9296422                    0.6
-## All.X.glmnet                        0.9326952                    0.4
-## Max.cor.Y.rcv.1X1.cp.0.rpart        0.9381765                    0.4
-## Max.cor.Y.rcv.1X1.glmnet            0.9329725                    0.5
-## Max.cor.Y.rcv.5X3.glmnet            0.9333905                    0.5
-## Max.cor.Y.rcv.5X1.glmnet            0.9331818                    0.5
-## Max.cor.Y.rcv.5X5.glmnet            0.9331816                    0.5
-## Max.cor.Y.rcv.3X1.glmnet            0.9335973                    0.4
-## Max.cor.Y.rcv.3X3.glmnet            0.9333193                    0.4
-## Interact.High.cor.Y.glmnet          0.9333193                    0.4
-## Low.cor.X.glmnet                    0.9333193                    0.4
-## Max.cor.Y.rcv.3X5.glmnet            0.9332218                    0.4
-## MFO.myMFO_classfr                   0.1796420                    0.1
-## Random.myrandom_classfr             0.1796420                    0.1
-##                              opt.prob.threshold.OOB
-## Max.cor.Y.rpart                                 0.6
-## All.X.glmnet                                    0.1
-## Max.cor.Y.rcv.1X1.cp.0.rpart                    0.1
-## Max.cor.Y.rcv.1X1.glmnet                        0.1
-## Max.cor.Y.rcv.5X3.glmnet                        0.1
-## Max.cor.Y.rcv.5X1.glmnet                        0.1
-## Max.cor.Y.rcv.5X5.glmnet                        0.1
-## Max.cor.Y.rcv.3X1.glmnet                        0.1
-## Max.cor.Y.rcv.3X3.glmnet                        0.1
-## Interact.High.cor.Y.glmnet                      0.1
-## Low.cor.X.glmnet                                0.1
-## Max.cor.Y.rcv.3X5.glmnet                        0.1
-## MFO.myMFO_classfr                               0.1
-## Random.myrandom_classfr                         0.1
+## [1] "Cross Validation issues:"
+```
+
+```
+## Warning in get_dsp_models_df(): Cross Validation issues:
+```
+
+```
+##            MFO###myMFO_classfr      Random###myrandom_classfr 
+##                              0                              0 
+##     Max.cor.Y.rcv.1X1###glmnet Max.cor.Y.rcv.1X1.cp.0###rpart 
+##                              0                              0
+```
+
+```
+##                                                              id
+## Max.cor.Y##rcv#rpart                       Max.cor.Y##rcv#rpart
+## All.X##rcv#glmnet                             All.X##rcv#glmnet
+## Max.cor.Y.rcv.1X1.cp.0###rpart   Max.cor.Y.rcv.1X1.cp.0###rpart
+## Max.cor.Y.rcv.1X1###glmnet           Max.cor.Y.rcv.1X1###glmnet
+## Max.cor.Y.rcv.5X3##rcv#glmnet     Max.cor.Y.rcv.5X3##rcv#glmnet
+## Max.cor.Y.rcv.5X1##rcv#glmnet     Max.cor.Y.rcv.5X1##rcv#glmnet
+## Max.cor.Y.rcv.5X5##rcv#glmnet     Max.cor.Y.rcv.5X5##rcv#glmnet
+## Max.cor.Y.rcv.3X1##rcv#glmnet     Max.cor.Y.rcv.3X1##rcv#glmnet
+## Max.cor.Y.rcv.3X3##rcv#glmnet     Max.cor.Y.rcv.3X3##rcv#glmnet
+## Interact.High.cor.Y##rcv#glmnet Interact.High.cor.Y##rcv#glmnet
+## Low.cor.X##rcv#glmnet                     Low.cor.X##rcv#glmnet
+## Max.cor.Y.rcv.3X5##rcv#glmnet     Max.cor.Y.rcv.3X5##rcv#glmnet
+## MFO###myMFO_classfr                         MFO###myMFO_classfr
+## Random###myrandom_classfr             Random###myrandom_classfr
+## Final##rcv#glmnet                             Final##rcv#glmnet
+## Final##rcv#glm                                   Final##rcv#glm
+##                                 max.Accuracy.OOB max.AUCROCR.OOB
+## Max.cor.Y##rcv#rpart                   0.8200231       0.5892132
+## All.X##rcv#glmnet                      0.7690972       0.8061009
+## Max.cor.Y.rcv.1X1.cp.0###rpart         0.7673611       0.7773858
+## Max.cor.Y.rcv.1X1###glmnet             0.7604167       0.8116126
+## Max.cor.Y.rcv.5X3##rcv#glmnet          0.7604167       0.8114863
+## Max.cor.Y.rcv.5X1##rcv#glmnet          0.7604167       0.8114863
+## Max.cor.Y.rcv.5X5##rcv#glmnet          0.7604167       0.8114863
+## Max.cor.Y.rcv.3X1##rcv#glmnet          0.7575231       0.8067975
+## Max.cor.Y.rcv.3X3##rcv#glmnet          0.7575231       0.8067975
+## Interact.High.cor.Y##rcv#glmnet        0.7575231       0.8067975
+## Low.cor.X##rcv#glmnet                  0.7575231       0.8067975
+## Max.cor.Y.rcv.3X5##rcv#glmnet          0.7575231       0.8067975
+## MFO###myMFO_classfr                    0.1331019       0.5000000
+## Random###myrandom_classfr              0.1331019       0.4857956
+## Final##rcv#glmnet                             NA              NA
+## Final##rcv#glm                                NA              NA
+##                                 max.AUCpROC.OOB max.Accuracy.fit
+## Max.cor.Y##rcv#rpart                  0.5870523        0.9296422
+## All.X##rcv#glmnet                     0.5965780        0.9326952
+## Max.cor.Y.rcv.1X1.cp.0###rpart        0.6174697        0.9381765
+## Max.cor.Y.rcv.1X1###glmnet            0.5962443        0.9329725
+## Max.cor.Y.rcv.5X3##rcv#glmnet         0.5962443        0.9333905
+## Max.cor.Y.rcv.5X1##rcv#glmnet         0.5962443        0.9331818
+## Max.cor.Y.rcv.5X5##rcv#glmnet         0.5962443        0.9331816
+## Max.cor.Y.rcv.3X1##rcv#glmnet         0.5962443        0.9335973
+## Max.cor.Y.rcv.3X3##rcv#glmnet         0.5962443        0.9333193
+## Interact.High.cor.Y##rcv#glmnet       0.5962443        0.9333193
+## Low.cor.X##rcv#glmnet                 0.5962443        0.9333193
+## Max.cor.Y.rcv.3X5##rcv#glmnet         0.5962443        0.9332218
+## MFO###myMFO_classfr                   0.5000000        0.1796420
+## Random###myrandom_classfr             0.5125675        0.1796420
+## Final##rcv#glmnet                            NA        0.9071240
+## Final##rcv#glm                               NA        0.9057971
+##                                 opt.prob.threshold.fit
+## Max.cor.Y##rcv#rpart                               0.6
+## All.X##rcv#glmnet                                  0.4
+## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.4
+## Max.cor.Y.rcv.1X1###glmnet                         0.5
+## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.5
+## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.5
+## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.5
+## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.4
+## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.4
+## Interact.High.cor.Y##rcv#glmnet                    0.4
+## Low.cor.X##rcv#glmnet                              0.4
+## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.4
+## MFO###myMFO_classfr                                0.1
+## Random###myrandom_classfr                          0.1
+## Final##rcv#glmnet                                  0.3
+## Final##rcv#glm                                     0.4
+##                                 opt.prob.threshold.OOB
+## Max.cor.Y##rcv#rpart                               0.6
+## All.X##rcv#glmnet                                  0.1
+## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.1
+## Max.cor.Y.rcv.1X1###glmnet                         0.1
+## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.1
+## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.1
+## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.1
+## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.1
+## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.1
+## Interact.High.cor.Y##rcv#glmnet                    0.1
+## Low.cor.X##rcv#glmnet                              0.1
+## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.1
+## MFO###myMFO_classfr                                0.1
+## Random###myrandom_classfr                          0.1
+## Final##rcv#glmnet                                   NA
+## Final##rcv#glm                                      NA
 ```
 
 ```r
@@ -11320,35 +11120,33 @@ if (glb_is_regression) {
     print(sprintf("%s OOB RMSE: %0.4f", glb_sel_mdl_id,
             glb_models_df[glb_models_df$model_id == glb_sel_mdl_id, "min.RMSE.OOB"]))
 
-    if (!is.null(glb_category_var)) {
-        tmp_OOBobs_df <- glbObsOOB[, c(glb_category_var, glb_rsp_var,
+    if (!is.null(glbFeatsCategory)) {
+        tmp_OOBobs_df <- glbObsOOB[, c(glbFeatsCategory, glb_rsp_var,
                                            predct_error_var_name)]
         names(tmp_OOBobs_df)[length(names(tmp_OOBobs_df))] <- "error.abs.OOB"
-        sOOB_ctgry_df <- dplyr::group_by_(tmp_OOBobs_df, glb_category_var)
+        sOOB_ctgry_df <- dplyr::group_by_(tmp_OOBobs_df, glbFeatsCategory)
         sOOB_ctgry_df <- dplyr::count(sOOB_ctgry_df, 
                                       startprice.log10.abs.OOB.sum = sum(abs(startprice.log10)),
                                         err.abs.OOB.sum = sum(error.abs.OOB),
                                         err.abs.OOB.mean = mean(error.abs.OOB))
         names(sOOB_ctgry_df)[4] <- ".n.OOB"
         sOOB_ctgry_df <- dplyr::ungroup(sOOB_ctgry_df)
-        #intersect(names(glb_ctgry_df), names(sOOB_ctgry_df))
-        glb_ctgry_df <- merge(glb_ctgry_df, sOOB_ctgry_df, all=TRUE)
-        print(orderBy(~-err.abs.OOB.mean, glb_ctgry_df))
+        #intersect(names(glbLvlCategory), names(sOOB_ctgry_df))
+        glbLvlCategory <- merge(glbLvlCategory, sOOB_ctgry_df, all=TRUE)
+        print(orderBy(~-err.abs.OOB.mean, glbLvlCategory))
     }
     
     if ((glb_rsp_var %in% names(glbObsNew)) &&
         !(any(is.na(glbObsNew[, glb_rsp_var])))) {
             pred_stats_df <- 
-                mypredict_mdl(mdl=glb_models_lst[[glb_fin_mdl_id]], 
-                              df=glbObsNew, 
-                              rsp_var=glb_rsp_var, 
-                              rsp_var_out=glb_rsp_var_out, 
-                              model_id_method=glb_fin_mdl_id, 
-                              label="new",
-						      model_summaryFunction=glb_sel_mdl$control$summaryFunction, 
-						      model_metric=glb_sel_mdl$metric,
-						      model_metric_maximize=glb_sel_mdl$maximize,
-						      ret_type="stats")        
+                mypredict_mdl(mdl = glb_models_lst[[glb_fin_mdl_id]], 
+                              df = glbObsNew, 
+                              rsp_var = glb_rsp_var, 
+                              label = "new",
+					model_summaryFunction = glb_sel_mdl$control$summaryFunction,
+						      model_metric = glb_sel_mdl$metric,
+						      model_metric_maximize = glb_sel_mdl$maximize,
+						      ret_type = "stats")        
             print(sprintf("%s prediction stats for glbObsNew:", glb_fin_mdl_id))
             print(pred_stats_df)
     }    
@@ -11356,42 +11154,41 @@ if (glb_is_regression) {
 
 if (glb_is_classification) {
     print(sprintf("%s OOB confusion matrix & accuracy: ", glb_sel_mdl_id))
-    print(t(confusionMatrix(glbObsOOB[, paste0(glb_rsp_var_out, glb_sel_mdl_id)], 
+    print(t(confusionMatrix(glbObsOOB[, mygetPredictIds(glb_rsp_var, glb_sel_mdl_id)$value],
                             glbObsOOB[, glb_rsp_var])$table))
 
-    if (!is.null(glb_category_var)) {
-        glb_ctgry_df <- merge(glb_ctgry_df, 
+    if (!is.null(glbFeatsCategory)) {
+        glbLvlCategory <- merge(glbLvlCategory, 
             myget_category_stats(obs_df = glbObsTrn, mdl_id = glb_fin_mdl_id, 
                                  label = "trn"),
-                              by = glb_category_var, all = TRUE)
-        row.names(glb_ctgry_df) <- glb_ctgry_df[, glb_category_var]
+                              by = glbFeatsCategory, all = TRUE)
+        row.names(glbLvlCategory) <- glbLvlCategory[, glbFeatsCategory]
         
-        glb_ctgry_df <- merge(glb_ctgry_df, 
+        glbLvlCategory <- merge(glbLvlCategory, 
             myget_category_stats(obs_df = glbObsNew, mdl_id = glb_fin_mdl_id,
-                                 label="new"),
-                              by = glb_category_var, all = TRUE)
-        row.names(glb_ctgry_df) <- glb_ctgry_df[, glb_category_var]
+                                 label = "new"),
+                              by = glbFeatsCategory, all = TRUE)
+        row.names(glbLvlCategory) <- glbLvlCategory[, glbFeatsCategory]
         
         if (any(grepl("OOB", glbMdlMetricsEval)))
-            print(orderBy(~-err.abs.OOB.mean, glb_ctgry_df[, -1])) else
-            print(orderBy(~-err.abs.fit.mean, glb_ctgry_df[, -1]))
-        print(colSums(glb_ctgry_df[, -grep(glb_category_var,
-                                           names(glb_ctgry_df))]))
+            print(orderBy(~-err.abs.OOB.mean, glbLvlCategory[, -1])) else
+            print(orderBy(~-err.abs.fit.mean, glbLvlCategory[, -1]))
+        print(colSums(glbLvlCategory[, -grep(glbFeatsCategory,
+                                           names(glbLvlCategory))]))
         
     }
     
     if ((glb_rsp_var %in% names(glbObsNew)) &&
         !(any(is.na(glbObsNew[, glb_rsp_var])))) {
         print(sprintf("%s new confusion matrix & accuracy: ", glb_fin_mdl_id))
-        print(t(confusionMatrix(
-                            glbObsNew[, paste0(glb_rsp_var_out, glb_fin_mdl_id)], 
+        print(t(confusionMatrix(glbObsNew[, mygetPredictIds(glb_rsp_var, glb_fin_mdl_id)$value],
                                 glbObsNew[, glb_rsp_var])$table))
     }    
 }    
 ```
 
 ```
-## [1] "All.X.glmnet OOB confusion matrix & accuracy: "
+## [1] "All.X##rcv#glmnet OOB confusion matrix & accuracy: "
 ##          Prediction
 ## Reference    N    Y
 ##         N 1176  322
@@ -11484,6 +11281,28 @@ if (glb_is_classification) {
 ## Culture##                               0.02849447       0.02849447
 ## #U.S.#Education                         2.22191005       0.02709646
 ## Foreign#World#                          1.13916144       0.02589003
+##                                    .n.Trn.N .n.Trn.Y .n.New.N .n.New.Y
+## OpEd#Opinion#                           117      409       NA      164
+## Styles#U.S.#                             77      100       NA       61
+## Science#Health#                          74      122       NA       57
+## Business#Crosswords/Games#               20      103       NA       42
+## #Opinion#ThePublicEditor                  4       16       NA       10
+## Business#Technology#                    288       51       37       77
+## Business#BusinessDay#Dealbook           864       88      177      127
+## ##                                     1169      115      263       79
+## Metro#N.Y./Region#                      181       17       41       26
+## Culture#Arts#                           625       50      157       17
+## Business#BusinessDay#SmallBusiness      135        5       29       12
+## Styles##Fashion                         118        1       15       NA
+## #Opinion#RoomForDebate                   61        1       15        5
+## #Multimedia#                            139        2       46        6
+## Travel#Travel#                          116        1       35       NA
+## TStyle##                                715        9      102        3
+## Foreign#World#AsiaPacific               200        3       48        8
+## myOther                                  38       NA        4        1
+## Culture##                                 1       NA       45       25
+## #U.S.#Education                         325       NA       84        5
+## Foreign#World#                          172       NA       46        1
 ##                                    err.abs.trn.sum err.abs.trn.mean .n.trn
 ## OpEd#Opinion#                         189.20017098       0.35969614    526
 ## Styles#U.S.#                           83.39117680       0.47113659    177
@@ -11532,8 +11351,10 @@ if (glb_is_classification) {
 ##      1728.000000               NA      1870.000000               NA 
 ##   .freqRatio.OOB   .freqRatio.Tst  err.abs.fit.sum err.abs.fit.mean 
 ##         1.000000         1.000000               NA               NA 
-##           .n.fit  err.abs.OOB.sum err.abs.OOB.mean  err.abs.trn.sum 
-##               NA       328.814611         4.170523      1037.439449 
+##           .n.fit  err.abs.OOB.sum err.abs.OOB.mean         .n.Trn.N 
+##               NA       328.814611         4.170523      5439.000000 
+##         .n.Trn.Y         .n.New.N         .n.New.Y  err.abs.trn.sum 
+##               NA               NA               NA      1037.439449 
 ## err.abs.trn.mean           .n.trn  err.abs.new.sum err.abs.new.mean 
 ##         3.432938      6532.000000               NA               NA 
 ##           .n.new 
@@ -11541,35 +11362,38 @@ if (glb_is_classification) {
 ```
 
 ```r
-print(orderBy(as.formula(paste0("~ -", glb_sel_mdl_id, ".importance")), 
-              subset(glb_featsimp_df, importance > 10)))
+tmpFeatsImp <- glb_featsimp_df
+names(tmpFeatsImp) <- gsub("#", "_", names(tmpFeatsImp))
+print(orderBy(as.formula(paste0("~ -", gsub("#", "_", glb_sel_mdl_id),
+                                ".importance")), 
+              subset(tmpFeatsImp, importance > 10)))
 ```
 
 ```
-##                                                    All.X.glmnet.importance
-## NDSSName.my.fctrOpEd#Opinion#                                    100.00000
-## NDSSName.my.fctrBusiness#Crosswords/Games#                        98.38173
-## NDSSName.my.fctr#Opinion#ThePublicEditor                          87.34197
-## NDSSName.my.fctrScience#Health#                                   84.05064
-## NDSSName.my.fctrStyles#U.S.#                                      80.66804
-## NDSSName.my.fctrBusiness#Technology#                              43.29623
-## WordCount.log1p                                                   34.01597
-## WordCount.root2                                                   32.29795
-## .rnorm                                                            31.33944
-## NDSSName.my.fctrCulture##                                         31.33944
-## NDSSName.my.fctrCulture#Arts#                                     31.33944
-## NDSSName.my.fctrMetro#N.Y./Region#                                31.33944
-## WordCount.nexp                                                    31.33944
-## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                     31.33944
-## NDSSName.my.fctrTravel#Travel#                                    31.31570
-## NDSSName.my.fctrForeign#World#                                    30.00852
-## NDSSName.my.fctr#Multimedia#                                      28.91940
-## NDSSName.my.fctrmyOther                                           27.85141
-## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                27.78546
-## NDSSName.my.fctrStyles##Fashion                                   22.02991
-## NDSSName.my.fctrForeign#World#AsiaPacific                         19.29994
-## NDSSName.my.fctr#U.S.#Education                                   18.25900
-## NDSSName.my.fctrTStyle##                                          17.36032
+##                                                    All.X__rcv_glmnet.importance
+## NDSSName.my.fctrOpEd#Opinion#                                         100.00000
+## NDSSName.my.fctrBusiness#Crosswords/Games#                             98.38173
+## NDSSName.my.fctr#Opinion#ThePublicEditor                               87.34197
+## NDSSName.my.fctrScience#Health#                                        84.05064
+## NDSSName.my.fctrStyles#U.S.#                                           80.66804
+## NDSSName.my.fctrBusiness#Technology#                                   43.29623
+## WordCount.log1p                                                        34.01597
+## WordCount.root2                                                        32.29795
+## .rnorm                                                                 31.33944
+## NDSSName.my.fctrCulture##                                              31.33944
+## NDSSName.my.fctrCulture#Arts#                                          31.33944
+## NDSSName.my.fctrMetro#N.Y./Region#                                     31.33944
+## WordCount.nexp                                                         31.33944
+## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                          31.33944
+## NDSSName.my.fctrTravel#Travel#                                         31.31570
+## NDSSName.my.fctrForeign#World#                                         30.00852
+## NDSSName.my.fctr#Multimedia#                                           28.91940
+## NDSSName.my.fctrmyOther                                                27.85141
+## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                     27.78546
+## NDSSName.my.fctrStyles##Fashion                                        22.02991
+## NDSSName.my.fctrForeign#World#AsiaPacific                              19.29994
+## NDSSName.my.fctr#U.S.#Education                                        18.25900
+## NDSSName.my.fctrTStyle##                                               17.36032
 ##                                                    importance
 ## NDSSName.my.fctrOpEd#Opinion#                       100.00000
 ## NDSSName.my.fctrBusiness#Crosswords/Games#           99.96082
@@ -11594,30 +11418,30 @@ print(orderBy(as.formula(paste0("~ -", glb_sel_mdl_id, ".importance")),
 ## NDSSName.my.fctrForeign#World#AsiaPacific            14.61070
 ## NDSSName.my.fctr#U.S.#Education                      14.34221
 ## NDSSName.my.fctrTStyle##                             16.67670
-##                                                    Final.glmnet.importance
-## NDSSName.my.fctrOpEd#Opinion#                                    100.00000
-## NDSSName.my.fctrBusiness#Crosswords/Games#                        99.96082
-## NDSSName.my.fctr#Opinion#ThePublicEditor                          86.61487
-## NDSSName.my.fctrScience#Health#                                   82.33065
-## NDSSName.my.fctrStyles#U.S.#                                      77.12194
-## NDSSName.my.fctrBusiness#Technology#                              38.62774
-## WordCount.log1p                                                   37.41260
-## WordCount.root2                                                   32.88366
-## .rnorm                                                            31.93272
-## NDSSName.my.fctrCulture##                                         31.93272
-## NDSSName.my.fctrCulture#Arts#                                     31.93272
-## NDSSName.my.fctrMetro#N.Y./Region#                                31.93272
-## WordCount.nexp                                                    31.93272
-## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                     31.12990
-## NDSSName.my.fctrTravel#Travel#                                    29.62778
-## NDSSName.my.fctrForeign#World#                                    25.48953
-## NDSSName.my.fctr#Multimedia#                                      24.73162
-## NDSSName.my.fctrmyOther                                           26.20874
-## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                23.59037
-## NDSSName.my.fctrStyles##Fashion                                   21.10031
-## NDSSName.my.fctrForeign#World#AsiaPacific                         14.61070
-## NDSSName.my.fctr#U.S.#Education                                   14.34221
-## NDSSName.my.fctrTStyle##                                          16.67670
+##                                                    Final__rcv_glmnet.importance
+## NDSSName.my.fctrOpEd#Opinion#                                         100.00000
+## NDSSName.my.fctrBusiness#Crosswords/Games#                             99.96082
+## NDSSName.my.fctr#Opinion#ThePublicEditor                               86.61487
+## NDSSName.my.fctrScience#Health#                                        82.33065
+## NDSSName.my.fctrStyles#U.S.#                                           77.12194
+## NDSSName.my.fctrBusiness#Technology#                                   38.62774
+## WordCount.log1p                                                        37.41260
+## WordCount.root2                                                        32.88366
+## .rnorm                                                                 31.93272
+## NDSSName.my.fctrCulture##                                              31.93272
+## NDSSName.my.fctrCulture#Arts#                                          31.93272
+## NDSSName.my.fctrMetro#N.Y./Region#                                     31.93272
+## WordCount.nexp                                                         31.93272
+## NDSSName.my.fctrBusiness#BusinessDay#Dealbook                          31.12990
+## NDSSName.my.fctrTravel#Travel#                                         29.62778
+## NDSSName.my.fctrForeign#World#                                         25.48953
+## NDSSName.my.fctr#Multimedia#                                           24.73162
+## NDSSName.my.fctrmyOther                                                26.20874
+## NDSSName.my.fctrBusiness#BusinessDay#SmallBusiness                     23.59037
+## NDSSName.my.fctrStyles##Fashion                                        21.10031
+## NDSSName.my.fctrForeign#World#AsiaPacific                              14.61070
+## NDSSName.my.fctr#U.S.#Education                                        14.34221
+## NDSSName.my.fctrTStyle##                                               16.67670
 ```
 
 ```r
@@ -11626,7 +11450,7 @@ dsp_myCategory_conf_mtrx <- function(myCategory) {
                   glb_sel_mdl_id, myCategory))
     print(t(confusionMatrix(
         glbObsOOB[glbObsOOB$myCategory == myCategory, 
-                      paste0(glb_rsp_var_out, glb_sel_mdl_id)], 
+                      paste0(mygetPredictIds(glb_rsp_var)$value, glb_sel_mdl_id)], 
         glbObsOOB[glbObsOOB$myCategory == myCategory, glb_rsp_var])$table))
     print(sum(glbObsOOB[glbObsOOB$myCategory == myCategory, 
                             predct_accurate_var_name]) / 
@@ -11677,9 +11501,9 @@ print("glbObsNew prediction stats:")
 
 ```r
 if (glb_is_regression)
-    print(myplot_histogram(glbObsNew, paste0(glb_rsp_var_out, glb_fin_mdl_id)))
+    print(myplot_histogram(glbObsNew, mygetPredictIds(glb_rsp_var, glb_fin_mdl_id)$value))
 if (glb_is_classification)
-    print(table(glbObsNew[, paste0(glb_rsp_var_out, glb_fin_mdl_id)]))
+    print(table(glbObsNew[, mygetPredictIds(glb_rsp_var, glb_fin_mdl_id)$value]))
 ```
 
 ```
@@ -11724,10 +11548,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "display.session.info", major.inc=TR
 
 ```
 ##                   label step_major step_minor label_minor     bgn     end
-## 16     predict.data.new          8          0           0 233.199 242.389
-## 17 display.session.info          9          0           0 242.390      NA
+## 16     predict.data.new          8          0           0 241.632 260.815
+## 17 display.session.info          9          0           0 260.816      NA
 ##    elapsed
-## 16    9.19
+## 16  19.183
 ## 17      NA
 ```
 
@@ -11743,40 +11567,40 @@ We reject the null hypothesis i.e. we have evidence to conclude that am_fctr imp
 
 ```
 ##                      label step_major step_minor label_minor     bgn
-## 10              fit.models          6          0           0  35.238
-## 14       fit.data.training          7          0           0 181.344
-## 11              fit.models          6          1           1 139.591
-## 12              fit.models          6          2           2 161.330
-## 15       fit.data.training          7          1           1 222.039
-## 9          select.features          5          0           0  25.428
-## 1              import.data          1          0           0   9.037
-## 16        predict.data.new          8          0           0 233.199
-## 13              fit.models          6          3           3 174.894
-## 2             inspect.data          2          0           0  18.458
-## 5         extract.features          3          0           0  22.532
-## 8  partition.data.training          4          0           0  24.288
-## 3               scrub.data          2          1           1  21.340
-## 4           transform.data          2          2           2  22.441
-## 6      manage.missing.data          3          1           1  24.178
-## 7             cluster.data          3          2           2  24.259
+## 10              fit.models          6          0           0  35.523
+## 14       fit.data.training          7          0           0 190.764
+## 11              fit.models          6          1           1 150.048
+## 16        predict.data.new          8          0           0 241.632
+## 12              fit.models          6          2           2 171.989
+## 15       fit.data.training          7          1           1 230.766
+## 1              import.data          1          0           0   8.635
+## 9          select.features          5          0           0  25.875
+## 13              fit.models          6          3           3 185.249
+## 2             inspect.data          2          0           0  18.911
+## 5         extract.features          3          0           0  22.912
+## 8  partition.data.training          4          0           0  24.693
+## 3               scrub.data          2          1           1  21.780
+## 4           transform.data          2          2           2  22.822
+## 6      manage.missing.data          3          1           1  24.580
+## 7             cluster.data          3          2           2  24.662
 ##        end elapsed duration
-## 10 139.590 104.352  104.352
-## 14 222.039  40.695   40.695
-## 11 161.329  21.738   21.738
-## 12 174.893  13.563   13.563
-## 15 233.199  11.160   11.160
-## 9   35.237   9.809    9.809
-## 1   18.458   9.421    9.421
-## 16 242.389   9.190    9.190
-## 13 181.343   6.450    6.449
-## 2   21.340   2.882    2.882
-## 5   24.177   1.645    1.645
-## 8   25.428   1.140    1.140
-## 3   22.440   1.100    1.100
-## 4   22.531   0.091    0.090
-## 6   24.259   0.081    0.081
-## 7   24.288   0.029    0.029
-## [1] "Total Elapsed Time: 242.389 secs"
+## 10 150.047 114.525  114.524
+## 14 230.765  40.001   40.001
+## 11 171.988  21.940   21.940
+## 16 260.815  19.183   19.183
+## 12 185.249  13.260   13.260
+## 15 241.632  10.866   10.866
+## 1   18.911  10.276   10.276
+## 9   35.522   9.647    9.647
+## 13 190.763   5.514    5.514
+## 2   21.780   2.869    2.869
+## 5   24.580   1.668    1.668
+## 8   25.874   1.181    1.181
+## 3   22.821   1.041    1.041
+## 4   22.912   0.090    0.090
+## 6   24.662   0.082    0.082
+## 7   24.693   0.031    0.031
+## [1] "Total Elapsed Time: 260.815 secs"
 ```
 
 ![](NYTBlogs3_base_files/figure-html/display.session.info-1.png) 
