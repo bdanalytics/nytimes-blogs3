@@ -856,43 +856,11 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 
 ```
 ##         label step_major step_minor label_minor   bgn end elapsed
-## 1 import.data          1          0           0 8.635  NA      NA
+## 1 import.data          1          0           0 7.807  NA      NA
 ```
 
 ## Step `1.0: import data`
 #### chunk option: eval=<r condition>
-
-```r
-#glb_chunks_df <- myadd_chunk(NULL, "import.data")
-
-glb2Sav <- function() {
-    savObsAll <<- glbObsAll 
-    savObsTrn <<- glbObsTrn
-    if (any(grepl("glbObsFit", ls(envir=globalenv()), fixed=TRUE)) &&
-        !is.null(glbObsFit)) savObsFit <<- glbObsFit    
-    if (any(grepl("glbObsOOB", ls(envir=globalenv()), fixed=TRUE)) &&
-        !is.null(glbObsOOB)) savObsOOB <<- glbObsOOB    
-    if (any(grepl("glbObsNew", ls(envir=globalenv()), fixed=TRUE)) &&
-        !is.null(glbObsNew)) {
-        #print("Attempting to save glbObsNew...")
-        savObsNew <<- glbObsNew    
-    }
-
-    if (any(grepl("glbLvlCategory", ls(envir=globalenv()), fixed=TRUE)) &&
-        !is.null(glbLvlCategory)) savLvlCategory <<- glbLvlCategory    
-
-    if (!is.null(glb_models_lst )) sav_models_lst  <<- glb_models_lst
-    if (!is.null(glb_models_df  )) sav_models_df   <<- glb_models_df
-
-    if (any(grepl("glb_feats_df", ls(envir=globalenv()), fixed=TRUE)) &&
-        !is.null(glb_feats_df)) sav_feats_df <<- glb_feats_df    
-    if (any(grepl("glb_featsimp_df", ls(envir=globalenv()), fixed=TRUE)) &&
-        !is.null(glb_featsimp_df)) sav_featsimp_df <<- glb_featsimp_df    
-}
-
-glbObsTrn <- myimport_data(url=glb_trnng_url, comment="glbObsTrn", 
-                                force_header=TRUE)
-```
 
 ```
 ## [1] "Reading file ./data/NYTimesBlogTrain.csv..."
@@ -1017,72 +985,6 @@ glbObsTrn <- myimport_data(url=glb_trnng_url, comment="glbObsTrn",
 ## NULL
 ```
 
-```r
-# glbObsTrn <- read.delim("data/hygiene.txt", header=TRUE, fill=TRUE, sep="\t",
-#                             fileEncoding='iso-8859-1')
-# glbObsTrn <- read.table("data/hygiene.dat.labels", col.names=c("dirty"),
-#                             na.strings="[none]")
-# glbObsTrn$review <- readLines("data/hygiene.dat", n =-1)
-# comment(glbObsTrn) <- "glbObsTrn"                                
-
-# glbObsTrn <- data.frame()
-# for (symbol in c("Boeing", "CocaCola", "GE", "IBM", "ProcterGamble")) {
-#     sym_trnobs_df <- 
-#         myimport_data(url=gsub("IBM", symbol, glb_trnng_url), comment="glbObsTrn", 
-#                                     force_header=TRUE)
-#     sym_trnobs_df$Symbol <- symbol
-#     glbObsTrn <- myrbind_df(glbObsTrn, sym_trnobs_df)
-# }
-                                
-# glbObsTrn <- 
-#     glbObsTrn %>% dplyr::filter(Year >= 1999)
-                                
-if (glb_is_separate_newobs_dataset) {
-    glbObsNew <- myimport_data(url=glb_newdt_url, comment="glbObsNew", 
-                                   force_header=TRUE)
-    
-    # To make plots / stats / checks easier in chunk:inspectORexplore.data
-    glbObsAll <- myrbind_df(glbObsTrn, glbObsNew); 
-    comment(glbObsAll) <- "glbObsAll"
-} else {
-    glbObsAll <- glbObsTrn; comment(glbObsAll) <- "glbObsAll"
-    if (!glb_split_entity_newobs_datasets) {
-        stop("Not implemented yet") 
-        glbObsNew <- glbObsTrn[sample(1:nrow(glbObsTrn),
-                                          max(2, nrow(glbObsTrn) / 1000)),]                    
-    } else      if (glb_split_newdata_method == "condition") {
-            glbObsNew <- do.call("subset", 
-                list(glbObsTrn, parse(text=glb_split_newdata_condition)))
-            glbObsTrn <- do.call("subset", 
-                list(glbObsTrn, parse(text=paste0("!(", 
-                                                      glb_split_newdata_condition,
-                                                      ")"))))
-        } else if (glb_split_newdata_method == "sample") {
-                require(caTools)
-                
-                set.seed(glb_split_sample.seed)
-                split <- sample.split(glbObsTrn[, glb_rsp_var_raw], 
-                                      SplitRatio=(1-glb_split_newdata_size_ratio))
-                glbObsNew <- glbObsTrn[!split, ] 
-                glbObsTrn <- glbObsTrn[split ,]
-        } else if (glb_split_newdata_method == "copy") {  
-            glbObsTrn <- glbObsAll
-            comment(glbObsTrn) <- "glbObsTrn"
-            glbObsNew <- glbObsAll
-            comment(glbObsNew) <- "glbObsNew"
-        } else stop("glb_split_newdata_method should be %in% c('condition', 'sample', 'copy')")   
-
-    comment(glbObsNew) <- "glbObsNew"
-    myprint_df(glbObsNew)
-    str(glbObsNew)
-
-    if (glb_split_entity_newobs_datasets) {
-        myprint_df(glbObsTrn)
-        str(glbObsTrn)        
-    }
-}         
-```
-
 ```
 ## [1] "Reading file ./data/NYTimesBlogTest.csv..."
 ## [1] "dimensions of data in ./data/NYTimesBlogTest.csv: 1,870 rows x 9 cols"
@@ -1205,86 +1107,6 @@ if (glb_is_separate_newobs_dataset) {
 ## NULL
 ```
 
-```r
-if ((num_nas <- sum(is.na(glbObsTrn[, glb_rsp_var_raw]))) > 0)
-    stop("glbObsTrn$", glb_rsp_var_raw, " contains NAs for ", num_nas, " obs")
-
-if (nrow(glbObsTrn) == nrow(glbObsAll))
-    warning("glbObsTrn same as glbObsAll")
-if (nrow(glbObsNew) == nrow(glbObsAll))
-    warning("glbObsNew same as glbObsAll")
-
-if (length(glb_drop_vars) > 0) {
-    warning("dropping vars: ", paste0(glb_drop_vars, collapse=", "))
-    glbObsAll <- glbObsAll[, setdiff(names(glbObsAll), glb_drop_vars)]
-    glbObsTrn <- glbObsTrn[, setdiff(names(glbObsTrn), glb_drop_vars)]    
-    glbObsNew <- glbObsNew[, setdiff(names(glbObsNew), glb_drop_vars)]    
-}
-
-#stop(here"); savObsAll <- glbObsAll # glbObsAll <- savObsAll
-# Combine trnent & newobs into glbObsAll for easier manipulation
-glbObsTrn$.src <- "Train"; glbObsNew$.src <- "Test"; 
-glbFeatsExclude <- union(glbFeatsExclude, ".src")
-glbObsAll <- myrbind_df(glbObsTrn, glbObsNew)
-comment(glbObsAll) <- "glbObsAll"
-
-# Check for duplicates in glb_id_var
-if (length(glb_id_var) == 0) {
-    warning("using .rownames as identifiers for observations")
-    glbObsAll$.rownames <- rownames(glbObsAll)
-    glbObsTrn$.rownames <- rownames(subset(glbObsAll, .src == "Train"))
-    glbObsNew$.rownames <- rownames(subset(glbObsAll, .src == "Test"))    
-    glb_id_var <- ".rownames"
-}
-if (sum(duplicated(glbObsAll[, glb_id_var, FALSE])) > 0)
-    stop(glb_id_var, " duplicated in glbObsAll")
-glbFeatsExclude <- union(glbFeatsExclude, glb_id_var)
-
-glbObsAll <- orderBy(reformulate(glb_id_var), glbObsAll)
-glbObsTrn <- glbObsNew <- NULL
-
-# For Tableau
-if (!is.null(glbOutDataVizFname))
-    write.csv(glbObsAll, glbOutDataVizFname, row.names=FALSE)
-
-# - Merge glb_obs_stack_condition & glbObsDropCondition
-# - Derive glb_obs_stack|drop_chk_vars from condition automatically
-# - Implement glb_obs_stack_condition & glb_obs_stack_chk_vars options
-
-dsp_partition_stats <- function(obs_df, vars=NULL) {
-    
-    lcl_vars <- NULL
-    for (var in c(vars, glb_rsp_var_raw)) {
-        if ((length(unique(obs_df[, var])) > 5) && is.numeric(obs_df[, var])) {
-            cut_var <- paste0(var, ".cut.fctr")
-            obs_df[, cut_var] <- cut(obs_df[, var], 3)
-            lcl_vars <- union(lcl_vars, cut_var)
-        } else lcl_vars <- union(lcl_vars, var)   
-    }
-
-    print("Partition stats:")
-    print(mycreate_sqlxtab_df(obs_df, union(lcl_vars, ".src")))
-    for (var in lcl_vars) {
-        print(freq_df <- mycreate_sqlxtab_df(obs_df, union(var, ".src")))
-        print(myplot_hbar(freq_df, ".src", ".n", colorcol_name=var))
-    }
-    print(mycreate_sqlxtab_df(obs_df, ".src"))
-        
-}
-
-myget_symbols <- function(txt) {
-    if (is.null(txt)) return(NULL)
-    #print(getParseData(parse(text=txt, keep.source=TRUE)))
-    return(unique(subset(getParseData(parse(text=txt, keep.source=TRUE)), 
-                         token == "SYMBOL")$text))
-}
-# tokens <- unlist(strsplit(gsub("[[:punct:]|[:space:]]", " ", glbObsDropCondition), " "))
-# tokens <- tokens[tokens != ""]
-# glb_obs_drop_chk_vars <- c("biddable") # or NULL
-
-dsp_partition_stats(obs_df=glbObsAll, vars=myget_symbols(glbObsDropCondition))
-```
-
 ```
 ## [1] "Partition stats:"
 ```
@@ -1317,19 +1139,6 @@ dsp_partition_stats(obs_df=glbObsAll, vars=myget_symbols(glbObsDropCondition))
 ## 2  Test 1870
 ```
 
-```r
-if (!is.null(glbObsDropCondition)) {
-    print(sprintf("Running glbObsDropCondition filter: %s", glbObsDropCondition))
-    glbObsAll <- do.call("subset", 
-                list(glbObsAll, parse(text=paste0("!(", glbObsDropCondition, ")"))))
-    dsp_partition_stats(obs_df=glbObsAll, vars=myget_symbols(glbObsDropCondition))    
-}
-
-# Check for duplicates by all features
-# Refactor to utilize glbSpecs
-require(dplyr)
-```
-
 ```
 ## Loading required package: dplyr
 ## 
@@ -1342,21 +1151,8 @@ require(dplyr)
 ## The following objects are masked from 'package:base':
 ## 
 ##     intersect, setdiff, setequal, union
-```
-
-```r
-require(lazyeval)
-```
-
-```
+## 
 ## Loading required package: lazyeval
-```
-
-```r
-require(gdata)
-```
-
-```
 ## Loading required package: gdata
 ## gdata: read.xls support for 'XLS' (Excel 97-2004) files ENABLED.
 ## 
@@ -1377,27 +1173,8 @@ require(gdata)
 ##     object.size
 ```
 
-```r
-#print(names(glbObsAll))
-dupObsAll <- glbObsAll[duplicated2(subset(glbObsAll, 
-                                        select = -c(UniqueID, Popular, .src))), ]
-dupObsAllIx <- glbObsAll %>% 
-    dplyr::select_(.dots = setdiff(names(glbObsAll), 
-                                   c(glb_id_var, glb_rsp_var_raw, ".src"))) %>%    
-    #dplyr::select(-c(UniqueID, Popular, .src)) %>%
-    duplicated2()
-dupObsAll <- glbObsAll[dupObsAllIx, ] %>% 
-    dplyr::arrange_(.dots = setdiff(names(glbObsAll), 
-                                   c(glb_id_var, glb_rsp_var_raw, ".src")))
-print(sprintf("Found %d duplicates by all features:", nrow(dupObsAll)))
-```
-
 ```
 ## [1] "Found 0 duplicates by all features:"
-```
-
-```r
-myprint_df(dupObsAll)
 ```
 
 ```
@@ -1405,67 +1182,6 @@ myprint_df(dupObsAll)
 ##  [5] Snippet        Abstract       WordCount      PubDate       
 ##  [9] Popular        UniqueID       .src          
 ## <0 rows> (or 0-length row.names)
-```
-
-```r
-# print(dupObsAll[, c(glb_id_var, glb_rsp_var_raw, 
-#                          "description", "startprice", "biddable")])
-# write.csv(dupObsAll[, c("UniqueID"), FALSE], "ebayipads_dups.csv", row.names=FALSE)
-
-if (nrow(dupObsAll) > 0) {
-    dupobs_df <- tidyr::unite(dupObsAll, "allfeats", -c(sold, UniqueID, .src), sep="*")
-    # dupobs_df <- dplyr::group_by(dupobs_df, allfeats)
-    # dupobs_df <- dupobs_df[, "UniqueID", FALSE]
-    # dupobs_df <- ungroup(dupobs_df)
-    # 
-    # dupobs_df$.rownames <- row.names(dupobs_df)
-    grpobs_df <- data.frame(allfeats=unique(dupobs_df[, "allfeats"]))
-    grpobs_df$.grpid <- row.names(grpobs_df)
-    dupobs_df <- merge(dupobs_df, grpobs_df)
-    
-    # dupobs_tbl <- table(dupobs_df$.grpid)
-    # print(max(dupobs_tbl))
-    # print(dupobs_tbl[which.max(dupobs_tbl)])
-    # print(dupobs_df[dupobs_df$.grpid == names(dupobs_tbl[which.max(dupobs_tbl)]), ])
-    # print(dupobs_df[dupobs_df$.grpid == 106, ])
-    # for (grpid in c(9, 17, 31, 36, 53))
-    #     print(dupobs_df[dupobs_df$.grpid == grpid, ])
-    dupgrps_df <- as.data.frame(table(dupobs_df$.grpid, dupobs_df$sold, useNA="ifany"))
-    names(dupgrps_df)[c(1,2)] <- c(".grpid", "sold")
-    dupgrps_df$.grpid <- as.numeric(as.character(dupgrps_df$.grpid))
-    dupgrps_df <- tidyr::spread(dupgrps_df, sold, Freq)
-    names(dupgrps_df)[-1] <- paste("sold", names(dupgrps_df)[-1], sep=".")
-    dupgrps_df$.freq <- sapply(1:nrow(dupgrps_df), function(row) sum(dupgrps_df[row, -1]))
-    myprint_df(orderBy(~-.freq, dupgrps_df))
-    
-    print("sold Conflicts:")
-    print(subset(dupgrps_df, (sold.0 > 0) & (sold.1 > 0)))
-    #dupobs_df[dupobs_df$.grpid == 4, ]
-    glbObsAll <- merge(glbObsAll, dupobs_df[, c(glb_id_var, ".grpid")], 
-                           by=glb_id_var, all.x=TRUE)
-    if (nrow(subset(dupgrps_df, (sold.0 > 0) & (sold.1 > 0) & (sold.0 != sold.1))) > 0)
-        stop("Duplicate conflicts are resolvable")
-    #subset(glbObsAll, .grpid %in% c(25))
-    #mydspObs(list(productline.contains="iPad 1", storage.contains="16", color.contains="Black", carrier.contains="None", cellular.contains="0", condition.contains="Used", startprice=80), cols=c("productline", "storage", "color", "carrier", "cellular", "condition", "startprice", "sold"))
-    
-    print("Test & Train Groups:")
-    print(subset(dupgrps_df, (sold.NA > 0)))
-    
-    glbFeatsExclude <- c(".grpid", glbFeatsExclude)
-}
-
-if (!is.null(glbInpMerge)) {
-    print("Running glbInpMerge specs...")
-    obsMrg <- data.frame()
-    for (fName in glbInpMerge$fnames) {
-        print(sprintf("    Appending rows from %s...", fName))
-        obsMrg <- rbind(obsMrg, read.csv(fName))
-    }
-    glbObsAll <- merge(glbObsAll, obsMrg, all.x = TRUE)
-}
-
-dsp_partition_stats(obs_df = glbObsAll,
-                    vars = myget_symbols(glb_obs_repartition_train_condition))
 ```
 
 ```
@@ -1488,50 +1204,10 @@ dsp_partition_stats(obs_df = glbObsAll,
 ## 2  Test 1870
 ```
 
-```r
-if (!is.null(glb_obs_repartition_train_condition)) {
-    print(sprintf("Running glb_obs_repartition_train_condition filter: %s",
-                  glb_obs_repartition_train_condition))
-#     glbObsAll <- mutate(glbObsAll, .src=ifelse(!is.na(sold) & (sold == 1),
-#                             "Train", "Test"))
-#     glbObsAll <- mutate_(glbObsAll, 
-#                         .src=interp(ifelse(eval(parse(text="!is.na(sold) & (sold == 1)")),
-#                                         "Train", "Test")))
-#     glbObsAll <- within(glbObsAll, {
-#         .src <- ifelse(eval(parse(text="!is.na(sold) & (sold == 1)")),
-#                                         "Train", "Test")
-#     })
-#     glbObsAll <- within(glbObsAll, {
-#         if(eval(parse(text="!is.na(sold) & (sold == 1)"))) .src <- "Train" else
-#             .src <- "Test"
-#     })
-#     with(glbObsAll, {
-#         src <- ifelse(eval(parse(text="!is.na(sold) & (sold == 1)")),
-#                                         "Train", "Test")
-#     })
-#     glbObsAll$.src <- sapply(1:nrow(glbObsAll), function (row_ix) ifelse)
-#     glbObsAll[parse(text=paste0("!(", glbObsDropCondition, ")")), ".src"] <- do.call("subset", 
-#                 list(glbObsAll, ))
-    
-    glbObsTrn <- do.call("subset", list(glbObsAll, 
-                        parse(text=paste0(" (", glb_obs_repartition_train_condition, ")"))))
-    glbObsTrn$.src <- "Train"
-    glbObsNew <- do.call("subset", list(glbObsAll, 
-                        parse(text=paste0("!(", glb_obs_repartition_train_condition, ")"))))
-    glbObsNew$.src <- "Test"
-    glbObsAll <- rbind(glbObsTrn, glbObsNew)
-
-    dsp_partition_stats(obs_df = glbObsAll,
-                        vars = myget_symbols(glb_obs_repartition_train_condition))    
-}
-
-glb_chunks_df <- myadd_chunk(glb_chunks_df, "inspect.data", major.inc=TRUE)
-```
-
 ```
 ##          label step_major step_minor label_minor    bgn    end elapsed
-## 1  import.data          1          0           0  8.635 18.911  10.276
-## 2 inspect.data          2          0           0 18.911     NA      NA
+## 1  import.data          1          0           0  7.807 16.714   8.907
+## 2 inspect.data          2          0           0 16.715     NA      NA
 ```
 
 ## Step `2.0: inspect data`
@@ -1799,9 +1475,9 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "scrub.data", major.inc=FALSE)
 ```
 
 ```
-##          label step_major step_minor label_minor    bgn   end elapsed
-## 2 inspect.data          2          0           0 18.911 21.78   2.869
-## 3   scrub.data          2          1           1 21.780    NA      NA
+##          label step_major step_minor label_minor    bgn    end elapsed
+## 2 inspect.data          2          0           0 16.715 19.598   2.883
+## 3   scrub.data          2          1           1 19.599     NA      NA
 ```
 
 ### Step `2.1: scrub data`
@@ -1914,8 +1590,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "transform.data", major.inc=FALSE)
 
 ```
 ##            label step_major step_minor label_minor    bgn    end elapsed
-## 3     scrub.data          2          1           1 21.780 22.821   1.041
-## 4 transform.data          2          2           2 22.822     NA      NA
+## 3     scrub.data          2          1           1 19.599 20.404   0.806
+## 4 transform.data          2          2           2 20.405     NA      NA
 ```
 
 ```r
@@ -2005,8 +1681,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "extract.features", major.inc=TRUE)
 
 ```
 ##              label step_major step_minor label_minor    bgn    end elapsed
-## 4   transform.data          2          2           2 22.822 22.912    0.09
-## 5 extract.features          3          0           0 22.912     NA      NA
+## 4   transform.data          2          2           2 20.405 20.746   0.341
+## 5 extract.features          3          0           0 20.746     NA      NA
 ```
 
 ```r
@@ -2014,8 +1690,10 @@ extract.features_chunk_df <- myadd_chunk(NULL, "extract.features_bgn")
 ```
 
 ```
-##                  label step_major step_minor label_minor   bgn end elapsed
-## 1 extract.features_bgn          1          0           0 22.92  NA      NA
+##                  label step_major step_minor label_minor    bgn end
+## 1 extract.features_bgn          1          0           0 20.753  NA
+##   elapsed
+## 1      NA
 ```
 
 ```r
@@ -2149,8 +1827,8 @@ extract.features_chunk_df <- myadd_chunk(extract.features_chunk_df,
 ## 1                extract.features_bgn          1          0           0
 ## 2 extract.features_factorize.str.vars          2          0           0
 ##      bgn    end elapsed
-## 1 22.920 22.933   0.013
-## 2 22.933     NA      NA
+## 1 20.753 20.767   0.014
+## 2 20.768     NA      NA
 ```
 
 ```r
@@ -3005,8 +2683,8 @@ extract.features_chunk_df <- myadd_chunk(extract.features_chunk_df, "extract.fea
 ## 2 extract.features_factorize.str.vars          2          0           0
 ## 3                extract.features_end          3          0           0
 ##      bgn    end elapsed
-## 2 22.933 22.958   0.025
-## 3 22.959     NA      NA
+## 2 20.768 20.793   0.025
+## 3 20.793     NA      NA
 ```
 
 ```r
@@ -3018,9 +2696,9 @@ myplt_chunk(extract.features_chunk_df)
 ## 2 extract.features_factorize.str.vars          2          0           0
 ## 1                extract.features_bgn          1          0           0
 ##      bgn    end elapsed duration
-## 2 22.933 22.958   0.025    0.025
-## 1 22.920 22.933   0.013    0.013
-## [1] "Total Elapsed Time: 22.958 secs"
+## 2 20.768 20.793   0.025    0.025
+## 1 20.753 20.767   0.014    0.014
+## [1] "Total Elapsed Time: 20.793 secs"
 ```
 
 ![](NYTBlogs3_base_files/figure-html/extract.features-1.png) 
@@ -3058,11 +2736,11 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "manage.missing.data", major.inc=FAL
 ```
 
 ```
-##                 label step_major step_minor label_minor    bgn   end
-## 5    extract.features          3          0           0 22.912 24.58
-## 6 manage.missing.data          3          1           1 24.580    NA
+##                 label step_major step_minor label_minor    bgn    end
+## 5    extract.features          3          0           0 20.746 22.454
+## 6 manage.missing.data          3          1           1 22.455     NA
 ##   elapsed
-## 5   1.668
+## 5   1.709
 ## 6      NA
 ```
 
@@ -3173,8 +2851,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "cluster.data", major.inc=FALSE)
 
 ```
 ##                 label step_major step_minor label_minor    bgn    end
-## 6 manage.missing.data          3          1           1 24.580 24.662
-## 7        cluster.data          3          2           2 24.662     NA
+## 6 manage.missing.data          3          1           1 22.455 22.536
+## 7        cluster.data          3          2           2 22.537     NA
 ##   elapsed
 ## 6   0.082
 ## 7      NA
@@ -3449,10 +3127,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 
 ```
 ##                     label step_major step_minor label_minor    bgn    end
-## 7            cluster.data          3          2           2 24.662 24.693
-## 8 partition.data.training          4          0           0 24.693     NA
+## 7            cluster.data          3          2           2 22.537 22.566
+## 8 partition.data.training          4          0           0 22.566     NA
 ##   elapsed
-## 7   0.031
+## 7   0.029
 ## 8      NA
 ```
 
@@ -3764,10 +3442,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "select.features", major.inc=TRUE)
 
 ```
 ##                     label step_major step_minor label_minor    bgn    end
-## 8 partition.data.training          4          0           0 24.693 25.874
-## 9         select.features          5          0           0 25.875     NA
+## 8 partition.data.training          4          0           0 22.566 23.966
+## 9         select.features          5          0           0 23.966     NA
 ##   elapsed
-## 8   1.181
+## 8     1.4
 ## 9      NA
 ```
 
@@ -4300,8 +3978,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc=TRUE)
 
 ```
 ##              label step_major step_minor label_minor    bgn    end elapsed
-## 9  select.features          5          0           0 25.875 35.522   9.647
-## 10      fit.models          6          0           0 35.523     NA      NA
+## 9  select.features          5          0           0 23.966 33.362   9.396
+## 10      fit.models          6          0           0 33.363     NA      NA
 ```
 
 ## Step `6.0: fit models`
@@ -4501,7 +4179,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
 ## AccuracyPValue  McnemarPValue 
 ##      1.0000000      0.0000000 
 ##                    id  feats max.nTuningRuns min.elapsedtime.everything
-## 1 MFO###myMFO_classfr .rnorm               0                      0.271
+## 1 MFO###myMFO_classfr .rnorm               0                      0.272
 ##   min.elapsedtime.final max.AUCpROC.fit max.Sens.fit max.Spec.fit
 ## 1                 0.003             0.5            1            0
 ##   max.AUCROCR.fit opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -4570,7 +4248,7 @@ if (glb_is_classification)
 ##                          id  feats max.nTuningRuns
 ## 1 Random###myrandom_classfr .rnorm               0
 ##   min.elapsedtime.everything min.elapsedtime.final max.AUCpROC.fit
-## 1                      0.274                 0.002       0.4990604
+## 1                      0.275                 0.002       0.4990604
 ##   max.Sens.fit max.Spec.fit max.AUCROCR.fit opt.prob.threshold.fit
 ## 1    0.8312611    0.1668598       0.4972757                    0.1
 ##   max.f.score.fit max.Accuracy.fit max.AccuracyLower.fit
@@ -4754,7 +4432,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ##                           id                            feats
 ## 1 Max.cor.Y.rcv.1X1###glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               0                      0.987                 0.273
+## 1               0                       1.01                 0.274
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8790544    0.9632073    0.7949015       0.9608594
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -4924,7 +4602,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##                              id                            feats
 ## 1 Max.cor.Y.rcv.3X1##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      3.404                 0.273
+## 1              25                      2.868                 0.271
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8767919     0.964476    0.7891078       0.9582555
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5063,7 +4741,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##                              id                            feats
 ## 1 Max.cor.Y.rcv.3X3##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      4.879                 0.277
+## 1              25                      5.039                 0.272
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8767919     0.964476    0.7891078       0.9582555
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5202,7 +4880,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##                              id                            feats
 ## 1 Max.cor.Y.rcv.3X5##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      6.364                 0.272
+## 1              25                      7.242                 0.279
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8767919     0.964476    0.7891078       0.9582555
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5363,7 +5041,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##                              id                            feats
 ## 1 Max.cor.Y.rcv.5X1##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      3.258                 0.269
+## 1              25                      3.297                 0.269
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8784031    0.9642223     0.792584       0.9607052
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5524,7 +5202,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##                              id                            feats
 ## 1 Max.cor.Y.rcv.5X3##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      6.419                 0.268
+## 1              25                       6.25                 0.269
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8784031    0.9642223     0.792584       0.9607052
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5685,7 +5363,7 @@ for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
 ##                              id                            feats
 ## 1 Max.cor.Y.rcv.5X5##rcv#glmnet WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      9.052                 0.266
+## 1              25                      9.193                 0.268
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8784031    0.9642223     0.792584       0.9607052
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -6520,7 +6198,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ##                               id                            feats
 ## 1 Max.cor.Y.rcv.1X1.cp.0###rpart WordCount.root2,NDSSName.my.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               0                      0.866                  0.07
+## 1               0                      0.884                 0.071
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8821543    0.9705658    0.7937428       0.9504198
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -6726,7 +6404,7 @@ trainControl.allowParallel = FALSE,
 ##                     id                            feats max.nTuningRuns
 ## 1 Max.cor.Y##rcv#rpart WordCount.root2,NDSSName.my.fctr               5
 ##   min.elapsedtime.everything min.elapsedtime.final max.AUCpROC.fit
-## 1                      2.851                 0.075       0.8709432
+## 1                      2.914                 0.073       0.8709432
 ##   max.Sens.fit max.Spec.fit max.AUCROCR.fit opt.prob.threshold.fit
 ## 1    0.9632073     0.778679       0.8746354                    0.6
 ##   max.f.score.fit max.Accuracy.fit max.AccuracyLower.fit
@@ -6911,7 +6589,7 @@ if (length(int_feats <- setdiff(setdiff(unique(glb_feats_df$cor.high.X), NA),
 ##                                                              feats
 ## 1 WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      4.407                  0.27
+## 1              25                      4.437                 0.269
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8767919     0.964476    0.7891078       0.9582555
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -7077,7 +6755,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ##                                                    feats max.nTuningRuns
 ## 1 WordCount.root2,NDSSName.my.fctr,.rnorm,WordCount.nexp              25
 ##   min.elapsedtime.everything min.elapsedtime.final max.AUCpROC.fit
-## 1                      5.416                 0.291       0.8767919
+## 1                      4.879                 0.289       0.8767919
 ##   max.Sens.fit max.Spec.fit max.AUCROCR.fit opt.prob.threshold.fit
 ## 1     0.964476    0.7891078       0.9582555                    0.4
 ##   max.f.score.fit max.Accuracy.fit max.AccuracyLower.fit
@@ -7100,8 +6778,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc=FALSE)
 
 ```
 ##         label step_major step_minor label_minor     bgn     end elapsed
-## 10 fit.models          6          0           0  35.523 150.047 114.525
-## 11 fit.models          6          1           1 150.048      NA      NA
+## 10 fit.models          6          0           0  33.363 148.784 115.421
+## 11 fit.models          6          1           1 148.784      NA      NA
 ```
 
 
@@ -7111,7 +6789,7 @@ fit.models_1_chunk_df <- myadd_chunk(NULL, "fit.models_1_bgn", label.minor="setu
 
 ```
 ##              label step_major step_minor label_minor     bgn end elapsed
-## 1 fit.models_1_bgn          1          0       setup 161.225  NA      NA
+## 1 fit.models_1_bgn          1          0       setup 160.036  NA      NA
 ```
 
 ```r
@@ -7258,10 +6936,10 @@ for (mdl_id_pfx in names(glb_mdl_family_lst)) {
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 1   fit.models_1_bgn          1          0       setup 161.225 161.235
-## 2 fit.models_1_All.X          1          1       setup 161.235      NA
+## 1   fit.models_1_bgn          1          0       setup 160.036 160.045
+## 2 fit.models_1_All.X          1          1       setup 160.045      NA
 ##   elapsed
-## 1    0.01
+## 1   0.009
 ## 2      NA
 ```
 
@@ -7272,10 +6950,10 @@ for (mdl_id_pfx in names(glb_mdl_family_lst)) {
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 2 fit.models_1_All.X          1          1       setup 161.235 161.241
-## 3 fit.models_1_All.X          1          2      glmnet 161.242      NA
+## 2 fit.models_1_All.X          1          1       setup 160.045 160.052
+## 3 fit.models_1_All.X          1          2      glmnet 160.052      NA
 ##   elapsed
-## 2   0.006
+## 2   0.007
 ## 3      NA
 ## [1] "fitting model: All.X##rcv#glmnet"
 ## [1] "    indep_vars: WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp"
@@ -7419,7 +7097,7 @@ for (mdl_id_pfx in names(glb_mdl_family_lst)) {
 ##                                                                    feats
 ## 1 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      4.837                 0.289
+## 1              25                      4.901                 0.289
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.8771175    0.9639685    0.7902665       0.9589072
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -7444,11 +7122,11 @@ fit.models_1_chunk_df <-
 ```
 
 ```
-##                  label step_major step_minor label_minor     bgn    end
-## 3   fit.models_1_All.X          1          2      glmnet 161.242 171.91
-## 4 fit.models_1_preProc          1          3     preProc 171.911     NA
+##                  label step_major step_minor label_minor     bgn     end
+## 3   fit.models_1_All.X          1          2      glmnet 160.052 170.829
+## 4 fit.models_1_preProc          1          3     preProc 170.829      NA
 ##   elapsed
-## 3  10.668
+## 3  10.777
 ## 4      NA
 ```
 
@@ -7637,34 +7315,34 @@ print(glb_models_df)
 ## Low.cor.X##rcv#glmnet                           WordCount.root2,NDSSName.my.fctr,.rnorm,WordCount.nexp
 ## All.X##rcv#glmnet               WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
 ##                                 max.nTuningRuns min.elapsedtime.everything
-## MFO###myMFO_classfr                           0                      0.271
-## Random###myrandom_classfr                     0                      0.274
-## Max.cor.Y.rcv.1X1###glmnet                    0                      0.987
-## Max.cor.Y.rcv.3X1##rcv#glmnet                25                      3.404
-## Max.cor.Y.rcv.3X3##rcv#glmnet                25                      4.879
-## Max.cor.Y.rcv.3X5##rcv#glmnet                25                      6.364
-## Max.cor.Y.rcv.5X1##rcv#glmnet                25                      3.258
-## Max.cor.Y.rcv.5X3##rcv#glmnet                25                      6.419
-## Max.cor.Y.rcv.5X5##rcv#glmnet                25                      9.052
-## Max.cor.Y.rcv.1X1.cp.0###rpart                0                      0.866
-## Max.cor.Y##rcv#rpart                          5                      2.851
-## Interact.High.cor.Y##rcv#glmnet              25                      4.407
-## Low.cor.X##rcv#glmnet                        25                      5.416
-## All.X##rcv#glmnet                            25                      4.837
+## MFO###myMFO_classfr                           0                      0.272
+## Random###myrandom_classfr                     0                      0.275
+## Max.cor.Y.rcv.1X1###glmnet                    0                      1.010
+## Max.cor.Y.rcv.3X1##rcv#glmnet                25                      2.868
+## Max.cor.Y.rcv.3X3##rcv#glmnet                25                      5.039
+## Max.cor.Y.rcv.3X5##rcv#glmnet                25                      7.242
+## Max.cor.Y.rcv.5X1##rcv#glmnet                25                      3.297
+## Max.cor.Y.rcv.5X3##rcv#glmnet                25                      6.250
+## Max.cor.Y.rcv.5X5##rcv#glmnet                25                      9.193
+## Max.cor.Y.rcv.1X1.cp.0###rpart                0                      0.884
+## Max.cor.Y##rcv#rpart                          5                      2.914
+## Interact.High.cor.Y##rcv#glmnet              25                      4.437
+## Low.cor.X##rcv#glmnet                        25                      4.879
+## All.X##rcv#glmnet                            25                      4.901
 ##                                 min.elapsedtime.final max.AUCpROC.fit
 ## MFO###myMFO_classfr                             0.003       0.5000000
 ## Random###myrandom_classfr                       0.002       0.4990604
-## Max.cor.Y.rcv.1X1###glmnet                      0.273       0.8790544
-## Max.cor.Y.rcv.3X1##rcv#glmnet                   0.273       0.8767919
-## Max.cor.Y.rcv.3X3##rcv#glmnet                   0.277       0.8767919
-## Max.cor.Y.rcv.3X5##rcv#glmnet                   0.272       0.8767919
+## Max.cor.Y.rcv.1X1###glmnet                      0.274       0.8790544
+## Max.cor.Y.rcv.3X1##rcv#glmnet                   0.271       0.8767919
+## Max.cor.Y.rcv.3X3##rcv#glmnet                   0.272       0.8767919
+## Max.cor.Y.rcv.3X5##rcv#glmnet                   0.279       0.8767919
 ## Max.cor.Y.rcv.5X1##rcv#glmnet                   0.269       0.8784031
-## Max.cor.Y.rcv.5X3##rcv#glmnet                   0.268       0.8784031
-## Max.cor.Y.rcv.5X5##rcv#glmnet                   0.266       0.8784031
-## Max.cor.Y.rcv.1X1.cp.0###rpart                  0.070       0.8821543
-## Max.cor.Y##rcv#rpart                            0.075       0.8709432
-## Interact.High.cor.Y##rcv#glmnet                 0.270       0.8767919
-## Low.cor.X##rcv#glmnet                           0.291       0.8767919
+## Max.cor.Y.rcv.5X3##rcv#glmnet                   0.269       0.8784031
+## Max.cor.Y.rcv.5X5##rcv#glmnet                   0.268       0.8784031
+## Max.cor.Y.rcv.1X1.cp.0###rpart                  0.071       0.8821543
+## Max.cor.Y##rcv#rpart                            0.073       0.8709432
+## Interact.High.cor.Y##rcv#glmnet                 0.269       0.8767919
+## Low.cor.X##rcv#glmnet                           0.289       0.8767919
 ## All.X##rcv#glmnet                               0.289       0.8771175
 ##                                 max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## MFO###myMFO_classfr                1.0000000    0.0000000       0.5000000
@@ -7827,10 +7505,10 @@ fit.models_1_chunk_df <-
 
 ```
 ##                  label step_major step_minor label_minor     bgn     end
-## 4 fit.models_1_preProc          1          3     preProc 171.911 171.979
-## 5     fit.models_1_end          1          4    teardown 171.980      NA
+## 4 fit.models_1_preProc          1          3     preProc 170.829 170.896
+## 5     fit.models_1_end          1          4    teardown 170.897      NA
 ##   elapsed
-## 4   0.068
+## 4   0.067
 ## 5      NA
 ```
 
@@ -7840,8 +7518,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc = FALSE)
 
 ```
 ##         label step_major step_minor label_minor     bgn     end elapsed
-## 11 fit.models          6          1           1 150.048 171.988   21.94
-## 12 fit.models          6          2           2 171.989      NA      NA
+## 11 fit.models          6          1           1 148.784 170.905  22.122
+## 12 fit.models          6          2           2 170.906      NA      NA
 ```
 
 
@@ -7852,7 +7530,7 @@ fit.models_2_chunk_df <-
 
 ```
 ##              label step_major step_minor label_minor     bgn end elapsed
-## 1 fit.models_2_bgn          1          0       setup 173.661  NA      NA
+## 1 fit.models_2_bgn          1          0       setup 172.595  NA      NA
 ```
 
 ```r
@@ -8003,34 +7681,34 @@ print(plt_models_df)
 ## Low.cor.X##rcv#glmnet                 0.4375839        0.7575231
 ## All.X##rcv#glmnet                     0.4340426        0.7690972
 ##                                 max.Kappa.OOB inv.elapsedtime.everything
-## MFO###myMFO_classfr                 0.0000000                  3.6900369
-## Random###myrandom_classfr           0.0000000                  3.6496350
-## Max.cor.Y.rcv.1X1###glmnet          0.3148374                  1.0131712
-## Max.cor.Y.rcv.3X1##rcv#glmnet       0.3107477                  0.2937720
-## Max.cor.Y.rcv.3X3##rcv#glmnet       0.3107477                  0.2049600
-## Max.cor.Y.rcv.3X5##rcv#glmnet       0.3107477                  0.1571339
-## Max.cor.Y.rcv.5X1##rcv#glmnet       0.3373693                  0.3069368
-## Max.cor.Y.rcv.5X3##rcv#glmnet       0.3373693                  0.1557875
-## Max.cor.Y.rcv.5X5##rcv#glmnet       0.3373693                  0.1104728
-## Max.cor.Y.rcv.1X1.cp.0###rpart      0.2953321                  1.1547344
-## Max.cor.Y##rcv#rpart                0.1825002                  0.3507541
-## Interact.High.cor.Y##rcv#glmnet     0.3107477                  0.2269117
-## Low.cor.X##rcv#glmnet               0.3107477                  0.1846381
-## All.X##rcv#glmnet                   0.3103487                  0.2067397
+## MFO###myMFO_classfr                 0.0000000                  3.6764706
+## Random###myrandom_classfr           0.0000000                  3.6363636
+## Max.cor.Y.rcv.1X1###glmnet          0.3148374                  0.9900990
+## Max.cor.Y.rcv.3X1##rcv#glmnet       0.3107477                  0.3486750
+## Max.cor.Y.rcv.3X3##rcv#glmnet       0.3107477                  0.1984521
+## Max.cor.Y.rcv.3X5##rcv#glmnet       0.3107477                  0.1380834
+## Max.cor.Y.rcv.5X1##rcv#glmnet       0.3373693                  0.3033060
+## Max.cor.Y.rcv.5X3##rcv#glmnet       0.3373693                  0.1600000
+## Max.cor.Y.rcv.5X5##rcv#glmnet       0.3373693                  0.1087784
+## Max.cor.Y.rcv.1X1.cp.0###rpart      0.2953321                  1.1312217
+## Max.cor.Y##rcv#rpart                0.1825002                  0.3431709
+## Interact.High.cor.Y##rcv#glmnet     0.3107477                  0.2253775
+## Low.cor.X##rcv#glmnet               0.3107477                  0.2049600
+## All.X##rcv#glmnet                   0.3103487                  0.2040400
 ##                                 inv.elapsedtime.final
 ## MFO###myMFO_classfr                        333.333333
 ## Random###myrandom_classfr                  500.000000
-## Max.cor.Y.rcv.1X1###glmnet                   3.663004
-## Max.cor.Y.rcv.3X1##rcv#glmnet                3.663004
-## Max.cor.Y.rcv.3X3##rcv#glmnet                3.610108
-## Max.cor.Y.rcv.3X5##rcv#glmnet                3.676471
+## Max.cor.Y.rcv.1X1###glmnet                   3.649635
+## Max.cor.Y.rcv.3X1##rcv#glmnet                3.690037
+## Max.cor.Y.rcv.3X3##rcv#glmnet                3.676471
+## Max.cor.Y.rcv.3X5##rcv#glmnet                3.584229
 ## Max.cor.Y.rcv.5X1##rcv#glmnet                3.717472
-## Max.cor.Y.rcv.5X3##rcv#glmnet                3.731343
-## Max.cor.Y.rcv.5X5##rcv#glmnet                3.759398
-## Max.cor.Y.rcv.1X1.cp.0###rpart              14.285714
-## Max.cor.Y##rcv#rpart                        13.333333
-## Interact.High.cor.Y##rcv#glmnet              3.703704
-## Low.cor.X##rcv#glmnet                        3.436426
+## Max.cor.Y.rcv.5X3##rcv#glmnet                3.717472
+## Max.cor.Y.rcv.5X5##rcv#glmnet                3.731343
+## Max.cor.Y.rcv.1X1.cp.0###rpart              14.084507
+## Max.cor.Y##rcv#rpart                        13.698630
+## Interact.High.cor.Y##rcv#glmnet              3.717472
+## Low.cor.X##rcv#glmnet                        3.460208
 ## All.X##rcv#glmnet                            3.460208
 ```
 
@@ -8335,7 +8013,7 @@ print("Metrics used for model selection:"); print(get_model_sel_frmla())
 ```
 ## ~-max.Accuracy.OOB - max.AUCROCR.OOB - max.AUCpROC.OOB - max.Accuracy.fit - 
 ##     opt.prob.threshold.OOB
-## <environment: 0x7f8ffcad0550>
+## <environment: 0x7fe4af6b4a68>
 ```
 
 ```r
@@ -9178,7 +8856,7 @@ fit.models_2_chunk_df <-
 
 ```
 ##              label step_major step_minor label_minor     bgn end elapsed
-## 1 fit.models_2_bgn          1          0    teardown 185.238  NA      NA
+## 1 fit.models_2_bgn          1          0    teardown 184.205  NA      NA
 ```
 
 ```r
@@ -9187,8 +8865,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc=FALSE)
 
 ```
 ##         label step_major step_minor label_minor     bgn     end elapsed
-## 12 fit.models          6          2           2 171.989 185.249   13.26
-## 13 fit.models          6          3           3 185.249      NA      NA
+## 12 fit.models          6          2           2 170.906 184.215  13.309
+## 13 fit.models          6          3           3 184.215      NA      NA
 ```
 
 
@@ -9258,10 +8936,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.data.training", major.inc=TRUE)
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 13        fit.models          6          3           3 185.249 190.763
-## 14 fit.data.training          7          0           0 190.764      NA
+## 13        fit.models          6          3           3 184.215 189.692
+## 14 fit.data.training          7          0           0 189.693      NA
 ##    elapsed
-## 13   5.514
+## 13   5.477
 ## 14      NA
 ```
 
@@ -9741,7 +9419,7 @@ trainControl.allowParallel = FALSE,
 ##                                                                    feats
 ## 1 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               1                      3.191                 0.253
+## 1               1                      3.189                 0.253
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.7989009    0.9610222    0.6367795       0.9333994
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -9969,7 +9647,7 @@ trainControl.allowParallel = FALSE,
 ##                                                                    feats
 ## 1 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,.rnorm,WordCount.nexp
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                     18.464                 0.378
+## 1              25                     18.676                 0.381
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1       0.7945167    0.9641478    0.6248856       0.9310545
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -9986,11 +9664,11 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.data.training", major.inc=FALSE
 ```
 
 ```
-##                label step_major step_minor label_minor     bgn     end
-## 14 fit.data.training          7          0           0 190.764 230.765
-## 15 fit.data.training          7          1           1 230.766      NA
+##                label step_major step_minor label_minor     bgn    end
+## 14 fit.data.training          7          0           0 189.693 230.26
+## 15 fit.data.training          7          1           1 230.260     NA
 ##    elapsed
-## 14  40.001
+## 14  40.567
 ## 15      NA
 ```
 
@@ -10460,10 +10138,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 15 fit.data.training          7          1           1 230.766 241.632
-## 16  predict.data.new          8          0           0 241.632      NA
+## 15 fit.data.training          7          1           1 230.260 241.151
+## 16  predict.data.new          8          0           0 241.151      NA
 ##    elapsed
-## 15  10.866
+## 15  10.891
 ## 16      NA
 ```
 
@@ -10636,7 +10314,9 @@ if (glb_is_classification) {
         print(colSums(tmpLvlCategory[errLvlIx, -1], na.rm = TRUE))
         
         # By definition .err columns will be NA !!!
-#predctId <- mygetPredictIds(glb_rsp_var, glb_fin_mdl_id)$value; errObsNew <- glbObsNew[(glbObsNew[, glbFeatsCategory] %in% tmpLvlCategory[, 1]), ]; myprint_df(errObsNew[(errObsNew[, glbFeatsCategory] %in% tmpLvlCategory[errLvlIx, glbFeatsCategory]) & (errObsNew[, predctId] == "Y"), union(c(glb_id_var, glbFeatsCategory, predctId), myextract_actual_feats(row.names(glb_featsimp_df[glb_featsimp_df[, paste0(glb_fin_mdl_id, ".importance")] > 10, ])))])
+#predctId <- mygetPredictIds(glb_rsp_var, glb_fin_mdl_id)$value; errObsNew <- glbObsNew[(glbObsNew[, glbFeatsCategory] %in% tmpLvlCategory[, 1]), ];
+#myprint_df(errObsNew[(errObsNew[, glbFeatsCategory] %in% tmpLvlCategory[errLvlIx, glbFeatsCategory]) & (errObsNew[, predctId] == "Y"), union(c(glb_id_var, glbFeatsCategory, predctId), myextract_actual_feats(row.names(glb_featsimp_df[glb_featsimp_df[, paste0(glb_fin_mdl_id, ".importance")] > 10, ])))])
+#myprint_df(errObsNew[(errObsNew[, glbFeatsCategory] %in% "Foreign#World#") & (errObsNew[, predctId] == "Y"), union(c(glb_id_var, glbFeatsCategory, predctId), myextract_actual_feats(row.names(glb_featsimp_df[glb_featsimp_df[, paste0(glb_fin_mdl_id, ".importance")] > 10, ])))])
     }
     
         
@@ -11548,10 +11228,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "display.session.info", major.inc=TR
 
 ```
 ##                   label step_major step_minor label_minor     bgn     end
-## 16     predict.data.new          8          0           0 241.632 260.815
-## 17 display.session.info          9          0           0 260.816      NA
+## 16     predict.data.new          8          0           0 241.151 260.042
+## 17 display.session.info          9          0           0 260.043      NA
 ##    elapsed
-## 16  19.183
+## 16  18.891
 ## 17      NA
 ```
 
@@ -11567,40 +11247,40 @@ We reject the null hypothesis i.e. we have evidence to conclude that am_fctr imp
 
 ```
 ##                      label step_major step_minor label_minor     bgn
-## 10              fit.models          6          0           0  35.523
-## 14       fit.data.training          7          0           0 190.764
-## 11              fit.models          6          1           1 150.048
-## 16        predict.data.new          8          0           0 241.632
-## 12              fit.models          6          2           2 171.989
-## 15       fit.data.training          7          1           1 230.766
-## 1              import.data          1          0           0   8.635
-## 9          select.features          5          0           0  25.875
-## 13              fit.models          6          3           3 185.249
-## 2             inspect.data          2          0           0  18.911
-## 5         extract.features          3          0           0  22.912
-## 8  partition.data.training          4          0           0  24.693
-## 3               scrub.data          2          1           1  21.780
-## 4           transform.data          2          2           2  22.822
-## 6      manage.missing.data          3          1           1  24.580
-## 7             cluster.data          3          2           2  24.662
+## 10              fit.models          6          0           0  33.363
+## 14       fit.data.training          7          0           0 189.693
+## 11              fit.models          6          1           1 148.784
+## 16        predict.data.new          8          0           0 241.151
+## 12              fit.models          6          2           2 170.906
+## 15       fit.data.training          7          1           1 230.260
+## 9          select.features          5          0           0  23.966
+## 1              import.data          1          0           0   7.807
+## 13              fit.models          6          3           3 184.215
+## 2             inspect.data          2          0           0  16.715
+## 5         extract.features          3          0           0  20.746
+## 8  partition.data.training          4          0           0  22.566
+## 3               scrub.data          2          1           1  19.599
+## 4           transform.data          2          2           2  20.405
+## 6      manage.missing.data          3          1           1  22.455
+## 7             cluster.data          3          2           2  22.537
 ##        end elapsed duration
-## 10 150.047 114.525  114.524
-## 14 230.765  40.001   40.001
-## 11 171.988  21.940   21.940
-## 16 260.815  19.183   19.183
-## 12 185.249  13.260   13.260
-## 15 241.632  10.866   10.866
-## 1   18.911  10.276   10.276
-## 9   35.522   9.647    9.647
-## 13 190.763   5.514    5.514
-## 2   21.780   2.869    2.869
-## 5   24.580   1.668    1.668
-## 8   25.874   1.181    1.181
-## 3   22.821   1.041    1.041
-## 4   22.912   0.090    0.090
-## 6   24.662   0.082    0.082
-## 7   24.693   0.031    0.031
-## [1] "Total Elapsed Time: 260.815 secs"
+## 10 148.784 115.421  115.421
+## 14 230.260  40.567   40.567
+## 11 170.905  22.122   22.121
+## 16 260.042  18.891   18.891
+## 12 184.215  13.309   13.309
+## 15 241.151  10.891   10.891
+## 9   33.362   9.396    9.396
+## 1   16.714   8.907    8.907
+## 13 189.692   5.477    5.477
+## 2   19.598   2.883    2.883
+## 5   22.454   1.709    1.708
+## 8   23.966   1.400    1.400
+## 3   20.404   0.806    0.805
+## 4   20.746   0.341    0.341
+## 6   22.536   0.082    0.081
+## 7   22.566   0.029    0.029
+## [1] "Total Elapsed Time: 260.042 secs"
 ```
 
 ![](NYTBlogs3_base_files/figure-html/display.session.info-1.png) 
