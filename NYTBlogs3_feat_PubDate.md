@@ -2,7 +2,7 @@
 bdanalytics  
 
 **  **    
-**Date: (Sat) Nov 21, 2015**    
+**Date: (Mon) Nov 23, 2015**    
 
 # Introduction:  
 
@@ -218,11 +218,11 @@ if (glb_rsp_var_raw != glb_rsp_var)
     glbFeatsExclude <- union(glbFeatsExclude, glb_rsp_var_raw)                    
 
 glbFeatsInteractionOnly <- list()
-#glbFeatsInteractionOnly[["carrier.fctr"]] <- "cellular.fctr"
+#glbFeatsInteractionOnly[["<child_feat>"]] <- "<parent_feat>"
 
 # currently does not handle more than 1 column; consider concatenating multiple columns
 glb_id_var <- "UniqueID" # choose from c(NULL : default, "<id_feat>") 
-glbFeatsCategory <- "NDSSName.my.fctr" # choose from c(NULL : default, "<category>")
+glbFeatsCategory <- "NDSS.my.fctr" # choose from c(NULL : default, "<category>")
 
 glb_drop_vars <- c(NULL
                 # , "<feat1>", "<feat2>"
@@ -251,7 +251,7 @@ glbFeatsDerive <- list();
 #         "ABANDONED BUILDING"  = "OTHER",
 #         "**"                  = "**"
 #                                           ))) }
-glbFeatsDerive[["NDSSName.my"]] <- list(
+glbFeatsDerive[["NDSS.my"]] <- list(
     mapfn = function(NewsDesk, SectionName, SubsectionName) { 
         descriptor <- 
             gsub(" ", "", paste(NewsDesk, SectionName, SubsectionName, sep = "#"))
@@ -368,7 +368,7 @@ glb_derive_vars <- names(glbFeatsDerive)
 
 glbFeatsDateTime <- list()
 glbFeatsDateTime[["PubDate"]] <- 
-    c(format = "%Y-%m-%d %H:%M:%S", timezone = "America/New_York", impute.na = TRUE, 
+    c(format = "%Y-%m-%d %H:%M:%S", timezone = "America/New_York", impute.na = FALSE, 
       last.ctg = FALSE, poly.ctg = FALSE)
 
 glbFeatsPrice <- NULL # or c("<price_var>")
@@ -656,21 +656,22 @@ glb_mdl_family_lst[["All.X"]] <- "glmnet" # non-NULL list is mandatory
 # glb_mdl_feats_lst[["CSM.X"]] <- "%<d-% dAFeats.CSM.X"
 
 # Check if tuning parameters make fit better; make it mdlFamily customizable ?
-glb_tune_models_df <- data.frame()
-# Experiment specific code to avoid caret crash
-glmnet_tune_models_df <- rbind(data.frame()
-                            ,data.frame(method = "glmnet", parameter = "alpha", 
-                                        vals = "0.100 0.325 0.550 0.775 1.000")
-                            ,data.frame(method = "glmnet", parameter = "lambda",
-                                        vals = "9.342e-02")    
-                                    )
+glbMdlTuneParams <- data.frame()
+# When glmnet crashes at model$grid with error: ???
+glmnetTuneParams <- rbind(data.frame()
+                        ,data.frame(parameter = "alpha",  vals = "0.100 0.325 0.550 0.775 1.000")
+                        ,data.frame(parameter = "lambda", vals = "9.342e-02")    
+                        )
+glbMdlTuneParams <- myrbind_df(glbMdlTuneParams,
+                               cbind(data.frame(mdlId = "Max.cor.Y.Time.Lag##rcv#glmnet"),
+                                     glmnetTuneParams))
 
     #avNNet    
     #   size=[1] 3 5 7 9; decay=[0] 1e-04 0.001  0.01   0.1; bag=[FALSE]; RMSE=1.3300906 
 
     #bagEarth
     #   degree=1 [2] 3; nprune=64 128 256 512 [1024]; RMSE=0.6486663 (up)
-# glb_tune_models_df <- myrbind_df(glb_tune_models_df, rbind(data.frame()
+# glbMdlTuneParams <- myrbind_df(glbMdlTuneParams, rbind(data.frame()
 #     ,data.frame(method = "bagEarth", parameter = "nprune", vals = "256")
 #     ,data.frame(method = "bagEarth", parameter = "degree", vals = "2")    
 # ))
@@ -680,7 +681,7 @@ glmnet_tune_models_df <- rbind(data.frame()
     
     #gbm 
     #   shrinkage=0.05 [0.10] 0.15 0.20 0.25; n.trees=100 150 200 [250] 300; interaction.depth=[1] 2 3 4 5; n.minobsinnode=[10]; RMSE=0.2008313     
-# glb_tune_models_df <- myrbind_df(glb_tune_models_df, rbind(data.frame()
+# glbMdlTuneParams <- myrbind_df(glbMdlTuneParams, rbind(data.frame()
 #     ,data.frame(method = "gbm", parameter = "shrinkage", min = 0.05, max = 0.25, by = 0.05)
 #     ,data.frame(method = "gbm", parameter = "n.trees", min = 100, max = 300, by = 50)
 #     ,data.frame(method = "gbm", parameter = "interaction.depth", min = 1, max = 5, by = 1)
@@ -690,45 +691,45 @@ glmnet_tune_models_df <- rbind(data.frame()
 
     #glmnet
     #   alpha=0.100 [0.325] 0.550 0.775 1.000; lambda=0.0005232693 0.0024288010 0.0112734954 [0.0523269304] 0.2428800957; RMSE=0.6164891
-# glb_tune_models_df <- myrbind_df(glb_tune_models_df, rbind(data.frame()
+# glbMdlTuneParams <- myrbind_df(glbMdlTuneParams, rbind(data.frame()
 #     ,data.frame(method = "glmnet", parameter = "alpha", vals = "0.550 0.775 0.8875 0.94375 1.000")
 #     ,data.frame(method = "glmnet", parameter = "lambda", vals = "9.858855e-05 0.0001971771 0.0009152152 0.0042480525 0.0197177130")    
 # ))
 
     #nnet    
     #   size=3 5 [7] 9 11; decay=0.0001 0.001 0.01 [0.1] 0.2; RMSE=0.9287422
-# glb_tune_models_df <- myrbind_df(glb_tune_models_df, rbind(data.frame()
+# glbMdlTuneParams <- myrbind_df(glbMdlTuneParams, rbind(data.frame()
 #     ,data.frame(method = "nnet", parameter = "size", vals = "3 5 7 9 11")
 #     ,data.frame(method = "nnet", parameter = "decay", vals = "0.0001 0.0010 0.0100 0.1000 0.2000")    
 # ))
 
     #rf # Don't bother; results are not deterministic
     #       mtry=2  35  68 [101] 134; RMSE=0.1339974
-# glb_tune_models_df <- myrbind_df(glb_tune_models_df, rbind(data.frame()
+# glbMdlTuneParams <- myrbind_df(glbMdlTuneParams, rbind(data.frame()
 #     ,data.frame(method = "rf", parameter = "mtry", vals = "2 5 9 13 17")
 # ))
 
     #rpart 
     #   cp=0.020 [0.025] 0.030 0.035 0.040; RMSE=0.1770237
-# glb_tune_models_df <- myrbind_df(glb_tune_models_df, rbind(data.frame()    
+# glbMdlTuneParams <- myrbind_df(glbMdlTuneParams, rbind(data.frame()    
 #     ,data.frame(method = "rpart", parameter = "cp", vals = "0.004347826 0.008695652 0.017391304 0.021739130 0.034782609")
 # ))
     
     #svmLinear
     #   C=0.01 0.05 [0.10] 0.50 1.00 2.00 3.00 4.00; RMSE=0.1271318; 0.1296718
-# glb_tune_models_df <- myrbind_df(glb_tune_models_df, rbind(data.frame()
+# glbMdlTuneParams <- myrbind_df(glbMdlTuneParams, rbind(data.frame()
 #     ,data.frame(method = "svmLinear", parameter = "C", vals = "0.01 0.05 0.1 0.5 1")
 # ))
 
     #svmLinear2    
     #   cost=0.0625 0.1250 [0.25] 0.50 1.00; RMSE=0.1276354 
-# glb_tune_models_df <- myrbind_df(glb_tune_models_df, rbind(data.frame()
+# glbMdlTuneParams <- myrbind_df(glbMdlTuneParams, rbind(data.frame()
 #     ,data.frame(method = "svmLinear2", parameter = "cost", vals = "0.0625 0.125 0.25 0.5 1")
 # ))
 
     #svmPoly    
     #   degree=[1] 2 3 4 5; scale=0.01 0.05 [0.1] 0.5 1; C=0.50 1.00 [2.00] 3.00 4.00; RMSE=0.1276130
-# glb_tune_models_df <- myrbind_df(glb_tune_models_df, rbind(data.frame()
+# glbMdlTuneParams <- myrbind_df(glbMdlTuneParams, rbind(data.frame()
 #     ,data.frame(method="svmPoly", parameter="degree", min=1, max=5, by=1) #seq(1, 5, 1)
 #     ,data.frame(method="svmPoly", parameter="scale", vals="0.01, 0.05, 0.1, 0.5, 1")
 #     ,data.frame(method="svmPoly", parameter="C", vals="0.50, 1.00, 2.00, 3.00, 4.00")    
@@ -763,6 +764,7 @@ glbMdlMetricSummaryFn <- NULL # or function(data, lev=NULL, model=NULL) {
 #     return(metric)
 # }
 
+glbMdlCheckRcv <- FALSE # Turn it on when needed; otherwise takes long time
 glb_rcv_n_folds <- 3 # or NULL
 glb_rcv_n_repeats <- 3 # or NULL
 
@@ -857,8 +859,8 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ```
 
 ```
-##         label step_major step_minor label_minor   bgn end elapsed
-## 1 import.data          1          0           0 9.172  NA      NA
+##         label step_major step_minor label_minor    bgn end elapsed
+## 1 import.data          1          0           0 11.375  NA      NA
 ```
 
 ## Step `1.0: import data`
@@ -1184,29 +1186,9 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ```
 
 ```
-## [1] "Partition stats:"
-##   Popular  .src   .n
-## 1       0 Train 5439
-## 2      NA  Test 1870
-## 3       1 Train 1093
-##   Popular  .src   .n
-## 1       0 Train 5439
-## 2      NA  Test 1870
-## 3       1 Train 1093
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/import.data-2.png) 
-
-```
-##    .src   .n
-## 1 Train 6532
-## 2  Test 1870
-```
-
-```
 ##          label step_major step_minor label_minor    bgn    end elapsed
-## 1  import.data          1          0           0  9.172 20.291  11.119
-## 2 inspect.data          2          0           0 20.292     NA      NA
+## 1  import.data          1          0           0 11.375 21.011   9.636
+## 2 inspect.data          2          0           0 21.011     NA      NA
 ```
 
 ## Step `2.0: inspect data`
@@ -1285,14 +1267,16 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ## 
 ##     arrange, count, desc, failwith, id, mutate, rename, summarise,
 ##     summarize
+## 
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/inspect.data-3.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/inspect.data-3.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/inspect.data-4.png) 
 
 ```
 ##          label step_major step_minor label_minor    bgn    end elapsed
-## 2 inspect.data          2          0           0 20.292 23.326   3.034
-## 3   scrub.data          2          1           1 23.327     NA      NA
+## 2 inspect.data          2          0           0 21.011 25.368   4.357
+## 3   scrub.data          2          1           1 25.368     NA      NA
 ```
 
 ### Step `2.1: scrub data`
@@ -1317,14 +1301,14 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 
 ```
 ##            label step_major step_minor label_minor    bgn    end elapsed
-## 3     scrub.data          2          1           1 23.327 24.356   1.029
-## 4 transform.data          2          2           2 24.356     NA      NA
+## 3     scrub.data          2          1           1 25.368 26.528    1.16
+## 4 transform.data          2          2           2 26.529     NA      NA
 ```
 
 ### Step `2.2: transform data`
 
 ```
-## [1] "Creating new feature: NDSSName.my..."
+## [1] "Creating new feature: NDSS.my..."
 ## [1] "Creating new feature: WordCount.log1p..."
 ## [1] "Creating new feature: WordCount.root2..."
 ## [1] "Creating new feature: WordCount.nexp..."
@@ -1332,15 +1316,15 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 
 ```
 ##              label step_major step_minor label_minor    bgn    end elapsed
-## 4   transform.data          2          2           2 24.356 24.452   0.096
-## 5 extract.features          3          0           0 24.453     NA      NA
+## 4   transform.data          2          2           2 26.529 26.626   0.097
+## 5 extract.features          3          0           0 26.626     NA      NA
 ```
 
 ## Step `3.0: extract features`
 
 ```
 ##                  label step_major step_minor label_minor    bgn end
-## 1 extract.features_bgn          1          0           0 24.509  NA
+## 1 extract.features_bgn          1          0           0 26.682  NA
 ##   elapsed
 ## 1      NA
 ```
@@ -1350,8 +1334,8 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ## 1                extract.features_bgn          1          0           0
 ## 2 extract.features_factorize.str.vars          2          0           0
 ##      bgn    end elapsed
-## 1 24.509 24.519    0.01
-## 2 24.520     NA      NA
+## 1 26.682 26.701   0.019
+## 2 26.701     NA      NA
 ```
 
 ```
@@ -1359,34 +1343,55 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ##       "NewsDesk"    "SectionName" "SubsectionName"       "Headline" 
 ##          Snippet         Abstract          PubDate             .src 
 ##        "Snippet"       "Abstract"        "PubDate"           ".src" 
-##      NDSSName.my 
-##    "NDSSName.my"
+##          NDSS.my 
+##        "NDSS.my"
 ```
 
 ```
-## Warning: Creating factors of string variable: NDSSName.my: # of unique
-## values: 21
+## Warning: Creating factors of string variable: NDSS.my: # of unique values:
+## 21
 ```
 
 ```
 ##                                   label step_major step_minor label_minor
 ## 2   extract.features_factorize.str.vars          2          0           0
 ## 3 extract.features_xtract.DateTime.vars          3          0           0
-##      bgn    end elapsed
-## 2 24.520 24.537   0.017
-## 3 24.538     NA      NA
+##      bgn   end elapsed
+## 2 26.701 26.72   0.019
+## 3 26.720    NA      NA
 ## [1] "Extracting features from DateTime(s): PubDate"
 ```
 
 ```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-1.png) 
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 ## Loading required package: XML
 ```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-2.png) 
 
 ```
 ## [1] "**********"
 ## [1] "Consider adding state & city holidays for glbFeatsDateTime: PubDate"
 ## [1] "**********"
 ```
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-3.png) 
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-4.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-5.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-6.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-7.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-8.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-9.png) 
 
 ```
 ## Loading required package: zoo
@@ -1398,259 +1403,60 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ##     as.Date, as.Date.numeric
 ```
 
-```
-## [1] "Missing data for numerics:"
-##  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p 
-##                    2                    4                    8 
-## PubDate.last16.log1p PubDate.last32.log1p 
-##                   16                   32
-```
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-10.png) 
 
 ```
-## Loading required package: mice
-## Loading required package: Rcpp
-## mice 2.25 2015-11-09
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-1.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-11.png) 
 
 ```
-## [1] "Summary before imputation: "
-##    NewsDesk         SectionName        SubsectionName    
-##  Length:8402        Length:8402        Length:8402       
-##  Class :character   Class :character   Class :character  
-##  Mode  :character   Mode  :character   Mode  :character  
-##                                                          
-##                                                          
-##                                                          
-##                                                          
-##    Headline           Snippet            Abstract        
-##  Length:8402        Length:8402        Length:8402       
-##  Class :character   Class :character   Class :character  
-##  Mode  :character   Mode  :character   Mode  :character  
-##                                                          
-##                                                          
-##                                                          
-##                                                          
-##    WordCount         PubDate             UniqueID        .src          
-##  Min.   :    0.0   Length:8402        Min.   :   1   Length:8402       
-##  1st Qu.:  188.0   Class :character   1st Qu.:2101   Class :character  
-##  Median :  377.0   Mode  :character   Median :4202   Mode  :character  
-##  Mean   :  528.8                      Mean   :4202                     
-##  3rd Qu.:  735.0                      3rd Qu.:6302                     
-##  Max.   :10912.0                      Max.   :8402                     
-##                                                                        
-##      .rnorm         NDSSName.my        WordCount.log1p WordCount.root2 
-##  Min.   :-3.89398   Length:8402        Min.   :0.000   Min.   :  0.00  
-##  1st Qu.:-0.65896   Class :character   1st Qu.:5.242   1st Qu.: 13.71  
-##  Median : 0.02058   Mode  :character   Median :5.935   Median : 19.42  
-##  Mean   : 0.01549                      Mean   :5.751   Mean   : 20.60  
-##  3rd Qu.: 0.67764                      3rd Qu.:6.601   3rd Qu.: 27.11  
-##  Max.   : 3.74468                      Max.   :9.298   Max.   :104.46  
-##                                                                        
-##  WordCount.nexp              NDSSName.my.fctr PubDate.year.fctr
-##  Min.   :0.00000   ##                :1626    2014:8402        
-##  1st Qu.:0.00000   Bsnss#BsnssDy#Dlbk:1256                     
-##  Median :0.00000   Cltr#Arts#        : 849                     
-##  Mean   :0.01318   TStyl##           : 829                     
-##  3rd Qu.:0.00000   OpEd#Opnn#        : 690                     
-##  Max.   :1.00000   Bsnss#Tchnlgy#    : 453                     
-##                    (Other)           :2699                     
-##  PubDate.month.fctr PubDate.date.fctr PubDate.juliandate
-##  09:2341            (0.97,7]:1981     Min.   :244.0     
-##  10:2382            (7,13]  :1757     1st Qu.:270.0     
-##  11:1809            (13,19] :1808     Median :297.0     
-##  12:1870            (19,25] :1650     Mean   :300.1     
-##                     (25,31] :1206     3rd Qu.:328.0     
-##                                       Max.   :365.0     
-##                                                         
-##  PubDate.wkday.fctr PubDate.wkend    PubDate.hlday   
-##  0: 378             Min.   :0.0000   Min.   :0.0000  
-##  1:1605             1st Qu.:0.0000   1st Qu.:0.0000  
-##  2:1559             Median :0.0000   Median :0.0000  
-##  3:1614             Mean   :0.0732   Mean   :0.0288  
-##  4:1539             3rd Qu.:0.0000   3rd Qu.:0.0000  
-##  5:1470             Max.   :1.0000   Max.   :1.0000  
-##  6: 237                                              
-##      PubDate.hour.fctr    PubDate.minute.fctr    PubDate.second.fctr
-##  (-0.023,7.67]:1610    (-0.059,14.8]:3119     (-0.059,14.8]:2134    
-##  (7.67,15.3]  :4484    (14.8,29.5]  :1671     (14.8,29.5]  :2063    
-##  (15.3,23]    :2308    (29.5,44.2]  :1995     (29.5,44.2]  :2112    
-##                        (44.2,59.1]  :1617     (44.2,59.1]  :2093    
-##                                                                     
-##                                                                     
-##                                                                     
-##  PubDate.day.minutes PubDate.day.minutes.poly.1 PubDate.day.minutes.poly.2
-##  Min.   :   0.0      Min.   :-0.0274946         Min.   :-0.008759         
-##  1st Qu.: 540.0      1st Qu.:-0.0078858         1st Qu.:-0.007794         
-##  Median : 765.0      Median : 0.0002845         Median :-0.003965         
-##  Mean   : 757.2      Mean   : 0.0000000         Mean   : 0.000000         
-##  3rd Qu.: 977.8      3rd Qu.: 0.0080100         3rd Qu.: 0.002979         
-##  Max.   :1439.0      Max.   : 0.0247592         Max.   : 0.042684         
-##                                                                           
-##  PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.4
-##  Min.   :-0.045125          Min.   :-0.0183274        
-##  1st Qu.:-0.007780          1st Qu.:-0.0085001        
-##  Median :-0.000337          Median : 0.0007244        
-##  Mean   : 0.000000          Mean   : 0.0000000        
-##  3rd Qu.: 0.007554          3rd Qu.: 0.0081632        
-##  Max.   : 0.052153          Max.   : 0.0667744        
-##                                                       
-##  PubDate.day.minutes.poly.5     .order     PubDate.last2.log1p
-##  Min.   :-0.0245092         Min.   :   1   Min.   : 0.6931    
-##  1st Qu.:-0.0082017         1st Qu.:2101   1st Qu.: 6.5392    
-##  Median :-0.0003821         Median :4202   Median : 7.1835    
-##  Mean   : 0.0000000         Mean   :4202   Mean   : 7.1698    
-##  3rd Qu.: 0.0077006         3rd Qu.:6302   3rd Qu.: 7.7932    
-##  Max.   : 0.0847176         Max.   :8402   Max.   :10.9120    
-##                                            NA's   :2          
-##  PubDate.last4.log1p PubDate.last8.log1p PubDate.last16.log1p
-##  Min.   : 4.159      Min.   : 6.667      Min.   : 8.001      
-##  1st Qu.: 7.484      1st Qu.: 8.259      1st Qu.: 9.030      
-##  Median : 7.923      Median : 8.626      Median : 9.343      
-##  Mean   : 8.039      Mean   : 8.817      Mean   : 9.567      
-##  3rd Qu.: 8.465      3rd Qu.: 9.191      3rd Qu.:10.126      
-##  Max.   :11.243      Max.   :11.622      Max.   :11.957      
-##  NA's   :4           NA's   :8           NA's   :16          
-##  PubDate.last32.log1p
-##  Min.   : 8.836      
-##  1st Qu.: 9.784      
-##  Median :10.121      
-##  Mean   :10.331      
-##  3rd Qu.:10.801      
-##  Max.   :12.323      
-##  NA's   :32          
-## 
-##  iter imp variable
-##   1   1  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   1   2  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   1   3  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   1   4  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   1   5  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   2   1  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   2   2  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   2   3  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   2   4  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   2   5  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   3   1  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   3   2  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   3   3  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   3   4  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   3   5  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   4   1  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   4   2  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   4   3  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   4   4  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   4   5  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   5   1  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   5   2  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   5   3  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   5   4  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##   5   5  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p  PubDate.last16.log1p  PubDate.last32.log1p
-##    WordCount          UniqueID        .rnorm         WordCount.log1p
-##  Min.   :    0.0   Min.   :   1   Min.   :-3.89398   Min.   :0.000  
-##  1st Qu.:  188.0   1st Qu.:2101   1st Qu.:-0.65896   1st Qu.:5.242  
-##  Median :  377.0   Median :4202   Median : 0.02058   Median :5.935  
-##  Mean   :  528.8   Mean   :4202   Mean   : 0.01549   Mean   :5.751  
-##  3rd Qu.:  735.0   3rd Qu.:6302   3rd Qu.: 0.67764   3rd Qu.:6.601  
-##  Max.   :10912.0   Max.   :8402   Max.   : 3.74468   Max.   :9.298  
-##                                                                     
-##  WordCount.root2  WordCount.nexp              NDSSName.my.fctr
-##  Min.   :  0.00   Min.   :0.00000   ##                :1626   
-##  1st Qu.: 13.71   1st Qu.:0.00000   Bsnss#BsnssDy#Dlbk:1256   
-##  Median : 19.42   Median :0.00000   Cltr#Arts#        : 849   
-##  Mean   : 20.60   Mean   :0.01318   TStyl##           : 829   
-##  3rd Qu.: 27.11   3rd Qu.:0.00000   OpEd#Opnn#        : 690   
-##  Max.   :104.46   Max.   :1.00000   Bsnss#Tchnlgy#    : 453   
-##                                     (Other)           :2699   
-##  PubDate.year.fctr PubDate.month.fctr PubDate.date.fctr PubDate.juliandate
-##  2014:8402         09:2341            (0.97,7]:1981     Min.   :244.0     
-##                    10:2382            (7,13]  :1757     1st Qu.:270.0     
-##                    11:1809            (13,19] :1808     Median :297.0     
-##                    12:1870            (19,25] :1650     Mean   :300.1     
-##                                       (25,31] :1206     3rd Qu.:328.0     
-##                                                         Max.   :365.0     
-##                                                                           
-##  PubDate.wkday.fctr PubDate.wkend    PubDate.hlday   
-##  0: 378             Min.   :0.0000   Min.   :0.0000  
-##  1:1605             1st Qu.:0.0000   1st Qu.:0.0000  
-##  2:1559             Median :0.0000   Median :0.0000  
-##  3:1614             Mean   :0.0732   Mean   :0.0288  
-##  4:1539             3rd Qu.:0.0000   3rd Qu.:0.0000  
-##  5:1470             Max.   :1.0000   Max.   :1.0000  
-##  6: 237                                              
-##      PubDate.hour.fctr    PubDate.minute.fctr    PubDate.second.fctr
-##  (-0.023,7.67]:1610    (-0.059,14.8]:3119     (-0.059,14.8]:2134    
-##  (7.67,15.3]  :4484    (14.8,29.5]  :1671     (14.8,29.5]  :2063    
-##  (15.3,23]    :2308    (29.5,44.2]  :1995     (29.5,44.2]  :2112    
-##                        (44.2,59.1]  :1617     (44.2,59.1]  :2093    
-##                                                                     
-##                                                                     
-##                                                                     
-##  PubDate.day.minutes PubDate.day.minutes.poly.1 PubDate.day.minutes.poly.2
-##  Min.   :   0.0      Min.   :-0.0274946         Min.   :-0.008759         
-##  1st Qu.: 540.0      1st Qu.:-0.0078858         1st Qu.:-0.007794         
-##  Median : 765.0      Median : 0.0002845         Median :-0.003965         
-##  Mean   : 757.2      Mean   : 0.0000000         Mean   : 0.000000         
-##  3rd Qu.: 977.8      3rd Qu.: 0.0080100         3rd Qu.: 0.002979         
-##  Max.   :1439.0      Max.   : 0.0247592         Max.   : 0.042684         
-##                                                                           
-##  PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.4
-##  Min.   :-0.045125          Min.   :-0.0183274        
-##  1st Qu.:-0.007780          1st Qu.:-0.0085001        
-##  Median :-0.000337          Median : 0.0007244        
-##  Mean   : 0.000000          Mean   : 0.0000000        
-##  3rd Qu.: 0.007554          3rd Qu.: 0.0081632        
-##  Max.   : 0.052153          Max.   : 0.0667744        
-##                                                       
-##  PubDate.day.minutes.poly.5     .order     PubDate.last2.log1p
-##  Min.   :-0.0245092         Min.   :   1   Min.   : 0.6931    
-##  1st Qu.:-0.0082017         1st Qu.:2101   1st Qu.: 6.5396    
-##  Median :-0.0003821         Median :4202   Median : 7.1839    
-##  Mean   : 0.0000000         Mean   :4202   Mean   : 7.1701    
-##  3rd Qu.: 0.0077006         3rd Qu.:6302   3rd Qu.: 7.7941    
-##  Max.   : 0.0847176         Max.   :8402   Max.   :10.9120    
-##                                                               
-##  PubDate.last4.log1p PubDate.last8.log1p PubDate.last16.log1p
-##  Min.   : 4.159      Min.   : 6.667      Min.   : 8.001      
-##  1st Qu.: 7.484      1st Qu.: 8.259      1st Qu.: 9.030      
-##  Median : 7.923      Median : 8.627      Median : 9.344      
-##  Mean   : 8.040      Mean   : 8.818      Mean   : 9.569      
-##  3rd Qu.: 8.466      3rd Qu.: 9.193      3rd Qu.:10.130      
-##  Max.   :11.243      Max.   :11.622      Max.   :11.957      
-##                                                              
-##  PubDate.last32.log1p
-##  Min.   : 8.836      
-##  1st Qu.: 9.785      
-##  Median :10.125      
-##  Mean   :10.334      
-##  3rd Qu.:10.804      
-##  Max.   :12.323      
-## 
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 ```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-12.png) 
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-13.png) 
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-14.png) 
+
+```
+## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-15.png) 
 
 ```
 ##                                   label step_major step_minor label_minor
 ## 3 extract.features_xtract.DateTime.vars          3          0           0
 ## 4                  extract.features_end          4          0           0
 ##      bgn    end elapsed
-## 3 24.538 58.264  33.726
-## 4 58.265     NA      NA
+## 3 26.720 48.247  21.527
+## 4 48.247     NA      NA
 ```
 
 ```
 ##                                   label step_major step_minor label_minor
 ## 3 extract.features_xtract.DateTime.vars          3          0           0
-## 2   extract.features_factorize.str.vars          2          0           0
 ## 1                  extract.features_bgn          1          0           0
+## 2   extract.features_factorize.str.vars          2          0           0
 ##      bgn    end elapsed duration
-## 3 24.538 58.264  33.726   33.726
-## 2 24.520 24.537   0.017    0.017
-## 1 24.509 24.519   0.010    0.010
-## [1] "Total Elapsed Time: 58.264 secs"
+## 3 26.720 48.247  21.527   21.527
+## 1 26.682 26.701   0.019    0.019
+## 2 26.701 26.720   0.019    0.019
+## [1] "Total Elapsed Time: 48.247 secs"
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-2.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-16.png) 
 
 ```
 ## time	trans	 "bgn " "fit.data.training.all " "predict.data.new " "end " 
@@ -1660,14 +1466,14 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ## 2.0000 	 2 	 1 1 1 0
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-3.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/extract.features-17.png) 
 
 ```
 ##                 label step_major step_minor label_minor    bgn    end
-## 5    extract.features          3          0           0 24.453 59.576
-## 6 manage.missing.data          3          1           1 59.576     NA
+## 5    extract.features          3          0           0 26.626 49.557
+## 6 manage.missing.data          3          1           1 49.558     NA
 ##   elapsed
-## 5  35.123
+## 5  22.932
 ## 6      NA
 ```
 
@@ -1678,12 +1484,16 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ##   Popular Pplr.fctr 
 ##      1870      1870 
 ## [1] "numeric data w/ 0s in : "
-##           WordCount             Popular     WordCount.log1p 
-##                 109                5439                 109 
-##     WordCount.root2      WordCount.nexp  PubDate.wkday.fctr 
-##                 109                2044                 378 
-##       PubDate.wkend       PubDate.hlday PubDate.day.minutes 
-##                7787                8160                   5 
+##            WordCount              Popular      WordCount.log1p 
+##                  109                 5439                  109 
+##      WordCount.root2       WordCount.nexp   PubDate.wkday.fctr 
+##                  109                 2044                  378 
+##        PubDate.wkend        PubDate.hlday  PubDate.day.minutes 
+##                 7787                 8160                    5 
+##  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p 
+##                    2                    4                    8 
+## PubDate.last16.log1p PubDate.last32.log1p 
+##                   16                   32 
 ## [1] "numeric data w/ Infs in : "
 ## named integer(0)
 ## [1] "numeric data w/ NaNs in : "
@@ -1691,7 +1501,7 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ## [1] "string data missing in : "
 ##       NewsDesk    SectionName SubsectionName       Headline        Snippet 
 ##           2408           2899           6176              0             13 
-##       Abstract        PubDate    NDSSName.my 
+##       Abstract        PubDate        NDSS.my 
 ##             17              0              0
 ```
 
@@ -1700,12 +1510,16 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ##   Popular Pplr.fctr 
 ##      1870      1870 
 ## [1] "numeric data w/ 0s in : "
-##           WordCount             Popular     WordCount.log1p 
-##                 109                5439                 109 
-##     WordCount.root2      WordCount.nexp  PubDate.wkday.fctr 
-##                 109                2044                 378 
-##       PubDate.wkend       PubDate.hlday PubDate.day.minutes 
-##                7787                8160                   5 
+##            WordCount              Popular      WordCount.log1p 
+##                  109                 5439                  109 
+##      WordCount.root2       WordCount.nexp   PubDate.wkday.fctr 
+##                  109                 2044                  378 
+##        PubDate.wkend        PubDate.hlday  PubDate.day.minutes 
+##                 7787                 8160                    5 
+##  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p 
+##                    2                    4                    8 
+## PubDate.last16.log1p PubDate.last32.log1p 
+##                   16                   32 
 ## [1] "numeric data w/ Infs in : "
 ## named integer(0)
 ## [1] "numeric data w/ NaNs in : "
@@ -1713,16 +1527,16 @@ glb_chunks_df <- myadd_chunk(NULL, "import.data")
 ## [1] "string data missing in : "
 ##       NewsDesk    SectionName SubsectionName       Headline        Snippet 
 ##           2408           2899           6176              0             13 
-##       Abstract        PubDate    NDSSName.my 
+##       Abstract        PubDate        NDSS.my 
 ##             17              0              0
 ```
 
 ```
 ##                 label step_major step_minor label_minor    bgn    end
-## 6 manage.missing.data          3          1           1 59.576 60.676
-## 7        cluster.data          3          2           2 60.677     NA
+## 6 manage.missing.data          3          1           1 49.558 56.087
+## 7        cluster.data          3          2           2 56.087     NA
 ##   elapsed
-## 6   1.101
+## 6   6.529
 ## 7      NA
 ```
 
@@ -1997,10 +1811,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 
 ```
 ##                     label step_major step_minor label_minor    bgn    end
-## 7            cluster.data          3          2           2 60.677 60.745
-## 8 partition.data.training          4          0           0 60.746     NA
+## 7            cluster.data          3          2           2 56.087 56.151
+## 8 partition.data.training          4          0           0 56.152     NA
 ##   elapsed
-## 7   0.068
+## 7   0.064
 ## 8      NA
 ```
 
@@ -2008,11 +1822,11 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 
 ```
 ## [1] "Prediction Hints by Catgeory:"
-##    NDSSName.my.fctr Popular.0 Popular.1 .n.tst .strata.0 .strata.1
-## 5       #U.S.#Edctn       325        NA     89        82        17
-## 10           Cltr##         1        NA     70         1        13
-## 12       Frgn#Wrld#       172        NA     47        44         9
-## 21           myOthr        38        NA      5         5         1
+##    NDSS.my.fctr Popular.0 Popular.1 .n.tst .strata.0 .strata.1
+## 5   #U.S.#Edctn       325        NA     89        82        17
+## 10       Cltr##         1        NA     70         1        13
+## 12   Frgn#Wrld#       172        NA     47        44         9
+## 21       myOthr        38        NA      5         5         1
 ```
 
 ```
@@ -2038,7 +1852,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ##            NA        NA          1
 ## Fit 0.8203580 0.1796420         NA
 ## OOB 0.8668981 0.1331019         NA
-##           NDSSName.my.fctr .n.Fit .n.OOB .n.Tst .freqRatio.Fit
+##               NDSS.my.fctr .n.Fit .n.OOB .n.Tst .freqRatio.Fit
 ## 1                       ##    913    371    342    0.190049958
 ## 6       Bsnss#BsnssDy#Dlbk    629    323    304    0.130932556
 ## 11              Cltr#Arts#    490    185    174    0.101998335
@@ -2129,11 +1943,11 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ```
 
 ```
-##                     label step_major step_minor label_minor    bgn   end
-## 8 partition.data.training          4          0           0 60.746 62.06
-## 9         select.features          5          0           0 62.061    NA
+##                     label step_major step_minor label_minor    bgn    end
+## 8 partition.data.training          4          0           0 56.152 57.658
+## 9         select.features          5          0           0 57.659     NA
 ##   elapsed
-## 8   1.314
+## 8   1.507
 ## 9      NA
 ```
 
@@ -2150,23 +1964,22 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## WordCount.root2                       WordCount.root2  0.292120679
 ## WordCount                                   WordCount  0.257526549
 ## WordCount.log1p                       WordCount.log1p  0.254319628
-## NDSSName.my.fctr                     NDSSName.my.fctr  0.165445970
+## NDSS.my.fctr                             NDSS.my.fctr  0.165445970
 ## PubDate.day.minutes               PubDate.day.minutes  0.156753478
 ## PubDate.day.minutes.poly.1 PubDate.day.minutes.poly.1  0.156753478
 ## PubDate.hour.fctr                   PubDate.hour.fctr  0.135436805
 ## PubDate.wkend                           PubDate.wkend  0.104707290
 ## PubDate.day.minutes.poly.4 PubDate.day.minutes.poly.4  0.073941394
 ## PubDate.day.minutes.poly.2 PubDate.day.minutes.poly.2  0.070977720
-## PubDate.last4.log1p               PubDate.last4.log1p  0.069776398
-## PubDate.last2.log1p               PubDate.last2.log1p  0.065679536
-## PubDate.last8.log1p               PubDate.last8.log1p  0.056574578
+## PubDate.last4.log1p               PubDate.last4.log1p  0.066473282
+## PubDate.last2.log1p               PubDate.last2.log1p  0.063068716
 ## PubDate.day.minutes.poly.5 PubDate.day.minutes.poly.5 -0.055929231
+## PubDate.last8.log1p               PubDate.last8.log1p  0.054458821
 ## WordCount.nexp                         WordCount.nexp -0.053208396
+## PubDate.last16.log1p             PubDate.last16.log1p  0.040735543
 ## PubDate.wkday.fctr                 PubDate.wkday.fctr -0.039801288
-## PubDate.last16.log1p             PubDate.last16.log1p  0.038456811
 ## PubDate.minute.fctr               PubDate.minute.fctr -0.034073846
 ## PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.3  0.027983551
-## PubDate.last32.log1p             PubDate.last32.log1p  0.022542505
 ## PubDate.month.fctr                 PubDate.month.fctr  0.019148739
 ## PubDate.POSIX                           PubDate.POSIX  0.015683258
 ## PubDate.hlday                           PubDate.hlday  0.014690122
@@ -2176,29 +1989,29 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## UniqueID                                     UniqueID  0.011824920
 ## PubDate.date.fctr                   PubDate.date.fctr -0.011647558
 ## .rnorm                                         .rnorm  0.008212201
+## PubDate.last32.log1p             PubDate.last32.log1p  0.003558081
 ## PubDate.year.fctr                   PubDate.year.fctr           NA
 ##                            exclude.as.feat   cor.y.abs
 ## Popular                                  1 1.000000000
 ## WordCount.root2                          0 0.292120679
 ## WordCount                                1 0.257526549
 ## WordCount.log1p                          0 0.254319628
-## NDSSName.my.fctr                         0 0.165445970
+## NDSS.my.fctr                             0 0.165445970
 ## PubDate.day.minutes                      1 0.156753478
 ## PubDate.day.minutes.poly.1               0 0.156753478
 ## PubDate.hour.fctr                        0 0.135436805
 ## PubDate.wkend                            0 0.104707290
 ## PubDate.day.minutes.poly.4               0 0.073941394
 ## PubDate.day.minutes.poly.2               0 0.070977720
-## PubDate.last4.log1p                      0 0.069776398
-## PubDate.last2.log1p                      0 0.065679536
-## PubDate.last8.log1p                      0 0.056574578
+## PubDate.last4.log1p                      0 0.066473282
+## PubDate.last2.log1p                      0 0.063068716
 ## PubDate.day.minutes.poly.5               0 0.055929231
+## PubDate.last8.log1p                      0 0.054458821
 ## WordCount.nexp                           0 0.053208396
+## PubDate.last16.log1p                     0 0.040735543
 ## PubDate.wkday.fctr                       0 0.039801288
-## PubDate.last16.log1p                     0 0.038456811
 ## PubDate.minute.fctr                      0 0.034073846
 ## PubDate.day.minutes.poly.3               0 0.027983551
-## PubDate.last32.log1p                     0 0.022542505
 ## PubDate.month.fctr                       0 0.019148739
 ## PubDate.POSIX                            1 0.015683258
 ## PubDate.hlday                            0 0.014690122
@@ -2208,6 +2021,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## UniqueID                                 1 0.011824920
 ## PubDate.date.fctr                        0 0.011647558
 ## .rnorm                                   0 0.008212201
+## PubDate.last32.log1p                     0 0.003558081
 ## PubDate.year.fctr                        0          NA
 ```
 
@@ -2236,18 +2050,6 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ```
 
 ```
-## [1] "cor(PubDate.last16.log1p, PubDate.last8.log1p)=0.8942"
-## [1] "cor(Pplr.fctr, PubDate.last16.log1p)=0.0385"
-## [1] "cor(Pplr.fctr, PubDate.last8.log1p)=0.0566"
-```
-
-```
-## Warning in myfind_cor_features(feats_df = glb_feats_df, obs_df =
-## glbObsTrn, : Identified PubDate.last16.log1p as highly correlated with
-## PubDate.last8.log1p
-```
-
-```
 ## [1] "cor(WordCount.log1p, WordCount.root2)=0.8906"
 ## [1] "cor(Pplr.fctr, WordCount.log1p)=0.2543"
 ## [1] "cor(Pplr.fctr, WordCount.root2)=0.2921"
@@ -2260,9 +2062,9 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ```
 
 ```
-## [1] "cor(PubDate.last4.log1p, PubDate.last8.log1p)=0.8579"
-## [1] "cor(Pplr.fctr, PubDate.last4.log1p)=0.0698"
-## [1] "cor(Pplr.fctr, PubDate.last8.log1p)=0.0566"
+## [1] "cor(PubDate.last4.log1p, PubDate.last8.log1p)=0.8253"
+## [1] "cor(Pplr.fctr, PubDate.last4.log1p)=0.0665"
+## [1] "cor(Pplr.fctr, PubDate.last8.log1p)=0.0545"
 ```
 
 ```
@@ -2272,9 +2074,9 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ```
 
 ```
-## [1] "cor(PubDate.last2.log1p, PubDate.last4.log1p)=0.7709"
-## [1] "cor(Pplr.fctr, PubDate.last2.log1p)=0.0657"
-## [1] "cor(Pplr.fctr, PubDate.last4.log1p)=0.0698"
+## [1] "cor(PubDate.last2.log1p, PubDate.last4.log1p)=0.7598"
+## [1] "cor(Pplr.fctr, PubDate.last2.log1p)=0.0631"
+## [1] "cor(Pplr.fctr, PubDate.last4.log1p)=0.0665"
 ```
 
 ```
@@ -2289,19 +2091,18 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## WordCount.root2                       WordCount.root2  0.292120679
 ## WordCount                                   WordCount  0.257526549
 ## WordCount.log1p                       WordCount.log1p  0.254319628
-## NDSSName.my.fctr                     NDSSName.my.fctr  0.165445970
+## NDSS.my.fctr                             NDSS.my.fctr  0.165445970
 ## PubDate.day.minutes               PubDate.day.minutes  0.156753478
 ## PubDate.day.minutes.poly.1 PubDate.day.minutes.poly.1  0.156753478
 ## PubDate.hour.fctr                   PubDate.hour.fctr  0.135436805
 ## PubDate.wkend                           PubDate.wkend  0.104707290
 ## PubDate.day.minutes.poly.4 PubDate.day.minutes.poly.4  0.073941394
 ## PubDate.day.minutes.poly.2 PubDate.day.minutes.poly.2  0.070977720
-## PubDate.last4.log1p               PubDate.last4.log1p  0.069776398
-## PubDate.last2.log1p               PubDate.last2.log1p  0.065679536
-## PubDate.last8.log1p               PubDate.last8.log1p  0.056574578
-## PubDate.last16.log1p             PubDate.last16.log1p  0.038456811
+## PubDate.last4.log1p               PubDate.last4.log1p  0.066473282
+## PubDate.last2.log1p               PubDate.last2.log1p  0.063068716
+## PubDate.last8.log1p               PubDate.last8.log1p  0.054458821
+## PubDate.last16.log1p             PubDate.last16.log1p  0.040735543
 ## PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.3  0.027983551
-## PubDate.last32.log1p             PubDate.last32.log1p  0.022542505
 ## PubDate.month.fctr                 PubDate.month.fctr  0.019148739
 ## PubDate.POSIX                           PubDate.POSIX  0.015683258
 ## PubDate.hlday                           PubDate.hlday  0.014690122
@@ -2309,6 +2110,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## PubDate.zoo                               PubDate.zoo  0.013260902
 ## UniqueID                                     UniqueID  0.011824920
 ## .rnorm                                         .rnorm  0.008212201
+## PubDate.last32.log1p             PubDate.last32.log1p  0.003558081
 ## PubDate.date.fctr                   PubDate.date.fctr -0.011647558
 ## PubDate.second.fctr               PubDate.second.fctr -0.011879458
 ## PubDate.minute.fctr               PubDate.minute.fctr -0.034073846
@@ -2321,19 +2123,18 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## WordCount.root2                          0 0.292120679
 ## WordCount                                1 0.257526549
 ## WordCount.log1p                          0 0.254319628
-## NDSSName.my.fctr                         0 0.165445970
+## NDSS.my.fctr                             0 0.165445970
 ## PubDate.day.minutes                      1 0.156753478
 ## PubDate.day.minutes.poly.1               0 0.156753478
 ## PubDate.hour.fctr                        0 0.135436805
 ## PubDate.wkend                            0 0.104707290
 ## PubDate.day.minutes.poly.4               0 0.073941394
 ## PubDate.day.minutes.poly.2               0 0.070977720
-## PubDate.last4.log1p                      0 0.069776398
-## PubDate.last2.log1p                      0 0.065679536
-## PubDate.last8.log1p                      0 0.056574578
-## PubDate.last16.log1p                     0 0.038456811
+## PubDate.last4.log1p                      0 0.066473282
+## PubDate.last2.log1p                      0 0.063068716
+## PubDate.last8.log1p                      0 0.054458821
+## PubDate.last16.log1p                     0 0.040735543
 ## PubDate.day.minutes.poly.3               0 0.027983551
-## PubDate.last32.log1p                     0 0.022542505
 ## PubDate.month.fctr                       0 0.019148739
 ## PubDate.POSIX                            1 0.015683258
 ## PubDate.hlday                            0 0.014690122
@@ -2341,6 +2142,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## PubDate.zoo                              1 0.013260902
 ## UniqueID                                 1 0.011824920
 ## .rnorm                                   0 0.008212201
+## PubDate.last32.log1p                     0 0.003558081
 ## PubDate.date.fctr                        0 0.011647558
 ## PubDate.second.fctr                      0 0.011879458
 ## PubDate.minute.fctr                      0 0.034073846
@@ -2353,7 +2155,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## WordCount.root2                                  <NA>  2.315789
 ## WordCount                                        <NA>  2.315789
 ## WordCount.log1p                       WordCount.root2  2.315789
-## NDSSName.my.fctr                                 <NA>  1.348739
+## NDSS.my.fctr                                     <NA>  1.348739
 ## PubDate.day.minutes                              <NA>  1.225490
 ## PubDate.day.minutes.poly.1                       <NA>  1.225490
 ## PubDate.hour.fctr          PubDate.day.minutes.poly.1  1.835040
@@ -2362,10 +2164,9 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## PubDate.day.minutes.poly.2                       <NA>  1.225490
 ## PubDate.last4.log1p                              <NA>  1.125000
 ## PubDate.last2.log1p               PubDate.last4.log1p  1.375000
-## PubDate.last8.log1p               PubDate.last4.log1p  1.166667
-## PubDate.last16.log1p              PubDate.last8.log1p  1.000000
+## PubDate.last8.log1p               PubDate.last4.log1p  1.142857
+## PubDate.last16.log1p                             <NA>  3.200000
 ## PubDate.day.minutes.poly.3                       <NA>  1.225490
-## PubDate.last32.log1p                             <NA>  1.000000
 ## PubDate.month.fctr                               <NA>  1.017514
 ## PubDate.POSIX                                    <NA>  1.000000
 ## PubDate.hlday                                    <NA> 28.160714
@@ -2373,6 +2174,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## PubDate.zoo                                      <NA>  1.000000
 ## UniqueID                                         <NA>  1.000000
 ## .rnorm                                           <NA>  1.000000
+## PubDate.last32.log1p                             <NA>  8.000000
 ## PubDate.date.fctr                                <NA>  1.021394
 ## PubDate.second.fctr                              <NA>  1.018204
 ## PubDate.minute.fctr                              <NA>  1.483365
@@ -2385,7 +2187,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## WordCount.root2              24.15799143   FALSE FALSE            FALSE
 ## WordCount                    24.15799143   FALSE FALSE            FALSE
 ## WordCount.log1p              24.15799143   FALSE FALSE            FALSE
-## NDSSName.my.fctr              0.32149418   FALSE FALSE            FALSE
+## NDSS.my.fctr                  0.32149418   FALSE FALSE            FALSE
 ## PubDate.day.minutes          18.08022045   FALSE FALSE            FALSE
 ## PubDate.day.minutes.poly.1   18.08022045   FALSE FALSE            FALSE
 ## PubDate.hour.fctr             0.04592774   FALSE FALSE            FALSE
@@ -2393,11 +2195,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## PubDate.day.minutes.poly.4   18.08022045   FALSE FALSE            FALSE
 ## PubDate.day.minutes.poly.2   18.08022045   FALSE FALSE            FALSE
 ## PubDate.last4.log1p          64.98775260   FALSE FALSE            FALSE
-## PubDate.last2.log1p          51.16350276   FALSE FALSE            FALSE
-## PubDate.last8.log1p          75.15309247   FALSE FALSE            FALSE
-## PubDate.last16.log1p         84.50704225   FALSE FALSE            FALSE
+## PubDate.last2.log1p          51.17881200   FALSE FALSE            FALSE
+## PubDate.last8.log1p          75.12247397   FALSE FALSE            FALSE
+## PubDate.last16.log1p         84.44580527   FALSE FALSE            FALSE
 ## PubDate.day.minutes.poly.3   18.08022045   FALSE FALSE            FALSE
-## PubDate.last32.log1p         91.13594611   FALSE FALSE            FALSE
 ## PubDate.month.fctr            0.04592774   FALSE FALSE            FALSE
 ## PubDate.POSIX                99.86221678   FALSE FALSE            FALSE
 ## PubDate.hlday                 0.03061849   FALSE  TRUE            FALSE
@@ -2405,6 +2206,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## PubDate.zoo                  99.86221678   FALSE FALSE            FALSE
 ## UniqueID                    100.00000000   FALSE FALSE            FALSE
 ## .rnorm                      100.00000000   FALSE FALSE            FALSE
+## PubDate.last32.log1p         90.99816289   FALSE FALSE             TRUE
 ## PubDate.date.fctr             0.07654623   FALSE FALSE            FALSE
 ## PubDate.second.fctr           0.06123699   FALSE FALSE            FALSE
 ## PubDate.minute.fctr           0.06123699   FALSE FALSE            FALSE
@@ -2654,69 +2456,69 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ##  Variables Accuracy   Kappa AccuracySD KappaSD Selected
 ##          2   0.8096 0.03708   0.005112 0.01788         
 ##          4   0.8864 0.52518   0.005536 0.02625         
-##          8   0.8944 0.57831   0.013981 0.06890         
+##          8   0.8945 0.57850   0.013874 0.06859         
 ##         16   0.9305 0.75939   0.004671 0.01720         
 ##         32   0.9303 0.75899   0.004681 0.01717         
 ##         55   0.9326 0.76882   0.004814 0.01705        *
 ## 
 ## The top 5 variables (out of 55):
-##    WordCount.log1p, WordCount.root2, WordCount.nexp, NDSSName.my.fctrOpEd#Opnn#, PubDate.day.minutes.poly.1
+##    WordCount.log1p, WordCount.root2, WordCount.nexp, NDSS.my.fctrOpEd#Opnn#, PubDate.day.minutes.poly.1
 ## 
-##  [1] "WordCount.log1p"                        
-##  [2] "WordCount.root2"                        
-##  [3] "WordCount.nexp"                         
-##  [4] "NDSSName.my.fctrOpEd#Opnn#"             
-##  [5] "PubDate.day.minutes.poly.1"             
-##  [6] "PubDate.day.minutes.poly.4"             
-##  [7] "PubDate.hour.fctr(15.3,23]"             
-##  [8] "NDSSName.my.fctrScnc#Hlth#"             
-##  [9] "PubDate.last4.log1p"                    
-## [10] "PubDate.last2.log1p"                    
-## [11] "NDSSName.my.fctrBsnss#Crsswrds/Gms#"    
-## [12] "NDSSName.my.fctrStyls#U.S.#"            
-## [13] "PubDate.last8.log1p"                    
-## [14] "PubDate.day.minutes.poly.5"             
-## [15] "PubDate.wkend"                          
-## [16] "PubDate.last16.log1p"                   
-## [17] "PubDate.juliandate"                     
-## [18] "PubDate.month.fctr11"                   
-## [19] "PubDate.day.minutes.poly.3"             
-## [20] "PubDate.wkday.fctr6"                    
-## [21] "PubDate.date.fctr(7,13]"                
-## [22] "PubDate.second.fctr(14.8,29.5]"         
-## [23] "PubDate.month.fctr10"                   
-## [24] "PubDate.wkday.fctr1"                    
-## [25] ".rnorm"                                 
-## [26] "PubDate.minute.fctr(44.2,59.1]"         
-## [27] "PubDate.day.minutes.poly.2"             
-## [28] "PubDate.hour.fctr(7.67,15.3]"           
-## [29] "PubDate.minute.fctr(14.8,29.5]"         
-## [30] "PubDate.date.fctr(25,31]"               
-## [31] "PubDate.last32.log1p"                   
-## [32] "PubDate.second.fctr(44.2,59.1]"         
-## [33] "PubDate.wkday.fctr3"                    
-## [34] "NDSSName.my.fctrmyOthr"                 
-## [35] "PubDate.date.fctr(19,25]"               
-## [36] "NDSSName.my.fctr#Opnn#RmFrDbt"          
-## [37] "NDSSName.my.fctrBsnss#Tchnlgy#"         
-## [38] "PubDate.wkday.fctr4"                    
-## [39] "PubDate.second.fctr(29.5,44.2]"         
-## [40] "PubDate.date.fctr(13,19]"               
-## [41] "NDSSName.my.fctrMtr#N.Y./Rgn#"          
-## [42] "NDSSName.my.fctrTrvl#Trvl#"             
-## [43] "NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss"
-## [44] "NDSSName.my.fctr#Mltmd#"                
-## [45] "PubDate.wkday.fctr2"                    
-## [46] "NDSSName.my.fctrStyls##Fshn"            
-## [47] "NDSSName.my.fctrFrgn#Wrld#"             
-## [48] "PubDate.minute.fctr(29.5,44.2]"         
-## [49] "NDSSName.my.fctrFrgn#Wrld#AsPcfc"       
-## [50] "PubDate.wkday.fctr5"                    
-## [51] "NDSSName.my.fctr#U.S.#Edctn"            
-## [52] "NDSSName.my.fctrCltr#Arts#"             
-## [53] "NDSSName.my.fctrBsnss#BsnssDy#Dlbk"     
-## [54] "NDSSName.my.fctr##"                     
-## [55] "NDSSName.my.fctrTStyl##"
+##  [1] "WordCount.log1p"                    
+##  [2] "WordCount.root2"                    
+##  [3] "WordCount.nexp"                     
+##  [4] "NDSS.my.fctrOpEd#Opnn#"             
+##  [5] "PubDate.day.minutes.poly.1"         
+##  [6] "PubDate.day.minutes.poly.4"         
+##  [7] "PubDate.hour.fctr(15.3,23]"         
+##  [8] "NDSS.my.fctrScnc#Hlth#"             
+##  [9] "PubDate.last4.log1p"                
+## [10] "PubDate.last2.log1p"                
+## [11] "NDSS.my.fctrBsnss#Crsswrds/Gms#"    
+## [12] "NDSS.my.fctrStyls#U.S.#"            
+## [13] "PubDate.last8.log1p"                
+## [14] "PubDate.day.minutes.poly.5"         
+## [15] "PubDate.wkend"                      
+## [16] "PubDate.last16.log1p"               
+## [17] "PubDate.juliandate"                 
+## [18] "PubDate.month.fctr11"               
+## [19] "PubDate.day.minutes.poly.3"         
+## [20] "PubDate.wkday.fctr6"                
+## [21] "PubDate.date.fctr(7,13]"            
+## [22] "PubDate.second.fctr(14.8,29.5]"     
+## [23] "PubDate.month.fctr10"               
+## [24] "PubDate.wkday.fctr1"                
+## [25] ".rnorm"                             
+## [26] "PubDate.last32.log1p"               
+## [27] "PubDate.minute.fctr(44.2,59.1]"     
+## [28] "PubDate.day.minutes.poly.2"         
+## [29] "PubDate.hour.fctr(7.67,15.3]"       
+## [30] "PubDate.minute.fctr(14.8,29.5]"     
+## [31] "PubDate.date.fctr(25,31]"           
+## [32] "PubDate.second.fctr(44.2,59.1]"     
+## [33] "PubDate.wkday.fctr3"                
+## [34] "NDSS.my.fctrmyOthr"                 
+## [35] "PubDate.date.fctr(19,25]"           
+## [36] "NDSS.my.fctr#Opnn#RmFrDbt"          
+## [37] "NDSS.my.fctrBsnss#Tchnlgy#"         
+## [38] "PubDate.wkday.fctr4"                
+## [39] "PubDate.second.fctr(29.5,44.2]"     
+## [40] "PubDate.date.fctr(13,19]"           
+## [41] "NDSS.my.fctrMtr#N.Y./Rgn#"          
+## [42] "NDSS.my.fctrTrvl#Trvl#"             
+## [43] "NDSS.my.fctrBsnss#BsnssDy#SmllBsnss"
+## [44] "NDSS.my.fctr#Mltmd#"                
+## [45] "PubDate.wkday.fctr2"                
+## [46] "NDSS.my.fctrStyls##Fshn"            
+## [47] "NDSS.my.fctrFrgn#Wrld#"             
+## [48] "PubDate.minute.fctr(29.5,44.2]"     
+## [49] "NDSS.my.fctrFrgn#Wrld#AsPcfc"       
+## [50] "PubDate.wkday.fctr5"                
+## [51] "NDSS.my.fctr#U.S.#Edctn"            
+## [52] "NDSS.my.fctrCltr#Arts#"             
+## [53] "NDSS.my.fctrBsnss#BsnssDy#Dlbk"     
+## [54] "NDSS.my.fctr##"                     
+## [55] "NDSS.my.fctrTStyl##"
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/select.features-3.png) 
@@ -2726,12 +2528,16 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ##   Popular Pplr.fctr 
 ##      1870      1870 
 ## [1] "numeric data w/ 0s in : "
-##           WordCount             Popular     WordCount.log1p 
-##                 109                5439                 109 
-##     WordCount.root2      WordCount.nexp  PubDate.wkday.fctr 
-##                 109                2044                 378 
-##       PubDate.wkend       PubDate.hlday PubDate.day.minutes 
-##                7787                8160                   5 
+##            WordCount              Popular      WordCount.log1p 
+##                  109                 5439                  109 
+##      WordCount.root2       WordCount.nexp   PubDate.wkday.fctr 
+##                  109                 2044                  378 
+##        PubDate.wkend        PubDate.hlday  PubDate.day.minutes 
+##                 7787                 8160                    5 
+##  PubDate.last2.log1p  PubDate.last4.log1p  PubDate.last8.log1p 
+##                    2                    4                    8 
+## PubDate.last16.log1p PubDate.last32.log1p 
+##                   16                   32 
 ## [1] "numeric data w/ Infs in : "
 ## named integer(0)
 ## [1] "numeric data w/ NaNs in : "
@@ -2739,7 +2545,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ## [1] "string data missing in : "
 ##       NewsDesk    SectionName SubsectionName       Headline        Snippet 
 ##           2408           2899           6176              0             13 
-##       Abstract        PubDate    NDSSName.my           .lcn 
+##       Abstract        PubDate        NDSS.my           .lcn 
 ##             17              0              0           1870
 ```
 
@@ -2788,9 +2594,9 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "partition.data.training", major.inc
 ```
 
 ```
-##              label step_major step_minor label_minor    bgn    end elapsed
-## 9  select.features          5          0           0 62.061 83.208  21.147
-## 10      fit.models          6          0           0 83.208     NA      NA
+##              label step_major step_minor label_minor    bgn   end elapsed
+## 9  select.features          5          0           0 57.659 80.36  22.701
+## 10      fit.models          6          0           0 80.360    NA      NA
 ```
 
 ## Step `6.0: fit models`
@@ -2801,7 +2607,7 @@ fit.models_0_chunk_df <- myadd_chunk(NULL, "fit.models_0_bgn", label.minor = "se
 
 ```
 ##              label step_major step_minor label_minor    bgn end elapsed
-## 1 fit.models_0_bgn          1          0       setup 84.325  NA      NA
+## 1 fit.models_0_bgn          1          0       setup 81.459  NA      NA
 ```
 
 ```r
@@ -2919,10 +2725,10 @@ fit.models_0_chunk_df <- myadd_chunk(fit.models_0_chunk_df,
 
 ```
 ##              label step_major step_minor   label_minor    bgn    end
-## 1 fit.models_0_bgn          1          0         setup 84.325 84.355
-## 2 fit.models_0_MFO          1          1 myMFO_classfr 84.356     NA
+## 1 fit.models_0_bgn          1          0         setup 81.459 81.488
+## 2 fit.models_0_MFO          1          1 myMFO_classfr 81.489     NA
 ##   elapsed
-## 1   0.031
+## 1    0.03
 ## 2      NA
 ```
 
@@ -3018,9 +2824,9 @@ ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
 ## AccuracyPValue  McnemarPValue 
 ##      1.0000000      0.0000000 
 ##                    id  feats max.nTuningRuns min.elapsedtime.everything
-## 1 MFO###myMFO_classfr .rnorm               0                      0.296
+## 1 MFO###myMFO_classfr .rnorm               0                      0.302
 ##   min.elapsedtime.final max.AUCpROC.fit max.Sens.fit max.Spec.fit
-## 1                 0.003             0.5            1            0
+## 1                 0.004             0.5            1            0
 ##   max.AUCROCR.fit opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
 ## 1             0.5                    0.1       0.3045703         0.179642
 ##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
@@ -3052,10 +2858,10 @@ fit.models_0_chunk_df <- myadd_chunk(fit.models_0_chunk_df,
 
 ```
 ##                 label step_major step_minor      label_minor    bgn    end
-## 2    fit.models_0_MFO          1          1    myMFO_classfr 84.356 87.427
-## 3 fit.models_0_Random          1          2 myrandom_classfr 87.427     NA
+## 2    fit.models_0_MFO          1          1    myMFO_classfr 81.489 84.531
+## 3 fit.models_0_Random          1          2 myrandom_classfr 84.532     NA
 ##   elapsed
-## 2   3.071
+## 2   3.042
 ## 3      NA
 ## [1] "fitting model: Random###myrandom_classfr"
 ## [1] "    indep_vars: .rnorm"
@@ -3098,7 +2904,7 @@ fit.models_0_chunk_df <- myadd_chunk(fit.models_0_chunk_df,
 ##                          id  feats max.nTuningRuns
 ## 1 Random###myrandom_classfr .rnorm               0
 ##   min.elapsedtime.everything min.elapsedtime.final max.AUCpROC.fit
-## 1                      0.298                 0.002       0.4990604
+## 1                      0.309                 0.002       0.4990604
 ##   max.Sens.fit max.Spec.fit max.AUCROCR.fit opt.prob.threshold.fit
 ## 1    0.8312611    0.1668598       0.4972757                    0.1
 ##   max.f.score.fit max.Accuracy.fit max.AccuracyLower.fit
@@ -3127,8 +2933,8 @@ fit.models_0_chunk_df <- myadd_chunk(fit.models_0_chunk_df,
 ## 3            fit.models_0_Random          1          2 myrandom_classfr
 ## 4 fit.models_0_Max.cor.Y.rcv.*X*          1          3           glmnet
 ##      bgn    end elapsed
-## 3 87.427 91.766   4.339
-## 4 91.766     NA      NA
+## 3 84.532 88.901    4.37
+## 4 88.902     NA      NA
 ```
 
 ```r
@@ -3141,7 +2947,7 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 
 ```
 ## [1] "fitting model: Max.cor.Y.rcv.1X1###glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
+## [1] "    indep_vars: WordCount.root2,NDSS.my.fctr"
 ```
 
 ```
@@ -3177,91 +2983,51 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ## tuneValue      2   data.frame list     
 ## obsLevels      2   -none-     character
 ## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                             -4.57159198 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -1.22219085 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -3.46072453 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              4.06871185 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -1.89443632 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.22472818 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.95537118 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              4.55408513 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.77368538 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.09465691 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -1.45528874 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -1.60117505 
-##           NDSSName.my.fctrMtr#N.Y./Rgn# 
-##                              0.01563989 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              4.51696382 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.51595317 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -1.85948925 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              3.27995325 
-##                 NDSSName.my.fctrTStyl## 
-##                             -1.54110404 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -1.41940605 
-##                  NDSSName.my.fctrmyOthr 
-##                             -1.90156922 
-##                         WordCount.root2 
-##                              0.08434378 
+##                         (Intercept)                 NDSS.my.fctr#Mltmd# 
+##                         -4.57159198                         -1.22219085 
+##           NDSS.my.fctr#Opnn#RmFrDbt        NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                         -3.46072453                          4.06871185 
+##             NDSS.my.fctr#U.S.#Edctn      NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                         -1.89443632                         -0.22472818 
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss     NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                         -0.95537118                          4.55408513 
+##          NDSS.my.fctrBsnss#Tchnlgy#              NDSS.my.fctrCltr#Arts# 
+##                          0.77368538                         -0.09465691 
+##              NDSS.my.fctrFrgn#Wrld#        NDSS.my.fctrFrgn#Wrld#AsPcfc 
+##                         -1.45528874                         -1.60117505 
+##           NDSS.my.fctrMtr#N.Y./Rgn#              NDSS.my.fctrOpEd#Opnn# 
+##                          0.01563989                          4.51696382 
+##              NDSS.my.fctrScnc#Hlth#             NDSS.my.fctrStyls##Fshn 
+##                          3.51595317                         -1.85948925 
+##             NDSS.my.fctrStyls#U.S.#                 NDSS.my.fctrTStyl## 
+##                          3.27995325                         -1.54110404 
+##              NDSS.my.fctrTrvl#Trvl#                  NDSS.my.fctrmyOthr 
+##                         -1.41940605                         -1.90156922 
+##                     WordCount.root2 
+##                          0.08434378 
 ## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                             -4.60394059 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -1.25163328 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -3.55521332 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              4.09217313 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -1.96172971 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.22495986 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.96836050 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              4.58120497 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.78504703 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.09069661 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -1.51061232 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -1.63313235 
-##           NDSSName.my.fctrMtr#N.Y./Rgn# 
-##                              0.02466697 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              4.54361134 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.53210055 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -1.92188290 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              3.29488750 
-##                 NDSSName.my.fctrTStyl## 
-##                             -1.57788931 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -1.47368131 
-##                  NDSSName.my.fctrmyOthr 
-##                             -1.97357582 
-##                         WordCount.root2 
-##                              0.08537319
+##                         (Intercept)                 NDSS.my.fctr#Mltmd# 
+##                         -4.60394059                         -1.25163328 
+##           NDSS.my.fctr#Opnn#RmFrDbt        NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                         -3.55521332                          4.09217313 
+##             NDSS.my.fctr#U.S.#Edctn      NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                         -1.96172971                         -0.22495986 
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss     NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                         -0.96836050                          4.58120497 
+##          NDSS.my.fctrBsnss#Tchnlgy#              NDSS.my.fctrCltr#Arts# 
+##                          0.78504703                         -0.09069661 
+##              NDSS.my.fctrFrgn#Wrld#        NDSS.my.fctrFrgn#Wrld#AsPcfc 
+##                         -1.51061232                         -1.63313235 
+##           NDSS.my.fctrMtr#N.Y./Rgn#              NDSS.my.fctrOpEd#Opnn# 
+##                          0.02466697                          4.54361134 
+##              NDSS.my.fctrScnc#Hlth#             NDSS.my.fctrStyls##Fshn 
+##                          3.53210055                         -1.92188290 
+##             NDSS.my.fctrStyls#U.S.#                 NDSS.my.fctrTStyl## 
+##                          3.29488750                         -1.57788931 
+##              NDSS.my.fctrTrvl#Trvl#                  NDSS.my.fctrmyOthr 
+##                         -1.47368131                         -1.97357582 
+##                     WordCount.root2 
+##                          0.08537319
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-8.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-9.png) 
@@ -3288,1800 +3054,75 @@ ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
 ##   7.604167e-01   3.148374e-01   7.395703e-01   7.803749e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
 ##   1.000000e+00   8.593187e-43 
-##                           id                            feats
-## 1 Max.cor.Y.rcv.1X1###glmnet WordCount.root2,NDSSName.my.fctr
-##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               0                      1.024                 0.276
-##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8790544    0.9632073    0.7949015       0.9608594
-##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.5       0.8099174        0.9329725
-##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9255302             0.9398832     0.7692476
-##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5962443    0.9098798    0.2826087       0.8116126
-##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4405405        0.7604167
-##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7395703             0.7803749     0.3148374
+##                           id                        feats max.nTuningRuns
+## 1 Max.cor.Y.rcv.1X1###glmnet WordCount.root2,NDSS.my.fctr               0
+##   min.elapsedtime.everything min.elapsedtime.final max.AUCpROC.fit
+## 1                      1.034                 0.282       0.8790544
+##   max.Sens.fit max.Spec.fit max.AUCROCR.fit opt.prob.threshold.fit
+## 1    0.9632073    0.7949015       0.9608594                    0.5
+##   max.f.score.fit max.Accuracy.fit max.AccuracyLower.fit
+## 1       0.8099174        0.9329725             0.9255302
+##   max.AccuracyUpper.fit max.Kappa.fit max.AUCpROC.OOB max.Sens.OOB
+## 1             0.9398832     0.7692476       0.5962443    0.9098798
+##   max.Spec.OOB max.AUCROCR.OOB opt.prob.threshold.OOB max.f.score.OOB
+## 1    0.2826087       0.8116126                    0.1       0.4405405
+##   max.Accuracy.OOB max.AccuracyLower.OOB max.AccuracyUpper.OOB
+## 1        0.7604167             0.7395703             0.7803749
+##   max.Kappa.OOB
+## 1     0.3148374
 ```
 
 ```r
-# rcv_n_folds == 1 & rcv_n_repeats > 1 crashes
-for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
-    for (rcv_n_repeats in seq(1, glb_rcv_n_repeats + 2, 2)) {
-        
-        # Experiment specific code to avoid caret crash
-#         lcl_tune_models_df <- rbind(data.frame()
-#                             ,data.frame(method = "glmnet", parameter = "alpha", 
-#                                         vals = "0.100 0.325 0.550 0.775 1.000")
-#                             ,data.frame(method = "glmnet", parameter = "lambda",
-#                                         vals = "9.342e-02")    
-#                                     )
-        
-        ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst =
-            list(
-            id.prefix = paste0("Max.cor.Y.rcv.", rcv_n_folds, "X", rcv_n_repeats), 
-            type = glb_model_type, 
-# tune.df = lcl_tune_models_df,            
-            trainControl.method = "repeatedcv",
-            trainControl.number = rcv_n_folds, 
-            trainControl.repeats = rcv_n_repeats,
-            trainControl.classProbs = glb_is_classification,
-            trainControl.summaryFunction = glbMdlMetricSummaryFn,
-            train.method = "glmnet", train.metric = glbMdlMetricSummary, 
-            train.maximize = glbMdlMetricMaximize)),
-                            indep_vars = max_cor_y_x_vars, rsp_var = glb_rsp_var, 
-                            fit_df = glbObsFit, OOB_df = glbObsOOB)
-    }
-```
+if (glbMdlCheckRcv) {
+    # rcv_n_folds == 1 & rcv_n_repeats > 1 crashes
+    for (rcv_n_folds in seq(3, glb_rcv_n_folds + 2, 2))
+        for (rcv_n_repeats in seq(1, glb_rcv_n_repeats + 2, 2)) {
+            
+            # Experiment specific code to avoid caret crash
+    #         lcl_tune_models_df <- rbind(data.frame()
+    #                             ,data.frame(method = "glmnet", parameter = "alpha", 
+    #                                         vals = "0.100 0.325 0.550 0.775 1.000")
+    #                             ,data.frame(method = "glmnet", parameter = "lambda",
+    #                                         vals = "9.342e-02")    
+    #                                     )
+            
+            ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst =
+                list(
+                id.prefix = paste0("Max.cor.Y.rcv.", rcv_n_folds, "X", rcv_n_repeats), 
+                type = glb_model_type, 
+    # tune.df = lcl_tune_models_df,            
+                trainControl.method = "repeatedcv",
+                trainControl.number = rcv_n_folds, 
+                trainControl.repeats = rcv_n_repeats,
+                trainControl.classProbs = glb_is_classification,
+                trainControl.summaryFunction = glbMdlMetricSummaryFn,
+                train.method = "glmnet", train.metric = glbMdlMetricSummary, 
+                train.maximize = glbMdlMetricMaximize)),
+                                indep_vars = max_cor_y_x_vars, rsp_var = glb_rsp_var, 
+                                fit_df = glbObsFit, OOB_df = glbObsOOB)
+        }
+    # Add parallel coordinates graph of glb_models_df[, glbMdlMetricsEval] to evaluate cv parameters
+    tmp_models_cols <- c("id", "max.nTuningRuns",
+                        glbMdlMetricsEval[glbMdlMetricsEval %in% names(glb_models_df)],
+                        grep("opt.", names(glb_models_df), fixed = TRUE, value = TRUE)) 
+    print(myplot_parcoord(obs_df = subset(glb_models_df, 
+                                          grepl("Max.cor.Y.rcv.", id, fixed = TRUE), 
+                                            select = -feats)[, tmp_models_cols],
+                          id_var = "id"))
+}
 
-```
-## [1] "fitting model: Max.cor.Y.rcv.3X1##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
-## Aggregating results
-## Selecting tuning parameters
-## Fitting alpha = 0.325, lambda = 0.0201 on full training set
-```
+# Useful for stacking decisions
+# fit.models_0_chunk_df <- myadd_chunk(fit.models_0_chunk_df, 
+#                     paste0("fit.models_0_", "Max.cor.Y[rcv.1X1.cp.0|]"), major.inc = FALSE,
+#                                     label.minor = "rpart")
+# 
+# ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
+#     id.prefix = "Max.cor.Y.rcv.1X1.cp.0", type = glb_model_type, trainControl.method = "none",
+#     train.method = "rpart",
+#     tune.df=data.frame(method="rpart", parameter="cp", min=0.0, max=0.0, by=0.1))),
+#                     indep_vars=max_cor_y_x_vars, rsp_var=glb_rsp_var, 
+#                     fit_df=glbObsFit, OOB_df=glbObsOOB)
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-12.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-13.png) 
-
-```
-##             Length Class      Mode     
-## a0            99   -none-     numeric  
-## beta        2079   dgCMatrix  S4       
-## df            99   -none-     numeric  
-## dim            2   -none-     numeric  
-## lambda        99   -none-     numeric  
-## dev.ratio     99   -none-     numeric  
-## nulldev        1   -none-     numeric  
-## npasses        1   -none-     numeric  
-## jerr           1   -none-     numeric  
-## offset         1   -none-     logical  
-## classnames     2   -none-     character
-## call           5   -none-     call     
-## nobs           1   -none-     numeric  
-## lambdaOpt      1   -none-     numeric  
-## xNames        21   -none-     character
-## problemType    1   -none-     character
-## tuneValue      2   data.frame list     
-## obsLevels      2   -none-     character
-## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                             -3.89350373 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.01916344 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -1.18453357 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.21701058 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.47679040 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.09891374 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.87281404 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.40965256 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.05114617 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.47464340 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.95214357 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.14232408 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.31867093 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.92610567 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.60538025 
-##                         WordCount.root2 
-##                              0.05783392 
-## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                             -3.95644632 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.07182859 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -1.30034382 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.29694236 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.53415905 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.14259759 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.94231812 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.45657914 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.10021084 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.53077048 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              4.01324666 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.18936803 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.38069674 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.97176051 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.64837249 
-##                         WordCount.root2 
-##                              0.05978318
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-14.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-15.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 3796  145
-##         Y  177  686
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.329725e-01   7.692476e-01   9.255302e-01   9.398832e-01   8.203580e-01 
-## AccuracyPValue  McnemarPValue 
-##  1.026390e-114   8.406670e-02
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-16.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-17.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 1146  352
-##         Y   67  163
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   7.575231e-01   3.107477e-01   7.365992e-01   7.775689e-01   8.668981e-01 
-## AccuracyPValue  McnemarPValue 
-##   1.000000e+00   9.066396e-44 
-##                              id                            feats
-## 1 Max.cor.Y.rcv.3X1##rcv#glmnet WordCount.root2,NDSSName.my.fctr
-##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      2.866                 0.286
-##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8767919     0.964476    0.7891078       0.9582555
-##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.4       0.8099174        0.9335973
-##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9255302             0.9398832     0.7691678
-##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5962443    0.9098798    0.2826087       0.8067975
-##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4375839        0.7575231
-##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7365992             0.7775689     0.3107477
-##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.007015493      0.02403706
-## [1] "fitting model: Max.cor.Y.rcv.3X3##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
-## Aggregating results
-## Selecting tuning parameters
-## Fitting alpha = 0.325, lambda = 0.0201 on full training set
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-18.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-19.png) 
-
-```
-##             Length Class      Mode     
-## a0            99   -none-     numeric  
-## beta        2079   dgCMatrix  S4       
-## df            99   -none-     numeric  
-## dim            2   -none-     numeric  
-## lambda        99   -none-     numeric  
-## dev.ratio     99   -none-     numeric  
-## nulldev        1   -none-     numeric  
-## npasses        1   -none-     numeric  
-## jerr           1   -none-     numeric  
-## offset         1   -none-     logical  
-## classnames     2   -none-     character
-## call           5   -none-     call     
-## nobs           1   -none-     numeric  
-## lambdaOpt      1   -none-     numeric  
-## xNames        21   -none-     character
-## problemType    1   -none-     character
-## tuneValue      2   data.frame list     
-## obsLevels      2   -none-     character
-## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                             -3.89350373 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.01916344 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -1.18453357 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.21701058 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.47679040 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.09891374 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.87281404 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.40965256 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.05114617 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.47464340 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.95214357 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.14232408 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.31867093 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.92610567 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.60538025 
-##                         WordCount.root2 
-##                              0.05783392 
-## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                             -3.95644632 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.07182859 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -1.30034382 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.29694236 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.53415905 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.14259759 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.94231812 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.45657914 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.10021084 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.53077048 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              4.01324666 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.18936803 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.38069674 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.97176051 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.64837249 
-##                         WordCount.root2 
-##                              0.05978318
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-20.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-21.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 3796  145
-##         Y  177  686
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.329725e-01   7.692476e-01   9.255302e-01   9.398832e-01   8.203580e-01 
-## AccuracyPValue  McnemarPValue 
-##  1.026390e-114   8.406670e-02
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-22.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-23.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 1146  352
-##         Y   67  163
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   7.575231e-01   3.107477e-01   7.365992e-01   7.775689e-01   8.668981e-01 
-## AccuracyPValue  McnemarPValue 
-##   1.000000e+00   9.066396e-44 
-##                              id                            feats
-## 1 Max.cor.Y.rcv.3X3##rcv#glmnet WordCount.root2,NDSSName.my.fctr
-##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      4.855                 0.273
-##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8767919     0.964476    0.7891078       0.9582555
-##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.4       0.8099174        0.9333193
-##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9255302             0.9398832     0.7690803
-##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5962443    0.9098798    0.2826087       0.8067975
-##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4375839        0.7575231
-##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7365992             0.7775689     0.3107477
-##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.005178375      0.01754365
-## [1] "fitting model: Max.cor.Y.rcv.3X5##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
-## Aggregating results
-## Selecting tuning parameters
-## Fitting alpha = 0.325, lambda = 0.0201 on full training set
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-24.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-25.png) 
-
-```
-##             Length Class      Mode     
-## a0            99   -none-     numeric  
-## beta        2079   dgCMatrix  S4       
-## df            99   -none-     numeric  
-## dim            2   -none-     numeric  
-## lambda        99   -none-     numeric  
-## dev.ratio     99   -none-     numeric  
-## nulldev        1   -none-     numeric  
-## npasses        1   -none-     numeric  
-## jerr           1   -none-     numeric  
-## offset         1   -none-     logical  
-## classnames     2   -none-     character
-## call           5   -none-     call     
-## nobs           1   -none-     numeric  
-## lambdaOpt      1   -none-     numeric  
-## xNames        21   -none-     character
-## problemType    1   -none-     character
-## tuneValue      2   data.frame list     
-## obsLevels      2   -none-     character
-## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                             -3.89350373 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.01916344 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -1.18453357 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.21701058 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.47679040 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.09891374 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.87281404 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.40965256 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.05114617 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.47464340 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.95214357 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.14232408 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.31867093 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.92610567 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.60538025 
-##                         WordCount.root2 
-##                              0.05783392 
-## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                             -3.95644632 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.07182859 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -1.30034382 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.29694236 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.53415905 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.14259759 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.94231812 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.45657914 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.10021084 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.53077048 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              4.01324666 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.18936803 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.38069674 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.97176051 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.64837249 
-##                         WordCount.root2 
-##                              0.05978318
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-26.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-27.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 3796  145
-##         Y  177  686
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.329725e-01   7.692476e-01   9.255302e-01   9.398832e-01   8.203580e-01 
-## AccuracyPValue  McnemarPValue 
-##  1.026390e-114   8.406670e-02
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-28.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-29.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 1146  352
-##         Y   67  163
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   7.575231e-01   3.107477e-01   7.365992e-01   7.775689e-01   8.668981e-01 
-## AccuracyPValue  McnemarPValue 
-##   1.000000e+00   9.066396e-44 
-##                              id                            feats
-## 1 Max.cor.Y.rcv.3X5##rcv#glmnet WordCount.root2,NDSSName.my.fctr
-##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      8.311                 0.277
-##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8767919     0.964476    0.7891078       0.9582555
-##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.4       0.8099174        0.9332218
-##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9255302             0.9398832     0.7686375
-##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5962443    0.9098798    0.2826087       0.8067975
-##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4375839        0.7575231
-##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7365992             0.7775689     0.3107477
-##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.005396525      0.01835474
-## [1] "fitting model: Max.cor.Y.rcv.5X1##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
-## Aggregating results
-## Selecting tuning parameters
-## Fitting alpha = 0.1, lambda = 0.0201 on full training set
-```
-
-```
-## Warning in myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst =
-## list(id.prefix = paste0("Max.cor.Y.rcv.", : model's bestTune found at an
-## extreme of tuneGrid for parameter: alpha
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-30.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-31.png) 
-
-```
-##             Length Class      Mode     
-## a0           100   -none-     numeric  
-## beta        2100   dgCMatrix  S4       
-## df           100   -none-     numeric  
-## dim            2   -none-     numeric  
-## lambda       100   -none-     numeric  
-## dev.ratio    100   -none-     numeric  
-## nulldev        1   -none-     numeric  
-## npasses        1   -none-     numeric  
-## jerr           1   -none-     numeric  
-## offset         1   -none-     logical  
-## classnames     2   -none-     character
-## call           5   -none-     call     
-## nobs           1   -none-     numeric  
-## lambdaOpt      1   -none-     numeric  
-## xNames        21   -none-     character
-## problemType    1   -none-     character
-## tuneValue      2   data.frame list     
-## obsLevels      2   -none-     character
-## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                             -3.81141260 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.68105584 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -1.92624537 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.40699589 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.98291999 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.22577146 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.64343834 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.82797332 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.45317927 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.17187706 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.72035867 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.99018968 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.81891156 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.05516080 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.97651721 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.84779285 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.94109645 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -0.68827560 
-##                  NDSSName.my.fctrmyOthr 
-##                             -0.84423735 
-##                         WordCount.root2 
-##                              0.06115867 
-## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                             -3.87108412 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.71588942 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -2.02010163 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.46715540 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -1.02957582 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.22558850 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.66798026 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.89132347 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.48212450 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.16733777 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.75793881 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -1.03076807 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.87908175 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.09788786 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -1.02481879 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.88826078 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.97585470 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -0.72668427 
-##                  NDSSName.my.fctrmyOthr 
-##                             -0.90347045 
-##                         WordCount.root2 
-##                              0.06289698
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-32.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-33.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 3800  141
-##         Y  179  684
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.333888e-01   7.700473e-01   9.259666e-01   9.402789e-01   8.203580e-01 
-## AccuracyPValue  McnemarPValue 
-##  1.097051e-115   3.860591e-02
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-34.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-35.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 1137  361
-##         Y   53  177
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   7.604167e-01   3.373693e-01   7.395703e-01   7.803749e-01   8.668981e-01 
-## AccuracyPValue  McnemarPValue 
-##   1.000000e+00   1.935747e-51 
-##                              id                            feats
-## 1 Max.cor.Y.rcv.5X1##rcv#glmnet WordCount.root2,NDSSName.my.fctr
-##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      3.432                 0.271
-##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8784031    0.9642223     0.792584       0.9607052
-##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.5       0.8104265        0.9331818
-##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9259666             0.9402789     0.7689055
-##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5962443    0.9098798    0.2826087       0.8114863
-##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4609375        0.7604167
-##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7395703             0.7803749     0.3373693
-##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.008837283      0.03133449
-## [1] "fitting model: Max.cor.Y.rcv.5X3##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
-## Aggregating results
-## Selecting tuning parameters
-## Fitting alpha = 0.1, lambda = 0.0201 on full training set
-```
-
-```
-## Warning in myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst =
-## list(id.prefix = paste0("Max.cor.Y.rcv.", : model's bestTune found at an
-## extreme of tuneGrid for parameter: alpha
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-36.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-37.png) 
-
-```
-##             Length Class      Mode     
-## a0           100   -none-     numeric  
-## beta        2100   dgCMatrix  S4       
-## df           100   -none-     numeric  
-## dim            2   -none-     numeric  
-## lambda       100   -none-     numeric  
-## dev.ratio    100   -none-     numeric  
-## nulldev        1   -none-     numeric  
-## npasses        1   -none-     numeric  
-## jerr           1   -none-     numeric  
-## offset         1   -none-     logical  
-## classnames     2   -none-     character
-## call           5   -none-     call     
-## nobs           1   -none-     numeric  
-## lambdaOpt      1   -none-     numeric  
-## xNames        21   -none-     character
-## problemType    1   -none-     character
-## tuneValue      2   data.frame list     
-## obsLevels      2   -none-     character
-## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                             -3.81141260 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.68105584 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -1.92624537 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.40699589 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.98291999 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.22577146 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.64343834 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.82797332 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.45317927 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.17187706 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.72035867 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.99018968 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.81891156 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.05516080 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.97651721 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.84779285 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.94109645 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -0.68827560 
-##                  NDSSName.my.fctrmyOthr 
-##                             -0.84423735 
-##                         WordCount.root2 
-##                              0.06115867 
-## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                             -3.87108412 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.71588942 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -2.02010163 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.46715540 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -1.02957582 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.22558850 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.66798026 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.89132347 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.48212450 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.16733777 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.75793881 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -1.03076807 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.87908175 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.09788786 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -1.02481879 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.88826078 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.97585470 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -0.72668427 
-##                  NDSSName.my.fctrmyOthr 
-##                             -0.90347045 
-##                         WordCount.root2 
-##                              0.06289698
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-38.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-39.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 3800  141
-##         Y  179  684
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.333888e-01   7.700473e-01   9.259666e-01   9.402789e-01   8.203580e-01 
-## AccuracyPValue  McnemarPValue 
-##  1.097051e-115   3.860591e-02
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-40.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-41.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 1137  361
-##         Y   53  177
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   7.604167e-01   3.373693e-01   7.395703e-01   7.803749e-01   8.668981e-01 
-## AccuracyPValue  McnemarPValue 
-##   1.000000e+00   1.935747e-51 
-##                              id                            feats
-## 1 Max.cor.Y.rcv.5X3##rcv#glmnet WordCount.root2,NDSSName.my.fctr
-##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      6.452                 0.277
-##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8784031    0.9642223     0.792584       0.9607052
-##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.5       0.8104265        0.9333905
-##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9259666             0.9402789     0.7698577
-##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5962443    0.9098798    0.2826087       0.8114863
-##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4609375        0.7604167
-##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7395703             0.7803749     0.3373693
-##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.006138477      0.02161286
-## [1] "fitting model: Max.cor.Y.rcv.5X5##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
-## Aggregating results
-## Selecting tuning parameters
-## Fitting alpha = 0.1, lambda = 0.0201 on full training set
-```
-
-```
-## Warning in myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst =
-## list(id.prefix = paste0("Max.cor.Y.rcv.", : model's bestTune found at an
-## extreme of tuneGrid for parameter: alpha
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-42.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-43.png) 
-
-```
-##             Length Class      Mode     
-## a0           100   -none-     numeric  
-## beta        2100   dgCMatrix  S4       
-## df           100   -none-     numeric  
-## dim            2   -none-     numeric  
-## lambda       100   -none-     numeric  
-## dev.ratio    100   -none-     numeric  
-## nulldev        1   -none-     numeric  
-## npasses        1   -none-     numeric  
-## jerr           1   -none-     numeric  
-## offset         1   -none-     logical  
-## classnames     2   -none-     character
-## call           5   -none-     call     
-## nobs           1   -none-     numeric  
-## lambdaOpt      1   -none-     numeric  
-## xNames        21   -none-     character
-## problemType    1   -none-     character
-## tuneValue      2   data.frame list     
-## obsLevels      2   -none-     character
-## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                             -3.81141260 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.68105584 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -1.92624537 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.40699589 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.98291999 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.22577146 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.64343834 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.82797332 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.45317927 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.17187706 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.72035867 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.99018968 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.81891156 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.05516080 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.97651721 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.84779285 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.94109645 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -0.68827560 
-##                  NDSSName.my.fctrmyOthr 
-##                             -0.84423735 
-##                         WordCount.root2 
-##                              0.06115867 
-## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                             -3.87108412 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.71588942 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -2.02010163 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.46715540 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -1.02957582 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.22558850 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.66798026 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.89132347 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.48212450 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.16733777 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.75793881 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -1.03076807 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.87908175 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              3.09788786 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -1.02481879 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.88826078 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.97585470 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -0.72668427 
-##                  NDSSName.my.fctrmyOthr 
-##                             -0.90347045 
-##                         WordCount.root2 
-##                              0.06289698
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-44.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-45.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 3800  141
-##         Y  179  684
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.333888e-01   7.700473e-01   9.259666e-01   9.402789e-01   8.203580e-01 
-## AccuracyPValue  McnemarPValue 
-##  1.097051e-115   3.860591e-02
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-46.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-47.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 1137  361
-##         Y   53  177
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   7.604167e-01   3.373693e-01   7.395703e-01   7.803749e-01   8.668981e-01 
-## AccuracyPValue  McnemarPValue 
-##   1.000000e+00   1.935747e-51 
-##                              id                            feats
-## 1 Max.cor.Y.rcv.5X5##rcv#glmnet WordCount.root2,NDSSName.my.fctr
-##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                       9.15                 0.269
-##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8784031    0.9642223     0.792584       0.9607052
-##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.5       0.8104265        0.9331816
-##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9259666             0.9402789     0.7691429
-##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5962443    0.9098798    0.2826087       0.8114863
-##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4609375        0.7604167
-##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7395703             0.7803749     0.3373693
-##   max.AccuracySD.fit max.KappaSD.fit
-## 1          0.0062138      0.02210061
-```
-
-```r
-# Add parallel coordinates graph of glb_models_df[, glbMdlMetricsEval] to evaluate cv parameters
-tmp_models_cols <- c("id", "max.nTuningRuns",
-                    glbMdlMetricsEval[glbMdlMetricsEval %in% names(glb_models_df)],
-                    grep("opt.", names(glb_models_df), fixed = TRUE, value = TRUE)) 
-print(myplot_parcoord(obs_df = subset(glb_models_df, 
-                                      grepl("Max.cor.Y.rcv.", id, fixed = TRUE), 
-                                        select = -feats)[, tmp_models_cols],
-                      id_var = "id"))
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-48.png) 
-
-```r
-fit.models_0_chunk_df <- myadd_chunk(fit.models_0_chunk_df, 
-                    paste0("fit.models_0_", "Max.cor.Y[rcv.1X1.cp.0|]"), major.inc = FALSE,
-                                    label.minor = "rpart")
-```
-
-```
-##                                   label step_major step_minor label_minor
-## 4        fit.models_0_Max.cor.Y.rcv.*X*          1          3      glmnet
-## 5 fit.models_0_Max.cor.Y[rcv.1X1.cp.0|]          1          4       rpart
-##       bgn     end elapsed
-## 4  91.766 169.327  77.561
-## 5 169.327      NA      NA
-```
-
-```r
-ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
-    id.prefix="Max.cor.Y.rcv.1X1.cp.0", type=glb_model_type, trainControl.method="none",
-    train.method="rpart",
-    tune.df=data.frame(method="rpart", parameter="cp", min=0.0, max=0.0, by=0.1))),
-                    indep_vars=max_cor_y_x_vars, rsp_var=glb_rsp_var, 
-                    fit_df=glbObsFit, OOB_df=glbObsOOB)
-```
-
-```
-## [1] "fitting model: Max.cor.Y.rcv.1X1.cp.0###rpart"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
-```
-
-```
-## Loading required package: rpart
-```
-
-```
-## Fitting cp = 0 on full training set
-```
-
-```
-## Loading required package: rpart.plot
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-49.png) 
-
-```
-## Call:
-## rpart(formula = .outcome ~ ., control = list(minsplit = 20, minbucket = 7, 
-##     cp = 0, maxcompete = 4, maxsurrogate = 5, usesurrogate = 2, 
-##     surrogatestyle = 0, maxdepth = 30, xval = 0))
-##   n= 4804 
-## 
-##              CP nsplit rel error
-## 1  0.3696407879      0 1.0000000
-## 2  0.0984936269      1 0.6303592
-## 3  0.0857473928      2 0.5318656
-## 4  0.0567786790      3 0.4461182
-## 5  0.0104287370      4 0.3893395
-## 6  0.0057937428      5 0.3789108
-## 7  0.0034762457      7 0.3673233
-## 8  0.0023174971      8 0.3638470
-## 9  0.0011587486     11 0.3568946
-## 10 0.0007724990     13 0.3545771
-## 11 0.0005793743     16 0.3522596
-## 12 0.0004213631     24 0.3476246
-## 13 0.0003862495     35 0.3429896
-## 14 0.0000000000     41 0.3406721
-## 
-## Variable importance
-##          NDSSName.my.fctrOpEd#Opnn# NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                                  48                                  14 
-##          NDSSName.my.fctrScnc#Hlth#         NDSSName.my.fctrStyls#U.S.# 
-##                                  14                                  11 
-##                     WordCount.root2    NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                                   9                                   2 
-##  NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                                   1 
-## 
-## Node number 1: 4804 observations,    complexity param=0.3696408
-##   predicted class=N  expected loss=0.179642  P(node) =1
-##     class counts:  3941   863
-##    probabilities: 0.820 0.180 
-##   left son=2 (4367 obs) right son=3 (437 obs)
-##   Primary splits:
-##       NDSSName.my.fctrOpEd#Opnn#          < 0.5      to the left,  improve=451.59770, (0 missing)
-##       NDSSName.my.fctrBsnss#Crsswrds/Gms# < 0.5      to the left,  improve=112.88510, (0 missing)
-##       WordCount.root2                     < 25.75849 to the left,  improve=111.17610, (0 missing)
-##       NDSSName.my.fctrScnc#Hlth#          < 0.5      to the left,  improve= 99.35206, (0 missing)
-##       NDSSName.my.fctrStyls#U.S.#         < 0.5      to the left,  improve= 68.73272, (0 missing)
-## 
-## Node number 2: 4367 observations,    complexity param=0.09849363
-##   predicted class=N  expected loss=0.1110602  P(node) =0.9090341
-##     class counts:  3882   485
-##    probabilities: 0.889 0.111 
-##   left son=4 (4262 obs) right son=5 (105 obs)
-##   Primary splits:
-##       NDSSName.my.fctrBsnss#Crsswrds/Gms# < 0.5      to the left,  improve=135.55130, (0 missing)
-##       NDSSName.my.fctrScnc#Hlth#          < 0.5      to the left,  improve=125.07920, (0 missing)
-##       WordCount.root2                     < 25.75849 to the left,  improve= 94.70710, (0 missing)
-##       NDSSName.my.fctrStyls#U.S.#         < 0.5      to the left,  improve= 88.56821, (0 missing)
-##       NDSSName.my.fctr#Opnn#ThPblcEdtr    < 0.5      to the left,  improve= 18.74400, (0 missing)
-## 
-## Node number 3: 437 observations
-##   predicted class=Y  expected loss=0.1350114  P(node) =0.09096586
-##     class counts:    59   378
-##    probabilities: 0.135 0.865 
-## 
-## Node number 4: 4262 observations,    complexity param=0.08574739
-##   predicted class=N  expected loss=0.09150634  P(node) =0.8871774
-##     class counts:  3872   390
-##    probabilities: 0.908 0.092 
-##   left son=8 (4114 obs) right son=9 (148 obs)
-##   Primary splits:
-##       NDSSName.my.fctrScnc#Hlth#       < 0.5      to the left,  improve=132.96710, (0 missing)
-##       NDSSName.my.fctrStyls#U.S.#      < 0.5      to the left,  improve= 94.69099, (0 missing)
-##       WordCount.root2                  < 26.49528 to the left,  improve= 84.07487, (0 missing)
-##       NDSSName.my.fctr#Opnn#ThPblcEdtr < 0.5      to the left,  improve= 19.71762, (0 missing)
-##       NDSSName.my.fctrTStyl##          < 0.5      to the right, improve= 10.17000, (0 missing)
-## 
-## Node number 5: 105 observations,    complexity param=0.002317497
-##   predicted class=Y  expected loss=0.0952381  P(node) =0.02185679
-##     class counts:    10    95
-##    probabilities: 0.095 0.905 
-##   left son=10 (12 obs) right son=11 (93 obs)
-##   Primary splits:
-##       WordCount.root2 < 18.9043  to the left,  improve=6.455453, (0 missing)
-## 
-## Node number 8: 4114 observations,    complexity param=0.05677868
-##   predicted class=N  expected loss=0.06781721  P(node) =0.8563697
-##     class counts:  3835   279
-##    probabilities: 0.932 0.068 
-##   left son=16 (3987 obs) right son=17 (127 obs)
-##   Primary splits:
-##       NDSSName.my.fctrStyls#U.S.#      < 0.5      to the left,  improve=102.410700, (0 missing)
-##       WordCount.root2                  < 25.01    to the left,  improve= 47.352210, (0 missing)
-##       NDSSName.my.fctr#Opnn#ThPblcEdtr < 0.5      to the left,  improve= 20.930810, (0 missing)
-##       NDSSName.my.fctrTStyl##          < 0.5      to the right, improve=  5.249425, (0 missing)
-##       NDSSName.my.fctrBsnss#Tchnlgy#   < 0.5      to the left,  improve=  2.395935, (0 missing)
-## 
-## Node number 9: 148 observations,    complexity param=0.01042874
-##   predicted class=Y  expected loss=0.25  P(node) =0.03080766
-##     class counts:    37   111
-##    probabilities: 0.250 0.750 
-##   left son=18 (55 obs) right son=19 (93 obs)
-##   Primary splits:
-##       WordCount.root2 < 22.72663 to the left,  improve=19.274, (0 missing)
-## 
-## Node number 10: 12 observations
-##   predicted class=N  expected loss=0.4166667  P(node) =0.002497918
-##     class counts:     7     5
-##    probabilities: 0.583 0.417 
-## 
-## Node number 11: 93 observations
-##   predicted class=Y  expected loss=0.03225806  P(node) =0.01935887
-##     class counts:     3    90
-##    probabilities: 0.032 0.968 
-## 
-## Node number 16: 3987 observations,    complexity param=0.005793743
-##   predicted class=N  expected loss=0.04790569  P(node) =0.8299334
-##     class counts:  3796   191
-##    probabilities: 0.952 0.048 
-##   left son=32 (2982 obs) right son=33 (1005 obs)
-##   Primary splits:
-##       WordCount.root2                  < 25.01    to the left,  improve=29.253580, (0 missing)
-##       NDSSName.my.fctr#Opnn#ThPblcEdtr < 0.5      to the left,  improve=21.978920, (0 missing)
-##       NDSSName.my.fctrBsnss#Tchnlgy#   < 0.5      to the left,  improve= 3.887348, (0 missing)
-##       NDSSName.my.fctrTStyl##          < 0.5      to the right, improve= 2.348653, (0 missing)
-##       NDSSName.my.fctr#U.S.#Edctn      < 0.5      to the right, improve= 1.187739, (0 missing)
-##   Surrogate splits:
-##       NDSSName.my.fctr#Opnn#RmFrDbt           < 0.5      to the left,  agree=0.758, adj=0.042, (0 split)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc        < 0.5      to the left,  agree=0.752, adj=0.016, (0 split)
-##       NDSSName.my.fctr#Opnn#ThPblcEdtr        < 0.5      to the left,  agree=0.750, adj=0.008, (0 split)
-##       NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss < 0.5      to the left,  agree=0.748, adj=0.002, (0 split)
-## 
-## Node number 17: 127 observations,    complexity param=0.003476246
-##   predicted class=Y  expected loss=0.3070866  P(node) =0.0264363
-##     class counts:    39    88
-##    probabilities: 0.307 0.693 
-##   left son=34 (13 obs) right son=35 (114 obs)
-##   Primary splits:
-##       WordCount.root2 < 15.32846 to the left,  improve=2.753047, (0 missing)
-## 
-## Node number 18: 55 observations,    complexity param=0.002317497
-##   predicted class=N  expected loss=0.4181818  P(node) =0.01144879
-##     class counts:    32    23
-##    probabilities: 0.582 0.418 
-##   left son=36 (9 obs) right son=37 (46 obs)
-##   Primary splits:
-##       WordCount.root2 < 19.93708 to the right, improve=0.8264383, (0 missing)
-## 
-## Node number 19: 93 observations
-##   predicted class=Y  expected loss=0.05376344  P(node) =0.01935887
-##     class counts:     5    88
-##    probabilities: 0.054 0.946 
-## 
-## Node number 32: 2982 observations
-##   predicted class=N  expected loss=0.01274313  P(node) =0.6207327
-##     class counts:  2944    38
-##    probabilities: 0.987 0.013 
-## 
-## Node number 33: 1005 observations,    complexity param=0.005793743
-##   predicted class=N  expected loss=0.1522388  P(node) =0.2092007
-##     class counts:   852   153
-##    probabilities: 0.848 0.152 
-##   left son=66 (993 obs) right son=67 (12 obs)
-##   Primary splits:
-##       NDSSName.my.fctr#Opnn#ThPblcEdtr < 0.5      to the left,  improve=14.193880, (0 missing)
-##       NDSSName.my.fctrCltr#Arts#       < 0.5      to the left,  improve= 3.669601, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc < 0.5      to the right, improve= 3.556158, (0 missing)
-##       WordCount.root2                  < 34.19795 to the left,  improve= 2.582851, (0 missing)
-##       NDSSName.my.fctr#Opnn#RmFrDbt    < 0.5      to the right, improve= 2.031748, (0 missing)
-## 
-## Node number 34: 13 observations
-##   predicted class=N  expected loss=0.3846154  P(node) =0.002706078
-##     class counts:     8     5
-##    probabilities: 0.615 0.385 
-## 
-## Node number 35: 114 observations,    complexity param=0.000772499
-##   predicted class=Y  expected loss=0.2719298  P(node) =0.02373022
-##     class counts:    31    83
-##    probabilities: 0.272 0.728 
-##   left son=70 (79 obs) right son=71 (35 obs)
-##   Primary splits:
-##       WordCount.root2 < 29.21444 to the left,  improve=1.020279, (0 missing)
-## 
-## Node number 36: 9 observations
-##   predicted class=N  expected loss=0.2222222  P(node) =0.001873439
-##     class counts:     7     2
-##    probabilities: 0.778 0.222 
-## 
-## Node number 37: 46 observations,    complexity param=0.002317497
-##   predicted class=N  expected loss=0.4565217  P(node) =0.009575354
-##     class counts:    25    21
-##    probabilities: 0.543 0.457 
-##   left son=74 (36 obs) right son=75 (10 obs)
-##   Primary splits:
-##       WordCount.root2 < 17.01454 to the left,  improve=1.514976, (0 missing)
-## 
-## Node number 66: 993 observations,    complexity param=0.0005793743
-##   predicted class=N  expected loss=0.143001  P(node) =0.2067027
-##     class counts:   851   142
-##    probabilities: 0.857 0.143 
-##   left son=132 (930 obs) right son=133 (63 obs)
-##   Primary splits:
-##       NDSSName.my.fctrCltr#Arts#       < 0.5      to the left,  improve=4.094729, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc < 0.5      to the right, improve=3.106316, (0 missing)
-##       WordCount.root2                  < 29.5127  to the left,  improve=2.722793, (0 missing)
-##       NDSSName.my.fctrBsnss#Tchnlgy#   < 0.5      to the left,  improve=1.962300, (0 missing)
-##       NDSSName.my.fctr#Opnn#RmFrDbt    < 0.5      to the right, improve=1.793603, (0 missing)
-## 
-## Node number 67: 12 observations
-##   predicted class=Y  expected loss=0.08333333  P(node) =0.002497918
-##     class counts:     1    11
-##    probabilities: 0.083 0.917 
-## 
-## Node number 70: 79 observations,    complexity param=0.000772499
-##   predicted class=Y  expected loss=0.3164557  P(node) =0.01644463
-##     class counts:    25    54
-##    probabilities: 0.316 0.684 
-##   left son=140 (25 obs) right son=141 (54 obs)
-##   Primary splits:
-##       WordCount.root2 < 27.36786 to the right, improve=0.5105485, (0 missing)
-## 
-## Node number 71: 35 observations
-##   predicted class=Y  expected loss=0.1714286  P(node) =0.007285595
-##     class counts:     6    29
-##    probabilities: 0.171 0.829 
-## 
-## Node number 74: 36 observations,    complexity param=0.001158749
-##   predicted class=N  expected loss=0.3888889  P(node) =0.007493755
-##     class counts:    22    14
-##    probabilities: 0.611 0.389 
-##   left son=148 (8 obs) right son=149 (28 obs)
-##   Primary splits:
-##       WordCount.root2 < 15.74773 to the right, improve=0.3968254, (0 missing)
-## 
-## Node number 75: 10 observations
-##   predicted class=Y  expected loss=0.3  P(node) =0.002081599
-##     class counts:     3     7
-##    probabilities: 0.300 0.700 
-## 
-## Node number 132: 930 observations,    complexity param=0.0005793743
-##   predicted class=N  expected loss=0.1311828  P(node) =0.1935887
-##     class counts:   808   122
-##    probabilities: 0.869 0.131 
-##   left son=264 (627 obs) right son=265 (303 obs)
-##   Primary splits:
-##       WordCount.root2                    < 33.97057 to the left,  improve=2.913816, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc   < 0.5      to the right, improve=2.586923, (0 missing)
-##       NDSSName.my.fctrBsnss#Tchnlgy#     < 0.5      to the left,  improve=2.402029, (0 missing)
-##       NDSSName.my.fctr#Opnn#RmFrDbt      < 0.5      to the right, improve=1.513920, (0 missing)
-##       NDSSName.my.fctrBsnss#BsnssDy#Dlbk < 0.5      to the left,  improve=1.276783, (0 missing)
-##   Surrogate splits:
-##       NDSSName.my.fctr#Opnn#RmFrDbt < 0.5      to the left,  agree=0.719, adj=0.139, (0 split)
-## 
-## Node number 133: 63 observations,    complexity param=0.0003862495
-##   predicted class=N  expected loss=0.3174603  P(node) =0.01311407
-##     class counts:    43    20
-##    probabilities: 0.683 0.317 
-##   left son=266 (14 obs) right son=267 (49 obs)
-##   Primary splits:
-##       WordCount.root2 < 26.99984 to the left,  improve=0.38322, (0 missing)
-## 
-## Node number 140: 25 observations,    complexity param=0.000772499
-##   predicted class=Y  expected loss=0.4  P(node) =0.005203997
-##     class counts:    10    15
-##    probabilities: 0.400 0.600 
-##   left son=280 (8 obs) right son=281 (17 obs)
-##   Primary splits:
-##       WordCount.root2 < 28.02674 to the left,  improve=1.191176, (0 missing)
-## 
-## Node number 141: 54 observations,    complexity param=0.0003862495
-##   predicted class=Y  expected loss=0.2777778  P(node) =0.01124063
-##     class counts:    15    39
-##    probabilities: 0.278 0.722 
-##   left son=282 (45 obs) right son=283 (9 obs)
-##   Primary splits:
-##       WordCount.root2 < 26.55173 to the left,  improve=0.6, (0 missing)
-## 
-## Node number 148: 8 observations
-##   predicted class=N  expected loss=0.25  P(node) =0.001665279
-##     class counts:     6     2
-##    probabilities: 0.750 0.250 
-## 
-## Node number 149: 28 observations,    complexity param=0.001158749
-##   predicted class=N  expected loss=0.4285714  P(node) =0.005828476
-##     class counts:    16    12
-##    probabilities: 0.571 0.429 
-##   left son=298 (20 obs) right son=299 (8 obs)
-##   Primary splits:
-##       WordCount.root2 < 15.06648 to the left,  improve=0.8642857, (0 missing)
-## 
-## Node number 264: 627 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.1036683  P(node) =0.1305162
-##     class counts:   562    65
-##    probabilities: 0.896 0.104 
-##   left son=528 (561 obs) right son=529 (66 obs)
-##   Primary splits:
-##       NDSSName.my.fctrBsnss#Tchnlgy#   < 0.5      to the left,  improve=2.8404170, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc < 0.5      to the right, improve=1.0796950, (0 missing)
-##       NDSSName.my.fctrTStyl##          < 0.5      to the right, improve=1.0670160, (0 missing)
-##       WordCount.root2                  < 29.5127  to the left,  improve=0.8966879, (0 missing)
-##       NDSSName.my.fctr#Mltmd#          < 0.5      to the right, improve=0.4399337, (0 missing)
-## 
-## Node number 265: 303 observations,    complexity param=0.0005793743
-##   predicted class=N  expected loss=0.1881188  P(node) =0.06307244
-##     class counts:   246    57
-##    probabilities: 0.812 0.188 
-##   left son=530 (222 obs) right son=531 (81 obs)
-##   Primary splits:
-##       NDSSName.my.fctrBsnss#BsnssDy#Dlbk < 0.5      to the left,  improve=5.4890570, (0 missing)
-##       WordCount.root2                    < 38.17067 to the right, improve=5.0156320, (0 missing)
-##       NDSSName.my.fctr#Opnn#RmFrDbt      < 0.5      to the right, improve=3.4510070, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc   < 0.5      to the right, improve=1.5155860, (0 missing)
-##       NDSSName.my.fctr#U.S.#Edctn        < 0.5      to the right, improve=0.8078801, (0 missing)
-##   Surrogate splits:
-##       WordCount.root2 < 34.08078 to the right, agree=0.739, adj=0.025, (0 split)
-## 
-## Node number 266: 14 observations
-##   predicted class=N  expected loss=0.2142857  P(node) =0.002914238
-##     class counts:    11     3
-##    probabilities: 0.786 0.214 
-## 
-## Node number 267: 49 observations,    complexity param=0.0003862495
-##   predicted class=N  expected loss=0.3469388  P(node) =0.01019983
-##     class counts:    32    17
-##    probabilities: 0.653 0.347 
-##   left son=534 (10 obs) right son=535 (39 obs)
-##   Primary splits:
-##       WordCount.root2 < 41.56249 to the right, improve=0.5425432, (0 missing)
-## 
-## Node number 280: 8 observations
-##   predicted class=N  expected loss=0.375  P(node) =0.001665279
-##     class counts:     5     3
-##    probabilities: 0.625 0.375 
-## 
-## Node number 281: 17 observations
-##   predicted class=Y  expected loss=0.2941176  P(node) =0.003538718
-##     class counts:     5    12
-##    probabilities: 0.294 0.706 
-## 
-## Node number 282: 45 observations,    complexity param=0.0003862495
-##   predicted class=Y  expected loss=0.3111111  P(node) =0.009367194
-##     class counts:    14    31
-##    probabilities: 0.311 0.689 
-##   left son=564 (23 obs) right son=565 (22 obs)
-##   Primary splits:
-##       WordCount.root2 < 21.70252 to the right, improve=0.6050944, (0 missing)
-## 
-## Node number 283: 9 observations
-##   predicted class=Y  expected loss=0.1111111  P(node) =0.001873439
-##     class counts:     1     8
-##    probabilities: 0.111 0.889 
-## 
-## Node number 298: 20 observations
-##   predicted class=N  expected loss=0.35  P(node) =0.004163197
-##     class counts:    13     7
-##    probabilities: 0.650 0.350 
-## 
-## Node number 299: 8 observations
-##   predicted class=Y  expected loss=0.375  P(node) =0.001665279
-##     class counts:     3     5
-##    probabilities: 0.375 0.625 
-## 
-## Node number 528: 561 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.08734403  P(node) =0.1167777
-##     class counts:   512    49
-##    probabilities: 0.913 0.087 
-##   left son=1056 (281 obs) right son=1057 (280 obs)
-##   Primary splits:
-##       WordCount.root2                  < 29.33428 to the left,  improve=1.5853030, (0 missing)
-##       NDSSName.my.fctrTStyl##          < 0.5      to the right, improve=0.7645570, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc < 0.5      to the right, improve=0.7250433, (0 missing)
-##       NDSSName.my.fctrStyls##Fshn      < 0.5      to the right, improve=0.3000638, (0 missing)
-##       NDSSName.my.fctr#Mltmd#          < 0.5      to the right, improve=0.2729836, (0 missing)
-##   Surrogate splits:
-##       NDSSName.my.fctrMtr#N.Y./Rgn#           < 0.5      to the left,  agree=0.560, adj=0.118, (0 split)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc        < 0.5      to the right, agree=0.533, adj=0.064, (0 split)
-##       NDSSName.my.fctr#Mltmd#                 < 0.5      to the right, agree=0.524, adj=0.046, (0 split)
-##       NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss < 0.5      to the left,  agree=0.515, adj=0.029, (0 split)
-##       NDSSName.my.fctrStyls##Fshn             < 0.5      to the right, agree=0.512, adj=0.021, (0 split)
-## 
-## Node number 529: 66 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.2424242  P(node) =0.01373855
-##     class counts:    50    16
-##    probabilities: 0.758 0.242 
-##   left son=1058 (38 obs) right son=1059 (28 obs)
-##   Primary splits:
-##       WordCount.root2 < 27.86575 to the left,  improve=0.6070859, (0 missing)
-## 
-## Node number 530: 222 observations
-##   predicted class=N  expected loss=0.1306306  P(node) =0.04621149
-##     class counts:   193    29
-##    probabilities: 0.869 0.131 
-## 
-## Node number 531: 81 observations,    complexity param=0.0005793743
-##   predicted class=N  expected loss=0.345679  P(node) =0.01686095
-##     class counts:    53    28
-##    probabilities: 0.654 0.346 
-##   left son=1062 (15 obs) right son=1063 (66 obs)
-##   Primary splits:
-##       WordCount.root2 < 41.59766 to the right, improve=2.866218, (0 missing)
-## 
-## Node number 534: 10 observations
-##   predicted class=N  expected loss=0.2  P(node) =0.002081599
-##     class counts:     8     2
-##    probabilities: 0.800 0.200 
-## 
-## Node number 535: 39 observations,    complexity param=0.0003862495
-##   predicted class=N  expected loss=0.3846154  P(node) =0.008118235
-##     class counts:    24    15
-##    probabilities: 0.615 0.385 
-##   left son=1070 (32 obs) right son=1071 (7 obs)
-##   Primary splits:
-##       WordCount.root2 < 34.23387 to the left,  improve=0.595467, (0 missing)
-## 
-## Node number 564: 23 observations,    complexity param=0.0003862495
-##   predicted class=Y  expected loss=0.3913043  P(node) =0.004787677
-##     class counts:     9    14
-##    probabilities: 0.391 0.609 
-##   left son=1128 (7 obs) right son=1129 (16 obs)
-##   Primary splits:
-##       WordCount.root2 < 23.6326  to the left,  improve=0.6529503, (0 missing)
-## 
-## Node number 565: 22 observations
-##   predicted class=Y  expected loss=0.2272727  P(node) =0.004579517
-##     class counts:     5    17
-##    probabilities: 0.227 0.773 
-## 
-## Node number 1056: 281 observations
-##   predicted class=N  expected loss=0.04982206  P(node) =0.05849292
-##     class counts:   267    14
-##    probabilities: 0.950 0.050 
-## 
-## Node number 1057: 280 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.125  P(node) =0.05828476
-##     class counts:   245    35
-##    probabilities: 0.875 0.125 
-##   left son=2114 (71 obs) right son=2115 (209 obs)
-##   Primary splits:
-##       WordCount.root2                  < 32.57299 to the right, improve=0.8968765, (0 missing)
-##       NDSSName.my.fctrTStyl##          < 0.5      to the right, improve=0.7830739, (0 missing)
-##       NDSSName.my.fctrMtr#N.Y./Rgn#    < 0.5      to the right, improve=0.3683673, (0 missing)
-##       NDSSName.my.fctr#Mltmd#          < 0.5      to the right, improve=0.3578067, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc < 0.5      to the right, improve=0.3021494, (0 missing)
-## 
-## Node number 1058: 38 observations
-##   predicted class=N  expected loss=0.1842105  P(node) =0.007910075
-##     class counts:    31     7
-##    probabilities: 0.816 0.184 
-## 
-## Node number 1059: 28 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.3214286  P(node) =0.005828476
-##     class counts:    19     9
-##    probabilities: 0.679 0.321 
-##   left son=2118 (19 obs) right son=2119 (9 obs)
-##   Primary splits:
-##       WordCount.root2 < 28.6269  to the right, improve=1.454052, (0 missing)
-## 
-## Node number 1062: 15 observations
-##   predicted class=N  expected loss=0.06666667  P(node) =0.003122398
-##     class counts:    14     1
-##    probabilities: 0.933 0.067 
-## 
-## Node number 1063: 66 observations,    complexity param=0.0005793743
-##   predicted class=N  expected loss=0.4090909  P(node) =0.01373855
-##     class counts:    39    27
-##    probabilities: 0.591 0.409 
-##   left son=2126 (25 obs) right son=2127 (41 obs)
-##   Primary splits:
-##       WordCount.root2 < 35.6581  to the left,  improve=1.341286, (0 missing)
-## 
-## Node number 1070: 32 observations
-##   predicted class=N  expected loss=0.34375  P(node) =0.006661116
-##     class counts:    21    11
-##    probabilities: 0.656 0.344 
-## 
-## Node number 1071: 7 observations
-##   predicted class=Y  expected loss=0.4285714  P(node) =0.001457119
-##     class counts:     3     4
-##    probabilities: 0.429 0.571 
-## 
-## Node number 1128: 7 observations
-##   predicted class=N  expected loss=0.4285714  P(node) =0.001457119
-##     class counts:     4     3
-##    probabilities: 0.571 0.429 
-## 
-## Node number 1129: 16 observations
-##   predicted class=Y  expected loss=0.3125  P(node) =0.003330558
-##     class counts:     5    11
-##    probabilities: 0.312 0.688 
-## 
-## Node number 2114: 71 observations
-##   predicted class=N  expected loss=0.05633803  P(node) =0.01477935
-##     class counts:    67     4
-##    probabilities: 0.944 0.056 
-## 
-## Node number 2115: 209 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.1483254  P(node) =0.04350541
-##     class counts:   178    31
-##    probabilities: 0.852 0.148 
-##   left son=4230 (12 obs) right son=4231 (197 obs)
-##   Primary splits:
-##       NDSSName.my.fctrTStyl##          < 0.5      to the right, improve=0.5601729, (0 missing)
-##       NDSSName.my.fctr#Mltmd#          < 0.5      to the right, improve=0.5108985, (0 missing)
-##       WordCount.root2                  < 30.09153 to the right, improve=0.4980706, (0 missing)
-##       NDSSName.my.fctrMtr#N.Y./Rgn#    < 0.5      to the right, improve=0.4241343, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc < 0.5      to the right, improve=0.3390226, (0 missing)
-## 
-## Node number 2118: 19 observations
-##   predicted class=N  expected loss=0.2105263  P(node) =0.003955037
-##     class counts:    15     4
-##    probabilities: 0.789 0.211 
-## 
-## Node number 2119: 9 observations
-##   predicted class=Y  expected loss=0.4444444  P(node) =0.001873439
-##     class counts:     4     5
-##    probabilities: 0.444 0.556 
-## 
-## Node number 2126: 25 observations
-##   predicted class=N  expected loss=0.28  P(node) =0.005203997
-##     class counts:    18     7
-##    probabilities: 0.720 0.280 
-## 
-## Node number 2127: 41 observations,    complexity param=0.0005793743
-##   predicted class=N  expected loss=0.4878049  P(node) =0.008534555
-##     class counts:    21    20
-##    probabilities: 0.512 0.488 
-##   left son=4254 (30 obs) right son=4255 (11 obs)
-##   Primary splits:
-##       WordCount.root2 < 36.31791 to the right, improve=0.6635625, (0 missing)
-## 
-## Node number 4230: 12 observations
-##   predicted class=N  expected loss=0  P(node) =0.002497918
-##     class counts:    12     0
-##    probabilities: 1.000 0.000 
-## 
-## Node number 4231: 197 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.1573604  P(node) =0.04100749
-##     class counts:   166    31
-##    probabilities: 0.843 0.157 
-##   left son=8462 (11 obs) right son=8463 (186 obs)
-##   Primary splits:
-##       NDSSName.my.fctr#Mltmd#                 < 0.5      to the right, improve=0.5769882, (0 missing)
-##       NDSSName.my.fctrMtr#N.Y./Rgn#           < 0.5      to the right, improve=0.5314217, (0 missing)
-##       WordCount.root2                         < 30.09153 to the right, improve=0.4682049, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc        < 0.5      to the right, improve=0.4106319, (0 missing)
-##       NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss < 0.5      to the right, improve=0.1814254, (0 missing)
-## 
-## Node number 4254: 30 observations,    complexity param=0.0005793743
-##   predicted class=N  expected loss=0.4333333  P(node) =0.006244796
-##     class counts:    17    13
-##    probabilities: 0.567 0.433 
-##   left son=8508 (7 obs) right son=8509 (23 obs)
-##   Primary splits:
-##       WordCount.root2 < 37.14159 to the left,  improve=0.3979296, (0 missing)
-## 
-## Node number 4255: 11 observations
-##   predicted class=Y  expected loss=0.3636364  P(node) =0.002289759
-##     class counts:     4     7
-##    probabilities: 0.364 0.636 
-## 
-## Node number 8462: 11 observations
-##   predicted class=N  expected loss=0  P(node) =0.002289759
-##     class counts:    11     0
-##    probabilities: 1.000 0.000 
-## 
-## Node number 8463: 186 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.1666667  P(node) =0.03871774
-##     class counts:   155    31
-##    probabilities: 0.833 0.167 
-##   left son=16926 (29 obs) right son=16927 (157 obs)
-##   Primary splits:
-##       NDSSName.my.fctrMtr#N.Y./Rgn#           < 0.5      to the right, improve=0.6559045, (0 missing)
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc        < 0.5      to the right, improve=0.4920635, (0 missing)
-##       WordCount.root2                         < 30.09153 to the right, improve=0.3890196, (0 missing)
-##       NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss < 0.5      to the right, improve=0.2415584, (0 missing)
-##       NDSSName.my.fctrBsnss#BsnssDy#Dlbk      < 0.5      to the left,  improve=0.0126479, (0 missing)
-## 
-## Node number 8508: 7 observations
-##   predicted class=N  expected loss=0.2857143  P(node) =0.001457119
-##     class counts:     5     2
-##    probabilities: 0.714 0.286 
-## 
-## Node number 8509: 23 observations,    complexity param=0.0005793743
-##   predicted class=N  expected loss=0.4782609  P(node) =0.004787677
-##     class counts:    12    11
-##    probabilities: 0.522 0.478 
-##   left son=17018 (8 obs) right son=17019 (15 obs)
-##   Primary splits:
-##       WordCount.root2 < 38.57459 to the right, improve=0.2615942, (0 missing)
-## 
-## Node number 16926: 29 observations
-##   predicted class=N  expected loss=0.06896552  P(node) =0.006036636
-##     class counts:    27     2
-##    probabilities: 0.931 0.069 
-## 
-## Node number 16927: 157 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.1847134  P(node) =0.0326811
-##     class counts:   128    29
-##    probabilities: 0.815 0.185 
-##   left son=33854 (18 obs) right son=33855 (139 obs)
-##   Primary splits:
-##       NDSSName.my.fctrFrgn#Wrld#AsPcfc        < 0.5      to the right, improve=0.67831090, (0 missing)
-##       WordCount.root2                         < 32.38827 to the left,  improve=0.61044970, (0 missing)
-##       NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss < 0.5      to the right, improve=0.38816480, (0 missing)
-##       NDSSName.my.fctrBsnss#BsnssDy#Dlbk      < 0.5      to the right, improve=0.01539613, (0 missing)
-##   Surrogate splits:
-##       WordCount.root2 < 32.51922 to the right, agree=0.892, adj=0.056, (0 split)
-## 
-## Node number 17018: 8 observations
-##   predicted class=N  expected loss=0.375  P(node) =0.001665279
-##     class counts:     5     3
-##    probabilities: 0.625 0.375 
-## 
-## Node number 17019: 15 observations
-##   predicted class=Y  expected loss=0.4666667  P(node) =0.003122398
-##     class counts:     7     8
-##    probabilities: 0.467 0.533 
-## 
-## Node number 33854: 18 observations
-##   predicted class=N  expected loss=0.05555556  P(node) =0.003746878
-##     class counts:    17     1
-##    probabilities: 0.944 0.056 
-## 
-## Node number 33855: 139 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.2014388  P(node) =0.02893422
-##     class counts:   111    28
-##    probabilities: 0.799 0.201 
-##   left son=67710 (102 obs) right son=67711 (37 obs)
-##   Primary splits:
-##       WordCount.root2                         < 30.09153 to the right, improve=0.9266317, (0 missing)
-##       NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss < 0.5      to the right, improve=0.5580040, (0 missing)
-##       NDSSName.my.fctrBsnss#BsnssDy#Dlbk      < 0.5      to the right, improve=0.1306354, (0 missing)
-## 
-## Node number 67710: 102 observations
-##   predicted class=N  expected loss=0.1666667  P(node) =0.02123231
-##     class counts:    85    17
-##    probabilities: 0.833 0.167 
-## 
-## Node number 67711: 37 observations,    complexity param=0.0004213631
-##   predicted class=N  expected loss=0.2972973  P(node) =0.007701915
-##     class counts:    26    11
-##    probabilities: 0.703 0.297 
-##   left son=135422 (30 obs) right son=135423 (7 obs)
-##   Primary splits:
-##       WordCount.root2                    < 29.92488 to the left,  improve=3.00231700, (0 missing)
-##       NDSSName.my.fctrBsnss#BsnssDy#Dlbk < 0.5      to the left,  improve=0.01303089, (0 missing)
-## 
-## Node number 135422: 30 observations
-##   predicted class=N  expected loss=0.2  P(node) =0.006244796
-##     class counts:    24     6
-##    probabilities: 0.800 0.200 
-## 
-## Node number 135423: 7 observations
-##   predicted class=Y  expected loss=0.2857143  P(node) =0.001457119
-##     class counts:     2     5
-##    probabilities: 0.286 0.714 
-## 
-## n= 4804 
-## 
-## node), split, n, loss, yval, (yprob)
-##       * denotes terminal node
-## 
-##      1) root 4804 863 N (0.82035803 0.17964197)  
-##        2) NDSSName.my.fctrOpEd#Opnn#< 0.5 4367 485 N (0.88893978 0.11106022)  
-##          4) NDSSName.my.fctrBsnss#Crsswrds/Gms#< 0.5 4262 390 N (0.90849366 0.09150634)  
-##            8) NDSSName.my.fctrScnc#Hlth#< 0.5 4114 279 N (0.93218279 0.06781721)  
-##             16) NDSSName.my.fctrStyls#U.S.#< 0.5 3987 191 N (0.95209431 0.04790569)  
-##               32) WordCount.root2< 25.01 2982  38 N (0.98725687 0.01274313) *
-##               33) WordCount.root2>=25.01 1005 153 N (0.84776119 0.15223881)  
-##                 66) NDSSName.my.fctr#Opnn#ThPblcEdtr< 0.5 993 142 N (0.85699899 0.14300101)  
-##                  132) NDSSName.my.fctrCltr#Arts#< 0.5 930 122 N (0.86881720 0.13118280)  
-##                    264) WordCount.root2< 33.97057 627  65 N (0.89633174 0.10366826)  
-##                      528) NDSSName.my.fctrBsnss#Tchnlgy#< 0.5 561  49 N (0.91265597 0.08734403)  
-##                       1056) WordCount.root2< 29.33428 281  14 N (0.95017794 0.04982206) *
-##                       1057) WordCount.root2>=29.33428 280  35 N (0.87500000 0.12500000)  
-##                         2114) WordCount.root2>=32.57299 71   4 N (0.94366197 0.05633803) *
-##                         2115) WordCount.root2< 32.57299 209  31 N (0.85167464 0.14832536)  
-##                           4230) NDSSName.my.fctrTStyl##>=0.5 12   0 N (1.00000000 0.00000000) *
-##                           4231) NDSSName.my.fctrTStyl##< 0.5 197  31 N (0.84263959 0.15736041)  
-##                             8462) NDSSName.my.fctr#Mltmd#>=0.5 11   0 N (1.00000000 0.00000000) *
-##                             8463) NDSSName.my.fctr#Mltmd#< 0.5 186  31 N (0.83333333 0.16666667)  
-##                              16926) NDSSName.my.fctrMtr#N.Y./Rgn#>=0.5 29   2 N (0.93103448 0.06896552) *
-##                              16927) NDSSName.my.fctrMtr#N.Y./Rgn#< 0.5 157  29 N (0.81528662 0.18471338)  
-##                                33854) NDSSName.my.fctrFrgn#Wrld#AsPcfc>=0.5 18   1 N (0.94444444 0.05555556) *
-##                                33855) NDSSName.my.fctrFrgn#Wrld#AsPcfc< 0.5 139  28 N (0.79856115 0.20143885)  
-##                                  67710) WordCount.root2>=30.09153 102  17 N (0.83333333 0.16666667) *
-##                                  67711) WordCount.root2< 30.09153 37  11 N (0.70270270 0.29729730)  
-##                                   135422) WordCount.root2< 29.92488 30   6 N (0.80000000 0.20000000) *
-##                                   135423) WordCount.root2>=29.92488 7   2 Y (0.28571429 0.71428571) *
-##                      529) NDSSName.my.fctrBsnss#Tchnlgy#>=0.5 66  16 N (0.75757576 0.24242424)  
-##                       1058) WordCount.root2< 27.86575 38   7 N (0.81578947 0.18421053) *
-##                       1059) WordCount.root2>=27.86575 28   9 N (0.67857143 0.32142857)  
-##                         2118) WordCount.root2>=28.6269 19   4 N (0.78947368 0.21052632) *
-##                         2119) WordCount.root2< 28.6269 9   4 Y (0.44444444 0.55555556) *
-##                    265) WordCount.root2>=33.97057 303  57 N (0.81188119 0.18811881)  
-##                      530) NDSSName.my.fctrBsnss#BsnssDy#Dlbk< 0.5 222  29 N (0.86936937 0.13063063) *
-##                      531) NDSSName.my.fctrBsnss#BsnssDy#Dlbk>=0.5 81  28 N (0.65432099 0.34567901)  
-##                       1062) WordCount.root2>=41.59766 15   1 N (0.93333333 0.06666667) *
-##                       1063) WordCount.root2< 41.59766 66  27 N (0.59090909 0.40909091)  
-##                         2126) WordCount.root2< 35.6581 25   7 N (0.72000000 0.28000000) *
-##                         2127) WordCount.root2>=35.6581 41  20 N (0.51219512 0.48780488)  
-##                           4254) WordCount.root2>=36.31791 30  13 N (0.56666667 0.43333333)  
-##                             8508) WordCount.root2< 37.14159 7   2 N (0.71428571 0.28571429) *
-##                             8509) WordCount.root2>=37.14159 23  11 N (0.52173913 0.47826087)  
-##                              17018) WordCount.root2>=38.57459 8   3 N (0.62500000 0.37500000) *
-##                              17019) WordCount.root2< 38.57459 15   7 Y (0.46666667 0.53333333) *
-##                           4255) WordCount.root2< 36.31791 11   4 Y (0.36363636 0.63636364) *
-##                  133) NDSSName.my.fctrCltr#Arts#>=0.5 63  20 N (0.68253968 0.31746032)  
-##                    266) WordCount.root2< 26.99984 14   3 N (0.78571429 0.21428571) *
-##                    267) WordCount.root2>=26.99984 49  17 N (0.65306122 0.34693878)  
-##                      534) WordCount.root2>=41.56249 10   2 N (0.80000000 0.20000000) *
-##                      535) WordCount.root2< 41.56249 39  15 N (0.61538462 0.38461538)  
-##                       1070) WordCount.root2< 34.23387 32  11 N (0.65625000 0.34375000) *
-##                       1071) WordCount.root2>=34.23387 7   3 Y (0.42857143 0.57142857) *
-##                 67) NDSSName.my.fctr#Opnn#ThPblcEdtr>=0.5 12   1 Y (0.08333333 0.91666667) *
-##             17) NDSSName.my.fctrStyls#U.S.#>=0.5 127  39 Y (0.30708661 0.69291339)  
-##               34) WordCount.root2< 15.32846 13   5 N (0.61538462 0.38461538) *
-##               35) WordCount.root2>=15.32846 114  31 Y (0.27192982 0.72807018)  
-##                 70) WordCount.root2< 29.21444 79  25 Y (0.31645570 0.68354430)  
-##                  140) WordCount.root2>=27.36786 25  10 Y (0.40000000 0.60000000)  
-##                    280) WordCount.root2< 28.02674 8   3 N (0.62500000 0.37500000) *
-##                    281) WordCount.root2>=28.02674 17   5 Y (0.29411765 0.70588235) *
-##                  141) WordCount.root2< 27.36786 54  15 Y (0.27777778 0.72222222)  
-##                    282) WordCount.root2< 26.55173 45  14 Y (0.31111111 0.68888889)  
-##                      564) WordCount.root2>=21.70252 23   9 Y (0.39130435 0.60869565)  
-##                       1128) WordCount.root2< 23.6326 7   3 N (0.57142857 0.42857143) *
-##                       1129) WordCount.root2>=23.6326 16   5 Y (0.31250000 0.68750000) *
-##                      565) WordCount.root2< 21.70252 22   5 Y (0.22727273 0.77272727) *
-##                    283) WordCount.root2>=26.55173 9   1 Y (0.11111111 0.88888889) *
-##                 71) WordCount.root2>=29.21444 35   6 Y (0.17142857 0.82857143) *
-##            9) NDSSName.my.fctrScnc#Hlth#>=0.5 148  37 Y (0.25000000 0.75000000)  
-##             18) WordCount.root2< 22.72663 55  23 N (0.58181818 0.41818182)  
-##               36) WordCount.root2>=19.93708 9   2 N (0.77777778 0.22222222) *
-##               37) WordCount.root2< 19.93708 46  21 N (0.54347826 0.45652174)  
-##                 74) WordCount.root2< 17.01454 36  14 N (0.61111111 0.38888889)  
-##                  148) WordCount.root2>=15.74773 8   2 N (0.75000000 0.25000000) *
-##                  149) WordCount.root2< 15.74773 28  12 N (0.57142857 0.42857143)  
-##                    298) WordCount.root2< 15.06648 20   7 N (0.65000000 0.35000000) *
-##                    299) WordCount.root2>=15.06648 8   3 Y (0.37500000 0.62500000) *
-##                 75) WordCount.root2>=17.01454 10   3 Y (0.30000000 0.70000000) *
-##             19) WordCount.root2>=22.72663 93   5 Y (0.05376344 0.94623656) *
-##          5) NDSSName.my.fctrBsnss#Crsswrds/Gms#>=0.5 105  10 Y (0.09523810 0.90476190)  
-##           10) WordCount.root2< 18.9043 12   5 N (0.58333333 0.41666667) *
-##           11) WordCount.root2>=18.9043 93   3 Y (0.03225806 0.96774194) *
-##        3) NDSSName.my.fctrOpEd#Opnn#>=0.5 437  59 Y (0.13501144 0.86498856) *
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-50.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-51.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 3814  127
-##         Y  170  693
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.381765e-01   7.860827e-01   9.309917e-01   9.448229e-01   8.203580e-01 
-## AccuracyPValue  McnemarPValue 
-##  2.798570e-127   1.480611e-02
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-52.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-53.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 1180  318
-##         Y   84  146
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   7.673611e-01   2.953321e-01   7.467059e-01   7.871043e-01   8.668981e-01 
-## AccuracyPValue  McnemarPValue 
-##   1.000000e+00   3.224022e-31 
-##                               id                            feats
-## 1 Max.cor.Y.rcv.1X1.cp.0###rpart WordCount.root2,NDSSName.my.fctr
-##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               0                      0.857                 0.072
-##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8821543    0.9705658    0.7937428       0.9504198
-##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.4       0.8235294        0.9381765
-##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9309917             0.9448229     0.7860827
-##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.6174697    0.9218959    0.3130435       0.7773858
-##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4207493        0.7673611
-##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7467059             0.7871043     0.2953321
-```
-
-```r
 #stop(here"); glb2Sav(); all.equal(glb_models_df, sav_models_df)
 # if (glb_is_regression || glb_is_binomial) # For multinomials this model will be run next by default
 ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
@@ -5100,7 +3141,14 @@ trainControl.allowParallel = FALSE,
 
 ```
 ## [1] "fitting model: Max.cor.Y##rcv#rpart"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr"
+## [1] "    indep_vars: WordCount.root2,NDSS.my.fctr"
+```
+
+```
+## Loading required package: rpart
+```
+
+```
 ## + Fold1.Rep1: cp=0.01043 
 ## - Fold1.Rep1: cp=0.01043 
 ## + Fold2.Rep1: cp=0.01043 
@@ -5130,7 +3178,11 @@ trainControl.allowParallel = FALSE,
 ## tuneGrid for parameter: cp
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-54.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-55.png) 
+```
+## Loading required package: rpart.plot
+```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-12.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-13.png) 
 
 ```
 ## Call:
@@ -5147,10 +3199,10 @@ trainControl.allowParallel = FALSE,
 ## 5 0.01042874      4 0.3893395
 ## 
 ## Variable importance
-##          NDSSName.my.fctrOpEd#Opnn# NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                                  55                                  16 
-##          NDSSName.my.fctrScnc#Hlth#         NDSSName.my.fctrStyls#U.S.# 
-##                                  16                                  12 
+##          NDSS.my.fctrOpEd#Opnn# NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                              55                              16 
+##          NDSS.my.fctrScnc#Hlth#         NDSS.my.fctrStyls#U.S.# 
+##                              16                              12 
 ## 
 ## Node number 1: 4804 observations,    complexity param=0.3696408
 ##   predicted class=N  expected loss=0.179642  P(node) =1
@@ -5158,11 +3210,11 @@ trainControl.allowParallel = FALSE,
 ##    probabilities: 0.820 0.180 
 ##   left son=2 (4367 obs) right son=3 (437 obs)
 ##   Primary splits:
-##       NDSSName.my.fctrOpEd#Opnn#          < 0.5      to the left,  improve=451.59770, (0 missing)
-##       NDSSName.my.fctrBsnss#Crsswrds/Gms# < 0.5      to the left,  improve=112.88510, (0 missing)
-##       WordCount.root2                     < 25.75849 to the left,  improve=111.17610, (0 missing)
-##       NDSSName.my.fctrScnc#Hlth#          < 0.5      to the left,  improve= 99.35206, (0 missing)
-##       NDSSName.my.fctrStyls#U.S.#         < 0.5      to the left,  improve= 68.73272, (0 missing)
+##       NDSS.my.fctrOpEd#Opnn#          < 0.5      to the left,  improve=451.59770, (0 missing)
+##       NDSS.my.fctrBsnss#Crsswrds/Gms# < 0.5      to the left,  improve=112.88510, (0 missing)
+##       WordCount.root2                 < 25.75849 to the left,  improve=111.17610, (0 missing)
+##       NDSS.my.fctrScnc#Hlth#          < 0.5      to the left,  improve= 99.35206, (0 missing)
+##       NDSS.my.fctrStyls#U.S.#         < 0.5      to the left,  improve= 68.73272, (0 missing)
 ## 
 ## Node number 2: 4367 observations,    complexity param=0.09849363
 ##   predicted class=N  expected loss=0.1110602  P(node) =0.9090341
@@ -5170,11 +3222,11 @@ trainControl.allowParallel = FALSE,
 ##    probabilities: 0.889 0.111 
 ##   left son=4 (4262 obs) right son=5 (105 obs)
 ##   Primary splits:
-##       NDSSName.my.fctrBsnss#Crsswrds/Gms# < 0.5      to the left,  improve=135.55130, (0 missing)
-##       NDSSName.my.fctrScnc#Hlth#          < 0.5      to the left,  improve=125.07920, (0 missing)
-##       WordCount.root2                     < 25.75849 to the left,  improve= 94.70710, (0 missing)
-##       NDSSName.my.fctrStyls#U.S.#         < 0.5      to the left,  improve= 88.56821, (0 missing)
-##       NDSSName.my.fctr#Opnn#ThPblcEdtr    < 0.5      to the left,  improve= 18.74400, (0 missing)
+##       NDSS.my.fctrBsnss#Crsswrds/Gms# < 0.5      to the left,  improve=135.55130, (0 missing)
+##       NDSS.my.fctrScnc#Hlth#          < 0.5      to the left,  improve=125.07920, (0 missing)
+##       WordCount.root2                 < 25.75849 to the left,  improve= 94.70710, (0 missing)
+##       NDSS.my.fctrStyls#U.S.#         < 0.5      to the left,  improve= 88.56821, (0 missing)
+##       NDSS.my.fctr#Opnn#ThPblcEdtr    < 0.5      to the left,  improve= 18.74400, (0 missing)
 ## 
 ## Node number 3: 437 observations
 ##   predicted class=Y  expected loss=0.1350114  P(node) =0.09096586
@@ -5187,11 +3239,11 @@ trainControl.allowParallel = FALSE,
 ##    probabilities: 0.908 0.092 
 ##   left son=8 (4114 obs) right son=9 (148 obs)
 ##   Primary splits:
-##       NDSSName.my.fctrScnc#Hlth#       < 0.5      to the left,  improve=132.96710, (0 missing)
-##       NDSSName.my.fctrStyls#U.S.#      < 0.5      to the left,  improve= 94.69099, (0 missing)
-##       WordCount.root2                  < 26.49528 to the left,  improve= 84.07487, (0 missing)
-##       NDSSName.my.fctr#Opnn#ThPblcEdtr < 0.5      to the left,  improve= 19.71762, (0 missing)
-##       NDSSName.my.fctrTStyl##          < 0.5      to the right, improve= 10.17000, (0 missing)
+##       NDSS.my.fctrScnc#Hlth#       < 0.5      to the left,  improve=132.96710, (0 missing)
+##       NDSS.my.fctrStyls#U.S.#      < 0.5      to the left,  improve= 94.69099, (0 missing)
+##       WordCount.root2              < 26.49528 to the left,  improve= 84.07487, (0 missing)
+##       NDSS.my.fctr#Opnn#ThPblcEdtr < 0.5      to the left,  improve= 19.71762, (0 missing)
+##       NDSS.my.fctrTStyl##          < 0.5      to the right, improve= 10.17000, (0 missing)
 ## 
 ## Node number 5: 105 observations
 ##   predicted class=Y  expected loss=0.0952381  P(node) =0.02185679
@@ -5204,11 +3256,11 @@ trainControl.allowParallel = FALSE,
 ##    probabilities: 0.932 0.068 
 ##   left son=16 (3987 obs) right son=17 (127 obs)
 ##   Primary splits:
-##       NDSSName.my.fctrStyls#U.S.#      < 0.5      to the left,  improve=102.410700, (0 missing)
-##       WordCount.root2                  < 25.01    to the left,  improve= 47.352210, (0 missing)
-##       NDSSName.my.fctr#Opnn#ThPblcEdtr < 0.5      to the left,  improve= 20.930810, (0 missing)
-##       NDSSName.my.fctrTStyl##          < 0.5      to the right, improve=  5.249425, (0 missing)
-##       NDSSName.my.fctrBsnss#Tchnlgy#   < 0.5      to the left,  improve=  2.395935, (0 missing)
+##       NDSS.my.fctrStyls#U.S.#      < 0.5      to the left,  improve=102.410700, (0 missing)
+##       WordCount.root2              < 25.01    to the left,  improve= 47.352210, (0 missing)
+##       NDSS.my.fctr#Opnn#ThPblcEdtr < 0.5      to the left,  improve= 20.930810, (0 missing)
+##       NDSS.my.fctrTStyl##          < 0.5      to the right, improve=  5.249425, (0 missing)
+##       NDSS.my.fctrBsnss#Tchnlgy#   < 0.5      to the left,  improve=  2.395935, (0 missing)
 ## 
 ## Node number 9: 148 observations
 ##   predicted class=Y  expected loss=0.25  P(node) =0.03080766
@@ -5231,17 +3283,17 @@ trainControl.allowParallel = FALSE,
 ##       * denotes terminal node
 ## 
 ##  1) root 4804 863 N (0.82035803 0.17964197)  
-##    2) NDSSName.my.fctrOpEd#Opnn#< 0.5 4367 485 N (0.88893978 0.11106022)  
-##      4) NDSSName.my.fctrBsnss#Crsswrds/Gms#< 0.5 4262 390 N (0.90849366 0.09150634)  
-##        8) NDSSName.my.fctrScnc#Hlth#< 0.5 4114 279 N (0.93218279 0.06781721)  
-##         16) NDSSName.my.fctrStyls#U.S.#< 0.5 3987 191 N (0.95209431 0.04790569) *
-##         17) NDSSName.my.fctrStyls#U.S.#>=0.5 127  39 Y (0.30708661 0.69291339) *
-##        9) NDSSName.my.fctrScnc#Hlth#>=0.5 148  37 Y (0.25000000 0.75000000) *
-##      5) NDSSName.my.fctrBsnss#Crsswrds/Gms#>=0.5 105  10 Y (0.09523810 0.90476190) *
-##    3) NDSSName.my.fctrOpEd#Opnn#>=0.5 437  59 Y (0.13501144 0.86498856) *
+##    2) NDSS.my.fctrOpEd#Opnn#< 0.5 4367 485 N (0.88893978 0.11106022)  
+##      4) NDSS.my.fctrBsnss#Crsswrds/Gms#< 0.5 4262 390 N (0.90849366 0.09150634)  
+##        8) NDSS.my.fctrScnc#Hlth#< 0.5 4114 279 N (0.93218279 0.06781721)  
+##         16) NDSS.my.fctrStyls#U.S.#< 0.5 3987 191 N (0.95209431 0.04790569) *
+##         17) NDSS.my.fctrStyls#U.S.#>=0.5 127  39 Y (0.30708661 0.69291339) *
+##        9) NDSS.my.fctrScnc#Hlth#>=0.5 148  37 Y (0.25000000 0.75000000) *
+##      5) NDSS.my.fctrBsnss#Crsswrds/Gms#>=0.5 105  10 Y (0.09523810 0.90476190) *
+##    3) NDSS.my.fctrOpEd#Opnn#>=0.5 437  59 Y (0.13501144 0.86498856) *
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-56.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-57.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-14.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-15.png) 
 
 ```
 ##          Prediction
@@ -5254,7 +3306,7 @@ trainControl.allowParallel = FALSE,
 ##  4.458834e-108   1.409037e-02
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-58.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-59.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-16.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-17.png) 
 
 ```
 ##          Prediction
@@ -5265,10 +3317,10 @@ trainControl.allowParallel = FALSE,
 ##      0.8200231      0.1825002      0.8010821      0.8378705      0.8668981 
 ## AccuracyPValue  McnemarPValue 
 ##      1.0000000      0.1735405 
-##                     id                            feats max.nTuningRuns
-## 1 Max.cor.Y##rcv#rpart WordCount.root2,NDSSName.my.fctr               5
+##                     id                        feats max.nTuningRuns
+## 1 Max.cor.Y##rcv#rpart WordCount.root2,NDSS.my.fctr               5
 ##   min.elapsedtime.everything min.elapsedtime.final max.AUCpROC.fit
-## 1                      2.988                 0.076       0.8709432
+## 1                      3.029                 0.077       0.8709432
 ##   max.Sens.fit max.Spec.fit max.AUCROCR.fit opt.prob.threshold.fit
 ## 1    0.9632073     0.778679       0.8746354                    0.6
 ##   max.f.score.fit max.Accuracy.fit max.AccuracyLower.fit
@@ -5311,20 +3363,20 @@ if ((length(glbFeatsDateTime) > 0) &&
 ```
 
 ```
-##                                   label step_major step_minor label_minor
-## 5 fit.models_0_Max.cor.Y[rcv.1X1.cp.0|]          1          4       rpart
-## 6      fit.models_0_Max.cor.Y.Time.Poly          1          5      glmnet
+##                              label step_major step_minor label_minor
+## 4   fit.models_0_Max.cor.Y.rcv.*X*          1          3      glmnet
+## 5 fit.models_0_Max.cor.Y.Time.Poly          1          4      glmnet
 ##       bgn     end elapsed
-## 5 169.327 183.585  14.258
-## 6 183.586      NA      NA
+## 4  88.902 102.249  13.347
+## 5 102.250      NA      NA
 ## [1] "fitting model: Max.cor.Y.Time.Poly##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.day.minutes.poly.2,PubDate.day.minutes.poly.3,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.5"
+## [1] "    indep_vars: WordCount.root2,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.day.minutes.poly.2,PubDate.day.minutes.poly.3,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.5"
 ## Aggregating results
 ## Selecting tuning parameters
 ## Fitting alpha = 0.55, lambda = 0.0201 on full training set
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-60.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-61.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-18.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-19.png) 
 
 ```
 ##             Length Class      Mode     
@@ -5347,40 +3399,40 @@ if ((length(glbFeatsDateTime) > 0) &&
 ## tuneValue      2   data.frame list     
 ## obsLevels      2   -none-     character
 ## [1] "min lambda > lambdaOpt:"
-##                         (Intercept)       NDSSName.my.fctr#Opnn#RmFrDbt 
-##                        -3.824918286                        -0.730902967 
-##    NDSSName.my.fctr#Opnn#ThPblcEdtr NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                         2.927432404                         3.640472806 
-##      NDSSName.my.fctrBsnss#Tchnlgy#    NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                         0.192915649                        -0.002462006 
-##          NDSSName.my.fctrOpEd#Opnn#          NDSSName.my.fctrScnc#Hlth# 
-##                         3.940210915                         3.120520277 
-##         NDSSName.my.fctrStyls#U.S.#             NDSSName.my.fctrTStyl## 
-##                         2.887354523                        -0.349210176 
-##          PubDate.day.minutes.poly.1          PubDate.day.minutes.poly.2 
-##                        10.171710001                         1.938052563 
-##          PubDate.day.minutes.poly.4                     WordCount.root2 
-##                         0.422263612                         0.053515500 
+##                     (Intercept)       NDSS.my.fctr#Opnn#RmFrDbt 
+##                    -3.824918286                    -0.730902967 
+##    NDSS.my.fctr#Opnn#ThPblcEdtr NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                     2.927432404                     3.640472806 
+##      NDSS.my.fctrBsnss#Tchnlgy#    NDSS.my.fctrFrgn#Wrld#AsPcfc 
+##                     0.192915649                    -0.002462006 
+##          NDSS.my.fctrOpEd#Opnn#          NDSS.my.fctrScnc#Hlth# 
+##                     3.940210915                     3.120520277 
+##         NDSS.my.fctrStyls#U.S.#             NDSS.my.fctrTStyl## 
+##                     2.887354523                    -0.349210176 
+##      PubDate.day.minutes.poly.1      PubDate.day.minutes.poly.2 
+##                    10.171710001                     1.938052563 
+##      PubDate.day.minutes.poly.4                 WordCount.root2 
+##                     0.422263612                     0.053515500 
 ## [1] "max lambda < lambdaOpt:"
-##                         (Intercept)       NDSSName.my.fctr#Opnn#RmFrDbt 
-##                        -3.902999004                        -0.872538727 
-##    NDSSName.my.fctr#Opnn#ThPblcEdtr         NDSSName.my.fctr#U.S.#Edctn 
-##                         3.038605329                        -0.004334849 
-## NDSSName.my.fctrBsnss#Crsswrds/Gms#      NDSSName.my.fctrBsnss#Tchnlgy# 
-##                         3.700053147                         0.274702193 
-##    NDSSName.my.fctrFrgn#Wrld#AsPcfc          NDSSName.my.fctrOpEd#Opnn# 
-##                        -0.061833760                         4.010945376 
-##          NDSSName.my.fctrScnc#Hlth#         NDSSName.my.fctrStyls#U.S.# 
-##                         3.177975989                         2.950583177 
-##             NDSSName.my.fctrTStyl##          PubDate.day.minutes.poly.1 
-##                        -0.393389148                        11.082450379 
-##          PubDate.day.minutes.poly.2          PubDate.day.minutes.poly.4 
-##                         2.849459283                         1.090937007 
-##                     WordCount.root2 
-##                         0.055710821
+##                     (Intercept)       NDSS.my.fctr#Opnn#RmFrDbt 
+##                    -3.902999004                    -0.872538727 
+##    NDSS.my.fctr#Opnn#ThPblcEdtr         NDSS.my.fctr#U.S.#Edctn 
+##                     3.038605329                    -0.004334849 
+## NDSS.my.fctrBsnss#Crsswrds/Gms#      NDSS.my.fctrBsnss#Tchnlgy# 
+##                     3.700053147                     0.274702193 
+##    NDSS.my.fctrFrgn#Wrld#AsPcfc          NDSS.my.fctrOpEd#Opnn# 
+##                    -0.061833760                     4.010945376 
+##          NDSS.my.fctrScnc#Hlth#         NDSS.my.fctrStyls#U.S.# 
+##                     3.177975989                     2.950583177 
+##             NDSS.my.fctrTStyl##      PubDate.day.minutes.poly.1 
+##                    -0.393389148                    11.082450379 
+##      PubDate.day.minutes.poly.2      PubDate.day.minutes.poly.4 
+##                     2.849459283                     1.090937007 
+##                 WordCount.root2 
+##                     0.055710821
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-62.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-63.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-20.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-21.png) 
 
 ```
 ##          Prediction
@@ -5393,7 +3445,7 @@ if ((length(glbFeatsDateTime) > 0) &&
 ##  1.026390e-114   8.406670e-02
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-64.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-65.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-22.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-23.png) 
 
 ```
 ##          Prediction
@@ -5406,10 +3458,10 @@ if ((length(glbFeatsDateTime) > 0) &&
 ##   1.000000e+00   2.416777e-33 
 ##                                id
 ## 1 Max.cor.Y.Time.Poly##rcv#glmnet
-##                                                                                                                                                                     feats
-## 1 WordCount.root2,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.day.minutes.poly.2,PubDate.day.minutes.poly.3,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.5
+##                                                                                                                                                                 feats
+## 1 WordCount.root2,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.day.minutes.poly.2,PubDate.day.minutes.poly.3,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.5
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                      4.944                 0.325
+## 1              25                      4.889                 0.316
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## 1        0.874855    0.9652372    0.7844728       0.9565422
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
@@ -5441,7 +3493,7 @@ if ((length(glbFeatsDateTime) > 0) &&
     ret_lst <- myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
         id.prefix = "Max.cor.Y.Time.Lag", 
         type = glb_model_type, 
-tune.df = glmnet_tune_models_df,        
+        tune.df = glbMdlTuneParams,        
         trainControl.method = "repeatedcv",
         trainControl.number = glb_rcv_n_folds, trainControl.repeats = glb_rcv_n_repeats,
         trainControl.classProbs = glb_is_classification,
@@ -5457,13 +3509,13 @@ tune.df = glmnet_tune_models_df,
 
 ```
 ##                              label step_major step_minor label_minor
-## 6 fit.models_0_Max.cor.Y.Time.Poly          1          5      glmnet
-## 7  fit.models_0_Max.cor.Y.Time.Lag          1          6      glmnet
+## 5 fit.models_0_Max.cor.Y.Time.Poly          1          4      glmnet
+## 6  fit.models_0_Max.cor.Y.Time.Lag          1          5      glmnet
 ##       bgn     end elapsed
-## 6 183.586 195.343  11.757
-## 7 195.344      NA      NA
+## 5 102.250 114.112  11.863
+## 6 114.113      NA      NA
 ## [1] "fitting model: Max.cor.Y.Time.Lag##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr,PubDate.last2.log1p,PubDate.last4.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.last32.log1p"
+## [1] "    indep_vars: WordCount.root2,NDSS.my.fctr,PubDate.last2.log1p,PubDate.last4.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.last32.log1p"
 ## Aggregating results
 ## Selecting tuning parameters
 ## Fitting alpha = 0.1, lambda = 0.0934 on full training set
@@ -5481,7 +3533,7 @@ tune.df = glmnet_tune_models_df,
 ## extreme of tuneGrid for parameter: lambda
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-66.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-67.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-24.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-25.png) 
 
 ```
 ##             Length Class      Mode     
@@ -5504,96 +3556,54 @@ tune.df = glmnet_tune_models_df,
 ## tuneValue      2   data.frame list     
 ## obsLevels      2   -none-     character
 ## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                            -3.176434160 
-##                 NDSSName.my.fctr#Mltmd# 
-##                            -0.126861451 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                            -0.486996181 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                             1.988487294 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                            -0.358275828 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                            -0.150520660 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                            -0.142657391 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                             2.404486307 
-##              NDSSName.my.fctrCltr#Arts# 
-##                            -0.134298496 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                            -0.183668961 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                            -0.337511604 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                             2.519630371 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                             2.009604889 
-##             NDSSName.my.fctrStyls##Fshn 
-##                            -0.261634932 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                             1.848208468 
-##                 NDSSName.my.fctrTStyl## 
-##                            -0.423871057 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                            -0.108409058 
-##                     PubDate.last2.log1p 
-##                             0.017330994 
-##                     PubDate.last4.log1p 
-##                             0.030509656 
-##                     PubDate.last8.log1p 
-##                             0.006803512 
-##                         WordCount.root2 
-##                             0.031613506 
+##                         (Intercept)                 NDSS.my.fctr#Mltmd# 
+##                        -3.110189977                        -0.122999082 
+##           NDSS.my.fctr#Opnn#RmFrDbt        NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                        -0.486965112                         1.985537850 
+##             NDSS.my.fctr#U.S.#Edctn      NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                        -0.355905159                        -0.150819398 
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss     NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                        -0.143861898                         2.409404874 
+##              NDSS.my.fctrCltr#Arts#              NDSS.my.fctrFrgn#Wrld# 
+##                        -0.135025648                        -0.182763766 
+##        NDSS.my.fctrFrgn#Wrld#AsPcfc              NDSS.my.fctrOpEd#Opnn# 
+##                        -0.334337141                         2.519450359 
+##              NDSS.my.fctrScnc#Hlth#             NDSS.my.fctrStyls##Fshn 
+##                         2.011582007                        -0.261047460 
+##             NDSS.my.fctrStyls#U.S.#                 NDSS.my.fctrTStyl## 
+##                         1.847003574                        -0.424630217 
+##              NDSS.my.fctrTrvl#Trvl#                 PubDate.last2.log1p 
+##                        -0.108706799                         0.015692430 
+##                 PubDate.last4.log1p                 PubDate.last8.log1p 
+##                         0.025510119                         0.005128644 
+##                     WordCount.root2 
+##                         0.031642730 
 ## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                            -3.298280366 
-##                 NDSSName.my.fctr#Mltmd# 
-##                            -0.161556150 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                            -0.562724348 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                             2.097804217 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                            -0.392971974 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                            -0.160713783 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                            -0.173587156 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                             2.493544311 
-##              NDSSName.my.fctrCltr#Arts# 
-##                            -0.143142862 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                            -0.214101718 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                            -0.377780436 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                             2.606990045 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                             2.086724293 
-##             NDSSName.my.fctrStyls##Fshn 
-##                            -0.300914741 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                             1.924528272 
-##                 NDSSName.my.fctrTStyl## 
-##                            -0.450495150 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                            -0.140386403 
-##                  NDSSName.my.fctrmyOthr 
-##                            -0.024631659 
-##                     PubDate.last2.log1p 
-##                             0.019411174 
-##                     PubDate.last4.log1p 
-##                             0.033396493 
-##                     PubDate.last8.log1p 
-##                             0.009744315 
-##                         WordCount.root2 
-##                             0.033177182
+##                         (Intercept)                 NDSS.my.fctr#Mltmd# 
+##                        -3.228591381                        -0.157045755 
+##           NDSS.my.fctr#Opnn#RmFrDbt        NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                        -0.562722304                         2.094599975 
+##             NDSS.my.fctr#U.S.#Edctn      NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                        -0.390420136                        -0.161009275 
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss     NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                        -0.174871733                         2.498780352 
+##              NDSS.my.fctrCltr#Arts#              NDSS.my.fctrFrgn#Wrld# 
+##                        -0.143896608                        -0.213094088 
+##        NDSS.my.fctrFrgn#Wrld#AsPcfc              NDSS.my.fctrOpEd#Opnn# 
+##                        -0.374278240                         2.606761820 
+##              NDSS.my.fctrScnc#Hlth#             NDSS.my.fctrStyls##Fshn 
+##                         2.089084565                        -0.300271918 
+##             NDSS.my.fctrStyls#U.S.#                 NDSS.my.fctrTStyl## 
+##                         1.923211176                        -0.451317439 
+##              NDSS.my.fctrTrvl#Trvl#                  NDSS.my.fctrmyOthr 
+##                        -0.140661020                        -0.021516646 
+##                 PubDate.last2.log1p                 PubDate.last4.log1p 
+##                         0.017794795                         0.028174208 
+##                 PubDate.last8.log1p                     WordCount.root2 
+##                         0.007857041                         0.033209968
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-68.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-69.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-26.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-27.png) 
 
 ```
 ##          Prediction
@@ -5606,7 +3616,7 @@ tune.df = glmnet_tune_models_df,
 ##  3.123849e-114   2.209097e-01
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-70.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-71.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-28.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-29.png) 
 
 ```
 ##          Prediction
@@ -5619,24 +3629,24 @@ tune.df = glmnet_tune_models_df,
 ##   1.000000e+00  7.592139e-117 
 ##                               id
 ## 1 Max.cor.Y.Time.Lag##rcv#glmnet
-##                                                                                                                                    feats
-## 1 WordCount.root2,NDSSName.my.fctr,PubDate.last2.log1p,PubDate.last4.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.last32.log1p
+##                                                                                                                                feats
+## 1 WordCount.root2,NDSS.my.fctr,PubDate.last2.log1p,PubDate.last4.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.last32.log1p
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               5                      3.978                  0.31
+## 1               5                      4.225                 0.318
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1        0.841928    0.9781781    0.7056779       0.9581739
+## 1        0.841928    0.9781781    0.7056779       0.9581563
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.3       0.8103347        0.9281861
+## 1                    0.3       0.8103347        0.9279084
 ##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1              0.925312             0.9396854     0.7362844
+## 1              0.925312             0.9396854      0.735003
 ##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5928717    0.9379172    0.2478261       0.8118709
+## 1       0.5925379    0.9372497    0.2478261       0.8117635
 ##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
 ## 1                    0.1       0.4062196         0.646412
 ##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
 ## 1             0.6233476             0.6689781     0.2515036
 ##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.004492459      0.01977567
+## 1        0.004559889      0.02005103
 ```
 
 ```r
@@ -5664,28 +3674,28 @@ if (length(int_feats <- setdiff(setdiff(unique(glb_feats_df$cor.high.X), NA),
 
 ```
 ##                              label step_major step_minor label_minor
-## 7  fit.models_0_Max.cor.Y.Time.Lag          1          6      glmnet
-## 8 fit.models_0_Interact.High.cor.Y          1          7      glmnet
-##       bgn     end elapsed
-## 7 195.344 206.242  10.899
-## 8 206.243      NA      NA
+## 6  fit.models_0_Max.cor.Y.Time.Lag          1          5      glmnet
+## 7 fit.models_0_Interact.High.cor.Y          1          6      glmnet
+##       bgn    end elapsed
+## 6 114.113 124.99  10.877
+## 7 124.990     NA      NA
 ## [1] "fitting model: Interact.High.cor.Y##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2,WordCount.root2:PubDate.day.minutes.poly.1,WordCount.root2:PubDate.last4.log1p,WordCount.root2:PubDate.last8.log1p,WordCount.root2:PubDate.month.fctr"
+## [1] "    indep_vars: WordCount.root2,NDSS.my.fctr,WordCount.root2:WordCount.root2,WordCount.root2:PubDate.day.minutes.poly.1,WordCount.root2:PubDate.last4.log1p,WordCount.root2:PubDate.month.fctr"
 ## Aggregating results
 ## Selecting tuning parameters
-## Fitting alpha = 0.775, lambda = 0.0201 on full training set
+## Fitting alpha = 0.775, lambda = 0.000934 on full training set
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-72.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-73.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-30.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-31.png) 
 
 ```
 ##             Length Class      Mode     
-## a0            93   -none-     numeric  
-## beta        2511   dgCMatrix  S4       
-## df            93   -none-     numeric  
+## a0            92   -none-     numeric  
+## beta        2392   dgCMatrix  S4       
+## df            92   -none-     numeric  
 ## dim            2   -none-     numeric  
-## lambda        93   -none-     numeric  
-## dev.ratio     93   -none-     numeric  
+## lambda        92   -none-     numeric  
+## dev.ratio     92   -none-     numeric  
 ## nulldev        1   -none-     numeric  
 ## npasses        1   -none-     numeric  
 ## jerr           1   -none-     numeric  
@@ -5694,108 +3704,158 @@ if (length(int_feats <- setdiff(setdiff(unique(glb_feats_df$cor.high.X), NA),
 ## call           5   -none-     call     
 ## nobs           1   -none-     numeric  
 ## lambdaOpt      1   -none-     numeric  
-## xNames        27   -none-     character
+## xNames        26   -none-     character
 ## problemType    1   -none-     character
 ## tuneValue      2   data.frame list     
 ## obsLevels      2   -none-     character
 ## [1] "min lambda > lambdaOpt:"
 ##                                (Intercept) 
-##                               -3.845236612 
-##              NDSSName.my.fctr#Opnn#RmFrDbt 
-##                               -0.563614974 
-##           NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                                2.783870533 
-##        NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                                3.561739787 
-##                 NDSSName.my.fctrOpEd#Opnn# 
-##                                4.006550818 
-##                 NDSSName.my.fctrScnc#Hlth# 
-##                                3.128996320 
-##                NDSSName.my.fctrStyls#U.S.# 
-##                                2.876817882 
-##                    NDSSName.my.fctrTStyl## 
-##                               -0.111222771 
+##                              -4.8684452161 
+##                        NDSS.my.fctr#Mltmd# 
+##                              -1.0487925341 
+##                  NDSS.my.fctr#Opnn#RmFrDbt 
+##                              -5.4745572239 
+##               NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                               4.2885428864 
+##                    NDSS.my.fctr#U.S.#Edctn 
+##                              -2.8325574053 
+##             NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                              -0.3151450444 
+##        NDSS.my.fctrBsnss#BsnssDy#SmllBsnss 
+##                              -0.7572259115 
+##            NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                               4.3391439837 
+##                 NDSS.my.fctrBsnss#Tchnlgy# 
+##                               0.8045020529 
+##                     NDSS.my.fctrCltr#Arts# 
+##                              -0.3229201625 
+##                     NDSS.my.fctrFrgn#Wrld# 
+##                              -1.8392467451 
+##               NDSS.my.fctrFrgn#Wrld#AsPcfc 
+##                              -1.8077498032 
+##                  NDSS.my.fctrMtr#N.Y./Rgn# 
+##                               0.2627263003 
+##                     NDSS.my.fctrOpEd#Opnn# 
+##                               4.7415088342 
+##                     NDSS.my.fctrScnc#Hlth# 
+##                               3.7483695286 
+##                    NDSS.my.fctrStyls##Fshn 
+##                              -2.4194040890 
+##                    NDSS.my.fctrStyls#U.S.# 
+##                               3.4229733393 
+##                        NDSS.my.fctrTStyl## 
+##                              -2.0211781889 
+##                     NDSS.my.fctrTrvl#Trvl# 
+##                              -1.7751305343 
+##                         NDSS.my.fctrmyOthr 
+##                              -2.3074809466 
 ##                            WordCount.root2 
-##                                0.008932084 
+##                               0.0361357822 
 ## WordCount.root2:PubDate.day.minutes.poly.1 
-##                                0.394598722 
+##                               1.0813556024 
 ##        WordCount.root2:PubDate.last4.log1p 
-##                                0.002954057 
-##        WordCount.root2:PubDate.last8.log1p 
-##                                0.002354682 
+##                               0.0069832077 
+##       WordCount.root2:PubDate.month.fctr10 
+##                               0.0039570640 
+##       WordCount.root2:PubDate.month.fctr11 
+##                              -0.0001256918 
 ## [1] "max lambda < lambdaOpt:"
 ##                                (Intercept) 
-##                               -3.926125697 
-##              NDSSName.my.fctr#Opnn#RmFrDbt 
-##                               -0.744959921 
-##           NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                                2.912506461 
-##        NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                                3.630806510 
-##             NDSSName.my.fctrBsnss#Tchnlgy# 
-##                                0.084402547 
-##                 NDSSName.my.fctrOpEd#Opnn# 
-##                                4.076710080 
-##                 NDSSName.my.fctrScnc#Hlth# 
-##                                3.198327583 
-##                NDSSName.my.fctrStyls#U.S.# 
-##                                2.943556606 
-##                    NDSSName.my.fctrTStyl## 
-##                               -0.164715659 
+##                              -4.8709915569 
+##                        NDSS.my.fctr#Mltmd# 
+##                              -1.0849702043 
+##                  NDSS.my.fctr#Opnn#RmFrDbt 
+##                              -5.5929746399 
+##               NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                               4.2928665989 
+##                    NDSS.my.fctr#U.S.#Edctn 
+##                              -2.9379189459 
+##             NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                              -0.3276698231 
+##        NDSS.my.fctrBsnss#BsnssDy#SmllBsnss 
+##                              -0.7772032984 
+##            NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                               4.3366629069 
+##                 NDSS.my.fctrBsnss#Tchnlgy# 
+##                               0.8004536454 
+##                     NDSS.my.fctrCltr#Arts# 
+##                              -0.3372244058 
+##                     NDSS.my.fctrFrgn#Wrld# 
+##                              -1.9323067428 
+##               NDSS.my.fctrFrgn#Wrld#AsPcfc 
+##                              -1.8410299268 
+##                  NDSS.my.fctrMtr#N.Y./Rgn# 
+##                               0.2641549470 
+##                     NDSS.my.fctrOpEd#Opnn# 
+##                               4.7402435031 
+##                     NDSS.my.fctrScnc#Hlth# 
+##                               3.7456718341 
+##                    NDSS.my.fctrStyls##Fshn 
+##                              -2.5160313263 
+##                    NDSS.my.fctrStyls#U.S.# 
+##                               3.4196115772 
+##                        NDSS.my.fctrTStyl## 
+##                              -2.0543357159 
+##                     NDSS.my.fctrTrvl#Trvl# 
+##                              -1.8687591112 
+##                         NDSS.my.fctrmyOthr 
+##                              -2.4107173389 
 ##                            WordCount.root2 
-##                                0.009242906 
+##                               0.0361773869 
 ## WordCount.root2:PubDate.day.minutes.poly.1 
-##                                0.450542048 
+##                               1.0887365081 
 ##        WordCount.root2:PubDate.last4.log1p 
-##                                0.003041430 
-##        WordCount.root2:PubDate.last8.log1p 
-##                                0.002496462
+##                               0.0070269546 
+##       WordCount.root2:PubDate.month.fctr10 
+##                               0.0039706413 
+##       WordCount.root2:PubDate.month.fctr11 
+##                              -0.0002339144
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-74.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-75.png) 
-
-```
-##          Prediction
-## Reference    N    Y
-##         N 3793  148
-##         Y  176  687
-##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.325562e-01   7.682400e-01   9.250938e-01   9.394875e-01   8.203580e-01 
-## AccuracyPValue  McnemarPValue 
-##  9.476102e-114   1.336144e-01
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-76.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-77.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-32.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-33.png) 
 
 ```
 ##          Prediction
 ## Reference    N    Y
-##         N 1200  298
-##         Y   92  138
+##         N 3787  154
+##         Y  173  690
 ##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   7.743056e-01   2.908255e-01   7.538491e-01   7.938262e-01   8.668981e-01 
+##   9.319317e-01   7.670549e-01   9.244394e-01   9.388938e-01   8.203580e-01 
 ## AccuracyPValue  McnemarPValue 
-##   1.000000e+00   3.039278e-25 
+##  2.593356e-112   3.195407e-01
+```
+
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-34.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-35.png) 
+
+```
+##          Prediction
+## Reference    N    Y
+##         N 1164  334
+##         Y   71  159
+##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
+##   7.656250e-01   3.156027e-01   7.449213e-01   7.854227e-01   8.668981e-01 
+## AccuracyPValue  McnemarPValue 
+##   1.000000e+00   9.555643e-39 
 ##                                id
 ## 1 Interact.High.cor.Y##rcv#glmnet
-##                                                                                                                                                                                                                    feats
-## 1 WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2,WordCount.root2:PubDate.day.minutes.poly.1,WordCount.root2:PubDate.last4.log1p,WordCount.root2:PubDate.last8.log1p,WordCount.root2:PubDate.month.fctr
+##                                                                                                                                                                            feats
+## 1 WordCount.root2,NDSS.my.fctr,WordCount.root2:WordCount.root2,WordCount.root2:PubDate.day.minutes.poly.1,WordCount.root2:PubDate.last4.log1p,WordCount.root2:PubDate.month.fctr
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                       6.02                 0.408
+## 1              25                      5.157                 0.327
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8722119    0.9657447     0.778679         0.95391
+## 1       0.8776419    0.9626998     0.792584       0.9625372
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.4       0.8091873         0.931585
+## 1                    0.4       0.8084359         0.931585
 ##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9250938             0.9394875     0.7616337
+## 1             0.9244394             0.9388938      0.764104
 ##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1       0.5957392    0.9132176    0.2782609       0.7992251
+## 1       0.6009259    0.9105474    0.2913043       0.8140971
 ##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.4144144        0.7743056
+## 1                    0.1        0.439834         0.765625
 ##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.7538491             0.7938262     0.2908255
+## 1             0.7449213             0.7854227     0.3156027
 ##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.004764279       0.0162102
+## 1        0.005250654      0.01810996
 ```
 
 ```r
@@ -5807,11 +3867,11 @@ fit.models_0_chunk_df <- myadd_chunk(fit.models_0_chunk_df,
 
 ```
 ##                              label step_major step_minor label_minor
-## 8 fit.models_0_Interact.High.cor.Y          1          7      glmnet
-## 9           fit.models_0_Low.cor.X          1          8      glmnet
-##       bgn    end elapsed
-## 8 206.243 218.98  12.738
-## 9 218.981     NA      NA
+## 7 fit.models_0_Interact.High.cor.Y          1          6      glmnet
+## 8           fit.models_0_Low.cor.X          1          7      glmnet
+##       bgn     end elapsed
+## 7 124.990 136.861  11.871
+## 8 136.861      NA      NA
 ```
 
 ```r
@@ -5821,7 +3881,7 @@ indep_vars <- myadjust_interaction_feats(indep_vars)
 ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
         id.prefix="Low.cor.X", 
         type=glb_model_type, 
-tune.df = glmnet_tune_models_df,        
+        tune.df = glbMdlTuneParams,        
         trainControl.method="repeatedcv",
         trainControl.number=glb_rcv_n_folds, trainControl.repeats=glb_rcv_n_repeats,
             trainControl.classProbs = glb_is_classification,
@@ -5835,10 +3895,10 @@ tune.df = glmnet_tune_models_df,
 
 ```
 ## [1] "fitting model: Low.cor.X##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5"
+## [1] "    indep_vars: WordCount.root2,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5"
 ## Aggregating results
 ## Selecting tuning parameters
-## Fitting alpha = 0.1, lambda = 0.0934 on full training set
+## Fitting alpha = 0.1, lambda = 0.0201 on full training set
 ```
 
 ```
@@ -5847,18 +3907,12 @@ tune.df = glmnet_tune_models_df,
 ## tuneGrid for parameter: alpha
 ```
 
-```
-## Warning in myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst
-## = list(id.prefix = "Low.cor.X", : model's bestTune found at an extreme of
-## tuneGrid for parameter: lambda
-```
-
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-78.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-79.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-36.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-37.png) 
 
 ```
 ##             Length Class      Mode     
 ## a0           100   -none-     numeric  
-## beta        5000   dgCMatrix  S4       
+## beta        5100   dgCMatrix  S4       
 ## df           100   -none-     numeric  
 ## dim            2   -none-     numeric  
 ## lambda       100   -none-     numeric  
@@ -5871,152 +3925,142 @@ tune.df = glmnet_tune_models_df,
 ## call           5   -none-     call     
 ## nobs           1   -none-     numeric  
 ## lambdaOpt      1   -none-     numeric  
-## xNames        50   -none-     character
+## xNames        51   -none-     character
 ## problemType    1   -none-     character
 ## tuneValue      2   data.frame list     
 ## obsLevels      2   -none-     character
 ## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                             -2.99906501 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.06718324 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -0.56229342 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              1.98953458 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.28336630 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.14715142 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.10505001 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              2.26329365 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.17558427 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.16747932 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.28174745 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              2.49255592 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              2.01908034 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.23863092 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              1.84532884 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.43626208 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -0.12317233 
-##              PubDate.day.minutes.poly.1 
-##                             10.52089736 
-##              PubDate.day.minutes.poly.2 
-##                              2.43933073 
-##              PubDate.day.minutes.poly.4 
-##                              3.62908242 
-##                     PubDate.last4.log1p 
-##                              0.03007298 
-##                           PubDate.wkend 
-##                              0.15280167 
-##                         WordCount.root2 
-##                              0.03121091 
+##                         (Intercept)                 NDSS.my.fctr#Mltmd# 
+##                         -4.62776335                         -0.55058989 
+##           NDSS.my.fctr#Opnn#RmFrDbt        NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                         -2.17201828                          3.43746156 
+##             NDSS.my.fctr#U.S.#Edctn      NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                         -0.90024179                         -0.25001208 
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss     NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                         -0.51959279                          3.40386794 
+##          NDSS.my.fctrBsnss#Tchnlgy#              NDSS.my.fctrCltr#Arts# 
+##                          0.41727883                         -0.35499218 
+##              NDSS.my.fctrFrgn#Wrld#        NDSS.my.fctrFrgn#Wrld#AsPcfc 
+##                         -0.71609323                         -0.95587658 
+##              NDSS.my.fctrOpEd#Opnn#              NDSS.my.fctrScnc#Hlth# 
+##                          3.79502666                          3.05301675 
+##             NDSS.my.fctrStyls##Fshn             NDSS.my.fctrStyls#U.S.# 
+##                         -0.97806123                          2.87280463 
+##                 NDSS.my.fctrTStyl##              NDSS.my.fctrTrvl#Trvl# 
+##                         -0.92999674                         -0.72203823 
+##                  NDSS.my.fctrmyOthr             PubDate.date.fctr(7,13] 
+##                         -0.87859009                          0.05462536 
+##            PubDate.date.fctr(13,19]            PubDate.date.fctr(25,31] 
+##                         -0.04859970                          0.03936760 
+##          PubDate.day.minutes.poly.1          PubDate.day.minutes.poly.2 
+##                         16.52129547                          8.15155112 
+##          PubDate.day.minutes.poly.4                PubDate.last16.log1p 
+##                          7.63942375                          0.03904314 
+##                 PubDate.last4.log1p      PubDate.minute.fctr(14.8,29.5] 
+##                          0.05261649                          0.04081341 
+##      PubDate.minute.fctr(29.5,44.2]      PubDate.minute.fctr(44.2,59.1] 
+##                         -0.06247733                          0.15574933 
+##                PubDate.month.fctr10                PubDate.month.fctr11 
+##                          0.01965406                         -0.04371938 
+##      PubDate.second.fctr(29.5,44.2]                 PubDate.wkday.fctr1 
+##                          0.02855656                          0.15316236 
+##                 PubDate.wkday.fctr2                 PubDate.wkday.fctr4 
+##                         -0.04811783                         -0.02920222 
+##                 PubDate.wkday.fctr5                 PubDate.wkday.fctr6 
+##                         -0.11794295                         -0.06053284 
+##                       PubDate.wkend                      WordCount.nexp 
+##                          0.30065231                         -0.01458288 
+##                     WordCount.root2 
+##                          0.05980150 
 ## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                             -3.08485880 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.09522910 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -0.64388705 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              2.09879679 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -0.31362838 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.15761608 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.13286636 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              2.34188155 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.18971959 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -0.19646484 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -0.31803524 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              2.57891984 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              2.09589193 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -0.27680902 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              1.92169587 
-##                 NDSSName.my.fctrTStyl## 
-##                             -0.46355454 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -0.15595755 
-##                  NDSSName.my.fctrmyOthr 
-##                             -0.02171951 
-##              PubDate.day.minutes.poly.1 
-##                             10.96451292 
-##              PubDate.day.minutes.poly.2 
-##                              2.80569325 
-##              PubDate.day.minutes.poly.4 
-##                              3.95458868 
-##                     PubDate.last4.log1p 
-##                              0.03347048 
-##                           PubDate.wkend 
-##                              0.16348293 
-##                         WordCount.root2 
-##                              0.03275038
+##                         (Intercept)                 NDSS.my.fctr#Mltmd# 
+##                        -4.735626979                        -0.580286171 
+##           NDSS.my.fctr#Opnn#RmFrDbt        NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                        -2.278694860                         3.498981284 
+##             NDSS.my.fctr#U.S.#Edctn      NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                        -0.945806825                        -0.253070361 
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss     NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                        -0.538161808                         3.460877704 
+##          NDSS.my.fctrBsnss#Tchnlgy#              NDSS.my.fctrCltr#Arts# 
+##                         0.443459637                        -0.362873872 
+##              NDSS.my.fctrFrgn#Wrld#        NDSS.my.fctrFrgn#Wrld#AsPcfc 
+##                        -0.755050599                        -0.999081408 
+##              NDSS.my.fctrOpEd#Opnn#              NDSS.my.fctrScnc#Hlth# 
+##                         3.856808591                         3.096140054 
+##             NDSS.my.fctrStyls##Fshn             NDSS.my.fctrStyls#U.S.# 
+##                        -1.029289668                         2.914022368 
+##                 NDSS.my.fctrTStyl##              NDSS.my.fctrTrvl#Trvl# 
+##                        -0.962511600                        -0.760297888 
+##                  NDSS.my.fctrmyOthr             PubDate.date.fctr(7,13] 
+##                        -0.939702864                         0.060340544 
+##            PubDate.date.fctr(13,19]            PubDate.date.fctr(25,31] 
+##                        -0.053309854                         0.046622969 
+##          PubDate.day.minutes.poly.1          PubDate.day.minutes.poly.2 
+##                        16.771123786                         8.372523804 
+##          PubDate.day.minutes.poly.4                PubDate.last16.log1p 
+##                         7.771940232                         0.043390584 
+##                 PubDate.last4.log1p      PubDate.minute.fctr(14.8,29.5] 
+##                         0.053331182                         0.051567949 
+##      PubDate.minute.fctr(29.5,44.2]      PubDate.minute.fctr(44.2,59.1] 
+##                        -0.063196836                         0.170297377 
+##                PubDate.month.fctr10                PubDate.month.fctr11 
+##                         0.021788115                        -0.051764776 
+##      PubDate.second.fctr(29.5,44.2]      PubDate.second.fctr(44.2,59.1] 
+##                         0.035204623                        -0.002666142 
+##                 PubDate.wkday.fctr1                 PubDate.wkday.fctr2 
+##                         0.160804999                        -0.055611629 
+##                 PubDate.wkday.fctr4                 PubDate.wkday.fctr5 
+##                        -0.036954495                        -0.127514309 
+##                 PubDate.wkday.fctr6                       PubDate.wkend 
+##                        -0.089576187                         0.309057681 
+##                      WordCount.nexp                     WordCount.root2 
+##                        -0.032095197                         0.061485177
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-80.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-81.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-38.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-39.png) 
 
 ```
 ##          Prediction
 ## Reference    N    Y
-##         N 3787  154
-##         Y  173  690
+##         N 3743  198
+##         Y  138  725
 ##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.319317e-01   7.670549e-01   9.244394e-01   9.388938e-01   8.203580e-01 
+##   9.300583e-01   7.689739e-01   9.224771e-01   9.371115e-01   8.203580e-01 
 ## AccuracyPValue  McnemarPValue 
-##  2.593356e-112   3.195407e-01
+##  4.458834e-108   1.287669e-03
 ```
 
-![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-82.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-83.png) 
+![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-40.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_0-41.png) 
 
 ```
 ##          Prediction
-## Reference   N   Y
-##         N 898 600
-##         Y  26 204
+## Reference    N    Y
+##         N 1136  362
+##         Y   60  170
 ##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   6.377315e-01   2.365595e-01   6.145608e-01   6.604334e-01   8.668981e-01 
+##   7.557870e-01   3.197713e-01   7.348172e-01   7.758846e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
-##   1.000000e+00  4.469878e-116 
+##   1.000000e+00   1.299428e-48 
 ##                      id
 ## 1 Low.cor.X##rcv#glmnet
-##                                                                                                                                                                                                                                                                                                                                                  feats
-## 1 WordCount.root2,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
+##                                                                                                                                                                                                                                                                                                                                                                   feats
+## 1 WordCount.root2,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               5                      5.679                 0.512
+## 1              25                      6.823                 0.515
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8383968    0.9769094    0.6998841       0.9582998
+## 1       0.8751806    0.9647298    0.7856315       0.9622982
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.3       0.8084359        0.9261046
+## 1                    0.2       0.8118701        0.9323486
 ##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9244394             0.9388938     0.7284544
+## 1             0.9224771             0.9371115     0.7651127
 ##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1        0.587685    0.9405874    0.2347826       0.8150026
+## 1       0.6015934    0.9118825    0.2913043       0.8160359
 ##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.3945841        0.6377315
+## 1                    0.1       0.4461942         0.755787
 ##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.6145608             0.6604334     0.2365595
+## 1             0.7348172             0.7758846     0.3197713
 ##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.004915343      0.02126499
+## 1        0.005383249       0.0186909
 ```
 
 ```r
@@ -6026,12 +4070,12 @@ fit.models_0_chunk_df <-
 ```
 
 ```
-##                     label step_major step_minor label_minor     bgn
-## 9  fit.models_0_Low.cor.X          1          8      glmnet 218.981
-## 10       fit.models_0_end          1          9    teardown 231.983
-##        end elapsed
-## 9  231.982  13.001
-## 10      NA      NA
+##                    label step_major step_minor label_minor     bgn     end
+## 8 fit.models_0_Low.cor.X          1          7      glmnet 136.861 150.646
+## 9       fit.models_0_end          1          8    teardown 150.646      NA
+##   elapsed
+## 8  13.785
+## 9      NA
 ```
 
 ```r
@@ -6041,9 +4085,9 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc = FALSE)
 ```
 
 ```
-##         label step_major step_minor label_minor     bgn     end elapsed
-## 10 fit.models          6          0           0  83.208 231.997 148.789
-## 11 fit.models          6          1           1 231.997      NA      NA
+##         label step_major step_minor label_minor    bgn     end elapsed
+## 10 fit.models          6          0           0  80.36 150.659  70.299
+## 11 fit.models          6          1           1 150.66      NA      NA
 ```
 
 
@@ -6053,7 +4097,7 @@ fit.models_1_chunk_df <- myadd_chunk(NULL, "fit.models_1_bgn", label.minor="setu
 
 ```
 ##              label step_major step_minor label_minor     bgn end elapsed
-## 1 fit.models_1_bgn          1          0       setup 245.758  NA      NA
+## 1 fit.models_1_bgn          1          0       setup 156.765  NA      NA
 ```
 
 ```r
@@ -6187,9 +4231,7 @@ indep_vars <- indep_vars[!grepl("\\.poly\\.([[:digit:]]+)\\.ctg", indep_vars)]
             myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
             id.prefix = mdl_id_pfx, 
             type = glb_model_type, 
-            tune.df = 
-if ((mdl_id_pfx %in% "All.X") && (method %in% "glmnet")) glmnet_tune_models_df else 
-                        glb_tune_models_df,
+            tune.df = glbMdlTuneParams,
             trainControl.method = "repeatedcv",
             trainControl.number = glb_rcv_n_folds,
             trainControl.repeats = glb_rcv_n_repeats,
@@ -6207,46 +4249,34 @@ if ((mdl_id_pfx %in% "All.X") && (method %in% "glmnet")) glmnet_tune_models_df e
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 1   fit.models_1_bgn          1          0       setup 245.758 245.768
-## 2 fit.models_1_All.X          1          1       setup 245.769      NA
+## 1   fit.models_1_bgn          1          0       setup 156.765 156.775
+## 2 fit.models_1_All.X          1          1       setup 156.775      NA
 ##   elapsed
-## 1   0.011
+## 1    0.01
 ## 2      NA
 ##                label step_major step_minor label_minor     bgn     end
-## 2 fit.models_1_All.X          1          1       setup 245.769 245.776
-## 3 fit.models_1_All.X          1          2      glmnet 245.776      NA
+## 2 fit.models_1_All.X          1          1       setup 156.775 156.781
+## 3 fit.models_1_All.X          1          2      glmnet 156.782      NA
 ##   elapsed
-## 2   0.007
+## 2   0.006
 ## 3      NA
 ## [1] "fitting model: All.X##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,WordCount.log1p,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5"
+## [1] "    indep_vars: WordCount.root2,WordCount.log1p,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5"
 ## Aggregating results
 ## Selecting tuning parameters
-## Fitting alpha = 0.1, lambda = 0.0934 on full training set
-```
-
-```
-## Warning in myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst
-## = list(id.prefix = mdl_id_pfx, : model's bestTune found at an extreme of
-## tuneGrid for parameter: alpha
-```
-
-```
-## Warning in myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst
-## = list(id.prefix = mdl_id_pfx, : model's bestTune found at an extreme of
-## tuneGrid for parameter: lambda
+## Fitting alpha = 0.775, lambda = 0.0201 on full training set
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_1-1.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_1-2.png) 
 
 ```
 ##             Length Class      Mode     
-## a0           100   -none-     numeric  
-## beta        5700   dgCMatrix  S4       
-## df           100   -none-     numeric  
+## a0            89   -none-     numeric  
+## beta        5073   dgCMatrix  S4       
+## df            89   -none-     numeric  
 ## dim            2   -none-     numeric  
-## lambda       100   -none-     numeric  
-## dev.ratio    100   -none-     numeric  
+## lambda        89   -none-     numeric  
+## dev.ratio     89   -none-     numeric  
 ## nulldev        1   -none-     numeric  
 ## npasses        1   -none-     numeric  
 ## jerr           1   -none-     numeric  
@@ -6260,117 +4290,33 @@ if ((mdl_id_pfx %in% "All.X") && (method %in% "glmnet")) glmnet_tune_models_df e
 ## tuneValue      2   data.frame list     
 ## obsLevels      2   -none-     character
 ## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                            -3.797789581 
-##                 NDSSName.my.fctr#Mltmd# 
-##                            -0.033305395 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                            -0.609594650 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                             1.951072023 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                            -0.268438616 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                            -0.165907382 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                            -0.128680248 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                             2.226214409 
-##              NDSSName.my.fctrCltr#Arts# 
-##                            -0.172700226 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                            -0.142721283 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                            -0.305563165 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                             2.487652981 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                             1.989726118 
-##             NDSSName.my.fctrStyls##Fshn 
-##                            -0.252459875 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                             1.824219364 
-##                 NDSSName.my.fctrTStyl## 
-##                            -0.420594594 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                            -0.113478486 
-##              PubDate.day.minutes.poly.1 
-##                             9.907499536 
-##              PubDate.day.minutes.poly.2 
-##                             1.591602549 
-##              PubDate.day.minutes.poly.4 
-##                             4.067701888 
-##              PubDate.hour.fctr(15.3,23] 
-##                             0.040523622 
-##                     PubDate.last2.log1p 
-##                             0.012602937 
-##                     PubDate.last4.log1p 
-##                             0.022795288 
-##                     PubDate.last8.log1p 
-##                             0.003719588 
-##                           PubDate.wkend 
-##                             0.143132859 
-##                         WordCount.log1p 
-##                             0.149525804 
-##                         WordCount.root2 
-##                             0.023690424 
+##                     (Intercept)       NDSS.my.fctr#Opnn#RmFrDbt 
+##                     -4.15778549                     -0.29068581 
+##    NDSS.my.fctr#Opnn#ThPblcEdtr NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                      2.70584441                      3.68584256 
+##          NDSS.my.fctrOpEd#Opnn#          NDSS.my.fctrScnc#Hlth# 
+##                      4.00374690                      3.09723359 
+##         NDSS.my.fctrStyls#U.S.#             NDSS.my.fctrTStyl## 
+##                      2.85084048                     -0.13236677 
+##      PubDate.day.minutes.poly.1                 WordCount.log1p 
+##                      5.59078306                      0.08550402 
+##                 WordCount.root2 
+##                      0.04496835 
 ## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                            -3.930420228 
-##                 NDSSName.my.fctr#Mltmd# 
-##                            -0.060818787 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                            -0.690598861 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                             2.059371027 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                            -0.298341354 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                            -0.177530124 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                            -0.157260610 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                             2.302913242 
-##              NDSSName.my.fctrCltr#Arts# 
-##                            -0.186887476 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                            -0.171078777 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                            -0.343168978 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                             2.575027796 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                             2.065753009 
-##             NDSSName.my.fctrStyls##Fshn 
-##                            -0.291299477 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                             1.900303104 
-##                 NDSSName.my.fctrTStyl## 
-##                            -0.447367186 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                            -0.146040451 
-##                  NDSSName.my.fctrmyOthr 
-##                            -0.021887251 
-##              PubDate.day.minutes.poly.1 
-##                            10.325074080 
-##              PubDate.day.minutes.poly.2 
-##                             1.878898682 
-##              PubDate.day.minutes.poly.4 
-##                             4.431162446 
-##              PubDate.hour.fctr(15.3,23] 
-##                             0.042785355 
-##                     PubDate.last2.log1p 
-##                             0.014138234 
-##                     PubDate.last4.log1p 
-##                             0.024615262 
-##                     PubDate.last8.log1p 
-##                             0.005991056 
-##                           PubDate.wkend 
-##                             0.151771573 
-##                         WordCount.log1p 
-##                             0.156106145 
-##                         WordCount.root2 
-##                             0.024698908
+##                     (Intercept)       NDSS.my.fctr#Opnn#RmFrDbt 
+##                    -4.284190646                    -0.447707141 
+##    NDSS.my.fctr#Opnn#ThPblcEdtr NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                     2.827765103                     3.751516261 
+##      NDSS.my.fctrBsnss#Tchnlgy#          NDSS.my.fctrOpEd#Opnn# 
+##                     0.081535690                     4.070511321 
+##          NDSS.my.fctrScnc#Hlth#         NDSS.my.fctrStyls#U.S.# 
+##                     3.163208431                     2.914061199 
+##             NDSS.my.fctrTStyl##      PubDate.day.minutes.poly.1 
+##                    -0.187607543                     7.038308760 
+##                   PubDate.wkend                 WordCount.log1p 
+##                     0.008146344                     0.096036181 
+##                 WordCount.root2 
+##                     0.046479071
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_1-3.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_1-4.png) 
@@ -6378,45 +4324,45 @@ if ((mdl_id_pfx %in% "All.X") && (method %in% "glmnet")) glmnet_tune_models_df e
 ```
 ##          Prediction
 ## Reference    N    Y
-##         N 3790  151
-##         Y  177  686
+##         N 3798  143
+##         Y  178  685
 ##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   9.317236e-01   7.655936e-01   9.242213e-01   9.386958e-01   8.203580e-01 
+##   9.331807e-01   7.696469e-01   9.257484e-01   9.400811e-01   8.203580e-01 
 ## AccuracyPValue  McnemarPValue 
-##  7.764099e-112   1.674653e-01
+##  3.361187e-115   5.773628e-02
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_1-5.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_1-6.png) 
 
 ```
 ##          Prediction
-## Reference   N   Y
-##         N 874 624
-##         Y  22 208
+## Reference    N    Y
+##         N 1195  303
+##         Y   87  143
 ##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   6.261574e-01   2.314268e-01   6.028573e-01   6.490282e-01   8.668981e-01 
+##   7.743056e-01   3.001637e-01   7.538491e-01   7.938262e-01   8.668981e-01 
 ## AccuracyPValue  McnemarPValue 
-##   1.000000e+00  1.296751e-123 
+##   1.000000e+00   1.330234e-27 
 ##                  id
 ## 1 All.X##rcv#glmnet
-##                                                                                                                                                                                                                                                                                                                                                                                                                                                                    feats
-## 1 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
+##                                                                                                                                                                                                                                                                                                                                                                                                                                                                feats
+## 1 WordCount.root2,WordCount.log1p,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1               5                      8.046                 0.633
+## 1              25                      9.521                 0.671
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8389043    0.9779244    0.6998841       0.9585414
+## 1       0.8734975    0.9659985    0.7809965       0.9528396
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.3       0.8070588        0.9263124
+## 1                    0.4       0.8101715        0.9320707
 ##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.9242213             0.9386958     0.7277552
+## 1             0.9257484             0.9400811      0.763027
 ##   max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB max.AUCROCR.OOB
-## 1        0.587685    0.9405874    0.2347826       0.8157921
+## 1       0.5950717    0.9118825    0.2782609       0.7995951
 ##   opt.prob.threshold.OOB max.f.score.OOB max.Accuracy.OOB
-## 1                    0.1       0.3917137        0.6261574
+## 1                    0.1       0.4230769        0.7743056
 ##   max.AccuracyLower.OOB max.AccuracyUpper.OOB max.Kappa.OOB
-## 1             0.6028573             0.6490282     0.2314268
+## 1             0.7538491             0.7938262     0.3001637
 ##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.004624302      0.01929369
+## 1        0.005666511      0.02009517
 ```
 
 ```r
@@ -6428,10 +4374,10 @@ fit.models_1_chunk_df <-
 
 ```
 ##                  label step_major step_minor label_minor     bgn     end
-## 3   fit.models_1_All.X          1          2      glmnet 245.776 261.643
-## 4 fit.models_1_preProc          1          3     preProc 261.644      NA
+## 3   fit.models_1_All.X          1          2      glmnet 156.782 174.144
+## 4 fit.models_1_preProc          1          3     preProc 174.144      NA
 ##   elapsed
-## 3  15.867
+## 3  17.362
 ## 4      NA
 ```
 
@@ -6452,7 +4398,7 @@ for (prePr in glb_preproc_methods) {
     
     ret_lst <- myfit_mdl(mdl_specs_lst=myinit_mdl_specs_lst(mdl_specs_lst=list(
             id.prefix=mdl_id_pfx, 
-            type=glb_model_type, tune.df=glb_tune_models_df,
+            type=glb_model_type, tune.df=glbMdlTuneParams,
             trainControl.method="repeatedcv",
             trainControl.number=glb_rcv_n_folds,
             trainControl.repeats=glb_rcv_n_repeats,
@@ -6531,7 +4477,7 @@ for (prePr in glb_preproc_methods) {
 #                                 model_type=glb_model_type,
 #                                 rsp_var=glb_rsp_var,
 #                                 fit_df=glbObsFit, OOB_df=glbObsOOB,
-#                     n_cv_folds=glb_rcv_n_folds, tune_models_df=glb_tune_models_df)
+#                     n_cv_folds=glb_rcv_n_folds, tune_models_df=glbMdlTuneParams)
 #     csm_mdl_id <- paste0(mdl_id, ".", method)
 #     csm_featsimp_df <- myget_feats_importance(glb_models_lst[[paste0(mdl_id, ".",
 #                                                                      method)]]);               print(head(csm_featsimp_df))
@@ -6568,7 +4514,7 @@ for (prePr in glb_preproc_methods) {
 #                             indep_vars_vctr=indep_vars_vctr,
 #                             rsp_var=glb_rsp_var,
 #                             fit_df=glbObsFit, OOB_df=glbObsOOB,
-#                             n_cv_folds=glb_rcv_n_folds, tune_models_df=glb_tune_models_df,
+#                             n_cv_folds=glb_rcv_n_folds, tune_models_df=glbMdlTuneParams,
 #                             model_loss_mtrx=glbMdlMetric_terms,
 #                             model_summaryFunction=glbMdlMetricSummaryFn,
 #                             model_metric=glbMdlMetricSummary,
@@ -6593,240 +4539,142 @@ print(glb_models_df)
 ## MFO###myMFO_classfr                         MFO###myMFO_classfr
 ## Random###myrandom_classfr             Random###myrandom_classfr
 ## Max.cor.Y.rcv.1X1###glmnet           Max.cor.Y.rcv.1X1###glmnet
-## Max.cor.Y.rcv.3X1##rcv#glmnet     Max.cor.Y.rcv.3X1##rcv#glmnet
-## Max.cor.Y.rcv.3X3##rcv#glmnet     Max.cor.Y.rcv.3X3##rcv#glmnet
-## Max.cor.Y.rcv.3X5##rcv#glmnet     Max.cor.Y.rcv.3X5##rcv#glmnet
-## Max.cor.Y.rcv.5X1##rcv#glmnet     Max.cor.Y.rcv.5X1##rcv#glmnet
-## Max.cor.Y.rcv.5X3##rcv#glmnet     Max.cor.Y.rcv.5X3##rcv#glmnet
-## Max.cor.Y.rcv.5X5##rcv#glmnet     Max.cor.Y.rcv.5X5##rcv#glmnet
-## Max.cor.Y.rcv.1X1.cp.0###rpart   Max.cor.Y.rcv.1X1.cp.0###rpart
 ## Max.cor.Y##rcv#rpart                       Max.cor.Y##rcv#rpart
 ## Max.cor.Y.Time.Poly##rcv#glmnet Max.cor.Y.Time.Poly##rcv#glmnet
 ## Max.cor.Y.Time.Lag##rcv#glmnet   Max.cor.Y.Time.Lag##rcv#glmnet
 ## Interact.High.cor.Y##rcv#glmnet Interact.High.cor.Y##rcv#glmnet
 ## Low.cor.X##rcv#glmnet                     Low.cor.X##rcv#glmnet
 ## All.X##rcv#glmnet                             All.X##rcv#glmnet
-##                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  feats
-## MFO###myMFO_classfr                                                                                                                                                                                                                                                                                                                                                                                                                                                                             .rnorm
-## Random###myrandom_classfr                                                                                                                                                                                                                                                                                                                                                                                                                                                                       .rnorm
-## Max.cor.Y.rcv.1X1###glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                            WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X1##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X3##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X5##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X1##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X3##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X5##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.1X1.cp.0###rpart                                                                                                                                                                                                                                                                                                                                                                                                                                        WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y##rcv#rpart                                                                                                                                                                                                                                                                                                                                                                                                                                                  WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.Time.Poly##rcv#glmnet                                                                                                                                                                                                                                                                                                WordCount.root2,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.day.minutes.poly.2,PubDate.day.minutes.poly.3,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.5
-## Max.cor.Y.Time.Lag##rcv#glmnet                                                                                                                                                                                                                                                                                                                                  WordCount.root2,NDSSName.my.fctr,PubDate.last2.log1p,PubDate.last4.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.last32.log1p
-## Interact.High.cor.Y##rcv#glmnet                                                                                                                                                                                                                                                 WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2,WordCount.root2:PubDate.day.minutes.poly.1,WordCount.root2:PubDate.last4.log1p,WordCount.root2:PubDate.last8.log1p,WordCount.root2:PubDate.month.fctr
-## Low.cor.X##rcv#glmnet                                                                                                                             WordCount.root2,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
-## All.X##rcv#glmnet               WordCount.root2,WordCount.log1p,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
+##                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              feats
+## MFO###myMFO_classfr                                                                                                                                                                                                                                                                                                                                                                                                                                                                         .rnorm
+## Random###myrandom_classfr                                                                                                                                                                                                                                                                                                                                                                                                                                                                   .rnorm
+## Max.cor.Y.rcv.1X1###glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                            WordCount.root2,NDSS.my.fctr
+## Max.cor.Y##rcv#rpart                                                                                                                                                                                                                                                                                                                                                                                                                                                  WordCount.root2,NDSS.my.fctr
+## Max.cor.Y.Time.Poly##rcv#glmnet                                                                                                                                                                                                                                                                                                WordCount.root2,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.day.minutes.poly.2,PubDate.day.minutes.poly.3,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.5
+## Max.cor.Y.Time.Lag##rcv#glmnet                                                                                                                                                                                                                                                                                                                                  WordCount.root2,NDSS.my.fctr,PubDate.last2.log1p,PubDate.last4.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.last32.log1p
+## Interact.High.cor.Y##rcv#glmnet                                                                                                                                                                                                                                                                                     WordCount.root2,NDSS.my.fctr,WordCount.root2:WordCount.root2,WordCount.root2:PubDate.day.minutes.poly.1,WordCount.root2:PubDate.last4.log1p,WordCount.root2:PubDate.month.fctr
+## Low.cor.X##rcv#glmnet                                                                                                        WordCount.root2,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
+## All.X##rcv#glmnet               WordCount.root2,WordCount.log1p,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
 ##                                 max.nTuningRuns min.elapsedtime.everything
-## MFO###myMFO_classfr                           0                      0.296
-## Random###myrandom_classfr                     0                      0.298
-## Max.cor.Y.rcv.1X1###glmnet                    0                      1.024
-## Max.cor.Y.rcv.3X1##rcv#glmnet                25                      2.866
-## Max.cor.Y.rcv.3X3##rcv#glmnet                25                      4.855
-## Max.cor.Y.rcv.3X5##rcv#glmnet                25                      8.311
-## Max.cor.Y.rcv.5X1##rcv#glmnet                25                      3.432
-## Max.cor.Y.rcv.5X3##rcv#glmnet                25                      6.452
-## Max.cor.Y.rcv.5X5##rcv#glmnet                25                      9.150
-## Max.cor.Y.rcv.1X1.cp.0###rpart                0                      0.857
-## Max.cor.Y##rcv#rpart                          5                      2.988
-## Max.cor.Y.Time.Poly##rcv#glmnet              25                      4.944
-## Max.cor.Y.Time.Lag##rcv#glmnet                5                      3.978
-## Interact.High.cor.Y##rcv#glmnet              25                      6.020
-## Low.cor.X##rcv#glmnet                         5                      5.679
-## All.X##rcv#glmnet                             5                      8.046
+## MFO###myMFO_classfr                           0                      0.302
+## Random###myrandom_classfr                     0                      0.309
+## Max.cor.Y.rcv.1X1###glmnet                    0                      1.034
+## Max.cor.Y##rcv#rpart                          5                      3.029
+## Max.cor.Y.Time.Poly##rcv#glmnet              25                      4.889
+## Max.cor.Y.Time.Lag##rcv#glmnet                5                      4.225
+## Interact.High.cor.Y##rcv#glmnet              25                      5.157
+## Low.cor.X##rcv#glmnet                        25                      6.823
+## All.X##rcv#glmnet                            25                      9.521
 ##                                 min.elapsedtime.final max.AUCpROC.fit
-## MFO###myMFO_classfr                             0.003       0.5000000
+## MFO###myMFO_classfr                             0.004       0.5000000
 ## Random###myrandom_classfr                       0.002       0.4990604
-## Max.cor.Y.rcv.1X1###glmnet                      0.276       0.8790544
-## Max.cor.Y.rcv.3X1##rcv#glmnet                   0.286       0.8767919
-## Max.cor.Y.rcv.3X3##rcv#glmnet                   0.273       0.8767919
-## Max.cor.Y.rcv.3X5##rcv#glmnet                   0.277       0.8767919
-## Max.cor.Y.rcv.5X1##rcv#glmnet                   0.271       0.8784031
-## Max.cor.Y.rcv.5X3##rcv#glmnet                   0.277       0.8784031
-## Max.cor.Y.rcv.5X5##rcv#glmnet                   0.269       0.8784031
-## Max.cor.Y.rcv.1X1.cp.0###rpart                  0.072       0.8821543
-## Max.cor.Y##rcv#rpart                            0.076       0.8709432
-## Max.cor.Y.Time.Poly##rcv#glmnet                 0.325       0.8748550
-## Max.cor.Y.Time.Lag##rcv#glmnet                  0.310       0.8419280
-## Interact.High.cor.Y##rcv#glmnet                 0.408       0.8722119
-## Low.cor.X##rcv#glmnet                           0.512       0.8383968
-## All.X##rcv#glmnet                               0.633       0.8389043
+## Max.cor.Y.rcv.1X1###glmnet                      0.282       0.8790544
+## Max.cor.Y##rcv#rpart                            0.077       0.8709432
+## Max.cor.Y.Time.Poly##rcv#glmnet                 0.316       0.8748550
+## Max.cor.Y.Time.Lag##rcv#glmnet                  0.318       0.8419280
+## Interact.High.cor.Y##rcv#glmnet                 0.327       0.8776419
+## Low.cor.X##rcv#glmnet                           0.515       0.8751806
+## All.X##rcv#glmnet                               0.671       0.8734975
 ##                                 max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## MFO###myMFO_classfr                1.0000000    0.0000000       0.5000000
 ## Random###myrandom_classfr          0.8312611    0.1668598       0.4972757
 ## Max.cor.Y.rcv.1X1###glmnet         0.9632073    0.7949015       0.9608594
-## Max.cor.Y.rcv.3X1##rcv#glmnet      0.9644760    0.7891078       0.9582555
-## Max.cor.Y.rcv.3X3##rcv#glmnet      0.9644760    0.7891078       0.9582555
-## Max.cor.Y.rcv.3X5##rcv#glmnet      0.9644760    0.7891078       0.9582555
-## Max.cor.Y.rcv.5X1##rcv#glmnet      0.9642223    0.7925840       0.9607052
-## Max.cor.Y.rcv.5X3##rcv#glmnet      0.9642223    0.7925840       0.9607052
-## Max.cor.Y.rcv.5X5##rcv#glmnet      0.9642223    0.7925840       0.9607052
-## Max.cor.Y.rcv.1X1.cp.0###rpart     0.9705658    0.7937428       0.9504198
 ## Max.cor.Y##rcv#rpart               0.9632073    0.7786790       0.8746354
 ## Max.cor.Y.Time.Poly##rcv#glmnet    0.9652372    0.7844728       0.9565422
-## Max.cor.Y.Time.Lag##rcv#glmnet     0.9781781    0.7056779       0.9581739
-## Interact.High.cor.Y##rcv#glmnet    0.9657447    0.7786790       0.9539100
-## Low.cor.X##rcv#glmnet              0.9769094    0.6998841       0.9582998
-## All.X##rcv#glmnet                  0.9779244    0.6998841       0.9585414
+## Max.cor.Y.Time.Lag##rcv#glmnet     0.9781781    0.7056779       0.9581563
+## Interact.High.cor.Y##rcv#glmnet    0.9626998    0.7925840       0.9625372
+## Low.cor.X##rcv#glmnet              0.9647298    0.7856315       0.9622982
+## All.X##rcv#glmnet                  0.9659985    0.7809965       0.9528396
 ##                                 opt.prob.threshold.fit max.f.score.fit
 ## MFO###myMFO_classfr                                0.1       0.3045703
 ## Random###myrandom_classfr                          0.1       0.3045703
 ## Max.cor.Y.rcv.1X1###glmnet                         0.5       0.8099174
-## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.4       0.8099174
-## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.4       0.8099174
-## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.4       0.8099174
-## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.5       0.8104265
-## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.5       0.8104265
-## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.5       0.8104265
-## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.4       0.8235294
 ## Max.cor.Y##rcv#rpart                               0.6       0.8000000
 ## Max.cor.Y.Time.Poly##rcv#glmnet                    0.4       0.8099174
 ## Max.cor.Y.Time.Lag##rcv#glmnet                     0.3       0.8103347
-## Interact.High.cor.Y##rcv#glmnet                    0.4       0.8091873
-## Low.cor.X##rcv#glmnet                              0.3       0.8084359
-## All.X##rcv#glmnet                                  0.3       0.8070588
+## Interact.High.cor.Y##rcv#glmnet                    0.4       0.8084359
+## Low.cor.X##rcv#glmnet                              0.2       0.8118701
+## All.X##rcv#glmnet                                  0.4       0.8101715
 ##                                 max.Accuracy.fit max.AccuracyLower.fit
 ## MFO###myMFO_classfr                    0.1796420             0.1688795
 ## Random###myrandom_classfr              0.1796420             0.1688795
 ## Max.cor.Y.rcv.1X1###glmnet             0.9329725             0.9255302
-## Max.cor.Y.rcv.3X1##rcv#glmnet          0.9335973             0.9255302
-## Max.cor.Y.rcv.3X3##rcv#glmnet          0.9333193             0.9255302
-## Max.cor.Y.rcv.3X5##rcv#glmnet          0.9332218             0.9255302
-## Max.cor.Y.rcv.5X1##rcv#glmnet          0.9331818             0.9259666
-## Max.cor.Y.rcv.5X3##rcv#glmnet          0.9333905             0.9259666
-## Max.cor.Y.rcv.5X5##rcv#glmnet          0.9331816             0.9259666
-## Max.cor.Y.rcv.1X1.cp.0###rpart         0.9381765             0.9309917
 ## Max.cor.Y##rcv#rpart                   0.9296422             0.9224771
 ## Max.cor.Y.Time.Poly##rcv#glmnet        0.9322790             0.9255302
-## Max.cor.Y.Time.Lag##rcv#glmnet         0.9281861             0.9253120
-## Interact.High.cor.Y##rcv#glmnet        0.9315850             0.9250938
-## Low.cor.X##rcv#glmnet                  0.9261046             0.9244394
-## All.X##rcv#glmnet                      0.9263124             0.9242213
+## Max.cor.Y.Time.Lag##rcv#glmnet         0.9279084             0.9253120
+## Interact.High.cor.Y##rcv#glmnet        0.9315850             0.9244394
+## Low.cor.X##rcv#glmnet                  0.9323486             0.9224771
+## All.X##rcv#glmnet                      0.9320707             0.9257484
 ##                                 max.AccuracyUpper.fit max.Kappa.fit
 ## MFO###myMFO_classfr                         0.1907952     0.0000000
 ## Random###myrandom_classfr                   0.1907952     0.0000000
 ## Max.cor.Y.rcv.1X1###glmnet                  0.9398832     0.7692476
-## Max.cor.Y.rcv.3X1##rcv#glmnet               0.9398832     0.7691678
-## Max.cor.Y.rcv.3X3##rcv#glmnet               0.9398832     0.7690803
-## Max.cor.Y.rcv.3X5##rcv#glmnet               0.9398832     0.7686375
-## Max.cor.Y.rcv.5X1##rcv#glmnet               0.9402789     0.7689055
-## Max.cor.Y.rcv.5X3##rcv#glmnet               0.9402789     0.7698577
-## Max.cor.Y.rcv.5X5##rcv#glmnet               0.9402789     0.7691429
-## Max.cor.Y.rcv.1X1.cp.0###rpart              0.9448229     0.7860827
 ## Max.cor.Y##rcv#rpart                        0.9371115     0.7515134
 ## Max.cor.Y.Time.Poly##rcv#glmnet             0.9398832     0.7643948
-## Max.cor.Y.Time.Lag##rcv#glmnet              0.9396854     0.7362844
-## Interact.High.cor.Y##rcv#glmnet             0.9394875     0.7616337
-## Low.cor.X##rcv#glmnet                       0.9388938     0.7284544
-## All.X##rcv#glmnet                           0.9386958     0.7277552
+## Max.cor.Y.Time.Lag##rcv#glmnet              0.9396854     0.7350030
+## Interact.High.cor.Y##rcv#glmnet             0.9388938     0.7641040
+## Low.cor.X##rcv#glmnet                       0.9371115     0.7651127
+## All.X##rcv#glmnet                           0.9400811     0.7630270
 ##                                 max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB
 ## MFO###myMFO_classfr                   0.5000000    1.0000000    0.0000000
 ## Random###myrandom_classfr             0.5125675    0.8077437    0.2173913
 ## Max.cor.Y.rcv.1X1###glmnet            0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X1##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X3##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X5##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X1##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X3##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X5##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.1X1.cp.0###rpart        0.6174697    0.9218959    0.3130435
 ## Max.cor.Y##rcv#rpart                  0.5870523    0.9045394    0.2695652
 ## Max.cor.Y.Time.Poly##rcv#glmnet       0.5965780    0.9105474    0.2826087
-## Max.cor.Y.Time.Lag##rcv#glmnet        0.5928717    0.9379172    0.2478261
-## Interact.High.cor.Y##rcv#glmnet       0.5957392    0.9132176    0.2782609
-## Low.cor.X##rcv#glmnet                 0.5876850    0.9405874    0.2347826
-## All.X##rcv#glmnet                     0.5876850    0.9405874    0.2347826
+## Max.cor.Y.Time.Lag##rcv#glmnet        0.5925379    0.9372497    0.2478261
+## Interact.High.cor.Y##rcv#glmnet       0.6009259    0.9105474    0.2913043
+## Low.cor.X##rcv#glmnet                 0.6015934    0.9118825    0.2913043
+## All.X##rcv#glmnet                     0.5950717    0.9118825    0.2782609
 ##                                 max.AUCROCR.OOB opt.prob.threshold.OOB
 ## MFO###myMFO_classfr                   0.5000000                    0.1
 ## Random###myrandom_classfr             0.4857956                    0.1
 ## Max.cor.Y.rcv.1X1###glmnet            0.8116126                    0.1
-## Max.cor.Y.rcv.3X1##rcv#glmnet         0.8067975                    0.1
-## Max.cor.Y.rcv.3X3##rcv#glmnet         0.8067975                    0.1
-## Max.cor.Y.rcv.3X5##rcv#glmnet         0.8067975                    0.1
-## Max.cor.Y.rcv.5X1##rcv#glmnet         0.8114863                    0.1
-## Max.cor.Y.rcv.5X3##rcv#glmnet         0.8114863                    0.1
-## Max.cor.Y.rcv.5X5##rcv#glmnet         0.8114863                    0.1
-## Max.cor.Y.rcv.1X1.cp.0###rpart        0.7773858                    0.1
 ## Max.cor.Y##rcv#rpart                  0.5892132                    0.6
 ## Max.cor.Y.Time.Poly##rcv#glmnet       0.8049472                    0.1
-## Max.cor.Y.Time.Lag##rcv#glmnet        0.8118709                    0.1
-## Interact.High.cor.Y##rcv#glmnet       0.7992251                    0.1
-## Low.cor.X##rcv#glmnet                 0.8150026                    0.1
-## All.X##rcv#glmnet                     0.8157921                    0.1
+## Max.cor.Y.Time.Lag##rcv#glmnet        0.8117635                    0.1
+## Interact.High.cor.Y##rcv#glmnet       0.8140971                    0.1
+## Low.cor.X##rcv#glmnet                 0.8160359                    0.1
+## All.X##rcv#glmnet                     0.7995951                    0.1
 ##                                 max.f.score.OOB max.Accuracy.OOB
 ## MFO###myMFO_classfr                   0.2349336        0.1331019
 ## Random###myrandom_classfr             0.2349336        0.1331019
 ## Max.cor.Y.rcv.1X1###glmnet            0.4405405        0.7604167
-## Max.cor.Y.rcv.3X1##rcv#glmnet         0.4375839        0.7575231
-## Max.cor.Y.rcv.3X3##rcv#glmnet         0.4375839        0.7575231
-## Max.cor.Y.rcv.3X5##rcv#glmnet         0.4375839        0.7575231
-## Max.cor.Y.rcv.5X1##rcv#glmnet         0.4609375        0.7604167
-## Max.cor.Y.rcv.5X3##rcv#glmnet         0.4609375        0.7604167
-## Max.cor.Y.rcv.5X5##rcv#glmnet         0.4609375        0.7604167
-## Max.cor.Y.rcv.1X1.cp.0###rpart        0.4207493        0.7673611
 ## Max.cor.Y##rcv#rpart                  0.2850575        0.8200231
 ## Max.cor.Y.Time.Poly##rcv#glmnet       0.4441261        0.7754630
 ## Max.cor.Y.Time.Lag##rcv#glmnet        0.4062196        0.6464120
-## Interact.High.cor.Y##rcv#glmnet       0.4144144        0.7743056
-## Low.cor.X##rcv#glmnet                 0.3945841        0.6377315
-## All.X##rcv#glmnet                     0.3917137        0.6261574
+## Interact.High.cor.Y##rcv#glmnet       0.4398340        0.7656250
+## Low.cor.X##rcv#glmnet                 0.4461942        0.7557870
+## All.X##rcv#glmnet                     0.4230769        0.7743056
 ##                                 max.AccuracyLower.OOB
 ## MFO###myMFO_classfr                         0.1174298
 ## Random###myrandom_classfr                   0.1174298
 ## Max.cor.Y.rcv.1X1###glmnet                  0.7395703
-## Max.cor.Y.rcv.3X1##rcv#glmnet               0.7365992
-## Max.cor.Y.rcv.3X3##rcv#glmnet               0.7365992
-## Max.cor.Y.rcv.3X5##rcv#glmnet               0.7365992
-## Max.cor.Y.rcv.5X1##rcv#glmnet               0.7395703
-## Max.cor.Y.rcv.5X3##rcv#glmnet               0.7395703
-## Max.cor.Y.rcv.5X5##rcv#glmnet               0.7395703
-## Max.cor.Y.rcv.1X1.cp.0###rpart              0.7467059
 ## Max.cor.Y##rcv#rpart                        0.8010821
 ## Max.cor.Y.Time.Poly##rcv#glmnet             0.7550404
 ## Max.cor.Y.Time.Lag##rcv#glmnet              0.6233476
-## Interact.High.cor.Y##rcv#glmnet             0.7538491
-## Low.cor.X##rcv#glmnet                       0.6145608
-## All.X##rcv#glmnet                           0.6028573
+## Interact.High.cor.Y##rcv#glmnet             0.7449213
+## Low.cor.X##rcv#glmnet                       0.7348172
+## All.X##rcv#glmnet                           0.7538491
 ##                                 max.AccuracyUpper.OOB max.Kappa.OOB
 ## MFO###myMFO_classfr                         0.1500310     0.0000000
 ## Random###myrandom_classfr                   0.1500310     0.0000000
 ## Max.cor.Y.rcv.1X1###glmnet                  0.7803749     0.3148374
-## Max.cor.Y.rcv.3X1##rcv#glmnet               0.7775689     0.3107477
-## Max.cor.Y.rcv.3X3##rcv#glmnet               0.7775689     0.3107477
-## Max.cor.Y.rcv.3X5##rcv#glmnet               0.7775689     0.3107477
-## Max.cor.Y.rcv.5X1##rcv#glmnet               0.7803749     0.3373693
-## Max.cor.Y.rcv.5X3##rcv#glmnet               0.7803749     0.3373693
-## Max.cor.Y.rcv.5X5##rcv#glmnet               0.7803749     0.3373693
-## Max.cor.Y.rcv.1X1.cp.0###rpart              0.7871043     0.2953321
 ## Max.cor.Y##rcv#rpart                        0.8378705     0.1825002
 ## Max.cor.Y.Time.Poly##rcv#glmnet             0.7949457     0.3233542
 ## Max.cor.Y.Time.Lag##rcv#glmnet              0.6689781     0.2515036
-## Interact.High.cor.Y##rcv#glmnet             0.7938262     0.2908255
-## Low.cor.X##rcv#glmnet                       0.6604334     0.2365595
-## All.X##rcv#glmnet                           0.6490282     0.2314268
+## Interact.High.cor.Y##rcv#glmnet             0.7854227     0.3156027
+## Low.cor.X##rcv#glmnet                       0.7758846     0.3197713
+## All.X##rcv#glmnet                           0.7938262     0.3001637
 ##                                 max.AccuracySD.fit max.KappaSD.fit
 ## MFO###myMFO_classfr                             NA              NA
 ## Random###myrandom_classfr                       NA              NA
 ## Max.cor.Y.rcv.1X1###glmnet                      NA              NA
-## Max.cor.Y.rcv.3X1##rcv#glmnet          0.007015493      0.02403706
-## Max.cor.Y.rcv.3X3##rcv#glmnet          0.005178375      0.01754365
-## Max.cor.Y.rcv.3X5##rcv#glmnet          0.005396525      0.01835474
-## Max.cor.Y.rcv.5X1##rcv#glmnet          0.008837283      0.03133449
-## Max.cor.Y.rcv.5X3##rcv#glmnet          0.006138477      0.02161286
-## Max.cor.Y.rcv.5X5##rcv#glmnet          0.006213800      0.02210061
-## Max.cor.Y.rcv.1X1.cp.0###rpart                  NA              NA
 ## Max.cor.Y##rcv#rpart                   0.005069520      0.01910910
 ## Max.cor.Y.Time.Poly##rcv#glmnet        0.005312780      0.01857466
-## Max.cor.Y.Time.Lag##rcv#glmnet         0.004492459      0.01977567
-## Interact.High.cor.Y##rcv#glmnet        0.004764279      0.01621020
-## Low.cor.X##rcv#glmnet                  0.004915343      0.02126499
-## All.X##rcv#glmnet                      0.004624302      0.01929369
+## Max.cor.Y.Time.Lag##rcv#glmnet         0.004559889      0.02005103
+## Interact.High.cor.Y##rcv#glmnet        0.005250654      0.01810996
+## Low.cor.X##rcv#glmnet                  0.005383249      0.01869090
+## All.X##rcv#glmnet                      0.005666511      0.02009517
 ```
 
 ```r
@@ -6838,8 +4686,8 @@ fit.models_1_chunk_df <-
 
 ```
 ##                  label step_major step_minor label_minor     bgn     end
-## 4 fit.models_1_preProc          1          3     preProc 261.644 261.718
-## 5     fit.models_1_end          1          4    teardown 261.719      NA
+## 4 fit.models_1_preProc          1          3     preProc 174.144 174.218
+## 5     fit.models_1_end          1          4    teardown 174.218      NA
 ##   elapsed
 ## 4   0.074
 ## 5      NA
@@ -6851,8 +4699,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc = FALSE)
 
 ```
 ##         label step_major step_minor label_minor     bgn     end elapsed
-## 11 fit.models          6          1           1 231.997 261.728  29.731
-## 12 fit.models          6          2           2 261.729      NA      NA
+## 11 fit.models          6          1           1 150.660 174.228  23.568
+## 12 fit.models          6          2           2 174.229      NA      NA
 ```
 
 
@@ -6863,7 +4711,7 @@ fit.models_2_chunk_df <-
 
 ```
 ##              label step_major step_minor label_minor     bgn end elapsed
-## 1 fit.models_2_bgn          1          0       setup 263.455  NA      NA
+## 1 fit.models_2_bgn          1          0       setup 175.993  NA      NA
 ```
 
 ```r
@@ -6882,189 +4730,112 @@ print(plt_models_df)
 ## MFO###myMFO_classfr                         MFO###myMFO_classfr
 ## Random###myrandom_classfr             Random###myrandom_classfr
 ## Max.cor.Y.rcv.1X1###glmnet           Max.cor.Y.rcv.1X1###glmnet
-## Max.cor.Y.rcv.3X1##rcv#glmnet     Max.cor.Y.rcv.3X1##rcv#glmnet
-## Max.cor.Y.rcv.3X3##rcv#glmnet     Max.cor.Y.rcv.3X3##rcv#glmnet
-## Max.cor.Y.rcv.3X5##rcv#glmnet     Max.cor.Y.rcv.3X5##rcv#glmnet
-## Max.cor.Y.rcv.5X1##rcv#glmnet     Max.cor.Y.rcv.5X1##rcv#glmnet
-## Max.cor.Y.rcv.5X3##rcv#glmnet     Max.cor.Y.rcv.5X3##rcv#glmnet
-## Max.cor.Y.rcv.5X5##rcv#glmnet     Max.cor.Y.rcv.5X5##rcv#glmnet
-## Max.cor.Y.rcv.1X1.cp.0###rpart   Max.cor.Y.rcv.1X1.cp.0###rpart
 ## Max.cor.Y##rcv#rpart                       Max.cor.Y##rcv#rpart
 ## Max.cor.Y.Time.Poly##rcv#glmnet Max.cor.Y.Time.Poly##rcv#glmnet
 ## Max.cor.Y.Time.Lag##rcv#glmnet   Max.cor.Y.Time.Lag##rcv#glmnet
 ## Interact.High.cor.Y##rcv#glmnet Interact.High.cor.Y##rcv#glmnet
 ## Low.cor.X##rcv#glmnet                     Low.cor.X##rcv#glmnet
 ## All.X##rcv#glmnet                             All.X##rcv#glmnet
-##                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  feats
-## MFO###myMFO_classfr                                                                                                                                                                                                                                                                                                                                                                                                                                                                             .rnorm
-## Random###myrandom_classfr                                                                                                                                                                                                                                                                                                                                                                                                                                                                       .rnorm
-## Max.cor.Y.rcv.1X1###glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                            WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X1##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X3##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.3X5##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X1##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X3##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.5X5##rcv#glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                         WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.rcv.1X1.cp.0###rpart                                                                                                                                                                                                                                                                                                                                                                                                                                        WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y##rcv#rpart                                                                                                                                                                                                                                                                                                                                                                                                                                                  WordCount.root2,NDSSName.my.fctr
-## Max.cor.Y.Time.Poly##rcv#glmnet                                                                                                                                                                                                                                                                                                WordCount.root2,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.day.minutes.poly.2,PubDate.day.minutes.poly.3,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.5
-## Max.cor.Y.Time.Lag##rcv#glmnet                                                                                                                                                                                                                                                                                                                                  WordCount.root2,NDSSName.my.fctr,PubDate.last2.log1p,PubDate.last4.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.last32.log1p
-## Interact.High.cor.Y##rcv#glmnet                                                                                                                                                                                                                                                 WordCount.root2,NDSSName.my.fctr,WordCount.root2:WordCount.root2,WordCount.root2:PubDate.day.minutes.poly.1,WordCount.root2:PubDate.last4.log1p,WordCount.root2:PubDate.last8.log1p,WordCount.root2:PubDate.month.fctr
-## Low.cor.X##rcv#glmnet                                                                                                                             WordCount.root2,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
-## All.X##rcv#glmnet               WordCount.root2,WordCount.log1p,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
+##                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              feats
+## MFO###myMFO_classfr                                                                                                                                                                                                                                                                                                                                                                                                                                                                         .rnorm
+## Random###myrandom_classfr                                                                                                                                                                                                                                                                                                                                                                                                                                                                   .rnorm
+## Max.cor.Y.rcv.1X1###glmnet                                                                                                                                                                                                                                                                                                                                                                                                                                            WordCount.root2,NDSS.my.fctr
+## Max.cor.Y##rcv#rpart                                                                                                                                                                                                                                                                                                                                                                                                                                                  WordCount.root2,NDSS.my.fctr
+## Max.cor.Y.Time.Poly##rcv#glmnet                                                                                                                                                                                                                                                                                                WordCount.root2,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.day.minutes.poly.2,PubDate.day.minutes.poly.3,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.5
+## Max.cor.Y.Time.Lag##rcv#glmnet                                                                                                                                                                                                                                                                                                                                  WordCount.root2,NDSS.my.fctr,PubDate.last2.log1p,PubDate.last4.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.last32.log1p
+## Interact.High.cor.Y##rcv#glmnet                                                                                                                                                                                                                                                                                     WordCount.root2,NDSS.my.fctr,WordCount.root2:WordCount.root2,WordCount.root2:PubDate.day.minutes.poly.1,WordCount.root2:PubDate.last4.log1p,WordCount.root2:PubDate.month.fctr
+## Low.cor.X##rcv#glmnet                                                                                                        WordCount.root2,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
+## All.X##rcv#glmnet               WordCount.root2,WordCount.log1p,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
 ##                                 max.nTuningRuns max.AUCpROC.fit
 ## MFO###myMFO_classfr                           0       0.5000000
 ## Random###myrandom_classfr                     0       0.4990604
 ## Max.cor.Y.rcv.1X1###glmnet                    0       0.8790544
-## Max.cor.Y.rcv.3X1##rcv#glmnet                25       0.8767919
-## Max.cor.Y.rcv.3X3##rcv#glmnet                25       0.8767919
-## Max.cor.Y.rcv.3X5##rcv#glmnet                25       0.8767919
-## Max.cor.Y.rcv.5X1##rcv#glmnet                25       0.8784031
-## Max.cor.Y.rcv.5X3##rcv#glmnet                25       0.8784031
-## Max.cor.Y.rcv.5X5##rcv#glmnet                25       0.8784031
-## Max.cor.Y.rcv.1X1.cp.0###rpart                0       0.8821543
 ## Max.cor.Y##rcv#rpart                          5       0.8709432
 ## Max.cor.Y.Time.Poly##rcv#glmnet              25       0.8748550
 ## Max.cor.Y.Time.Lag##rcv#glmnet                5       0.8419280
-## Interact.High.cor.Y##rcv#glmnet              25       0.8722119
-## Low.cor.X##rcv#glmnet                         5       0.8383968
-## All.X##rcv#glmnet                             5       0.8389043
+## Interact.High.cor.Y##rcv#glmnet              25       0.8776419
+## Low.cor.X##rcv#glmnet                        25       0.8751806
+## All.X##rcv#glmnet                            25       0.8734975
 ##                                 max.Sens.fit max.Spec.fit max.AUCROCR.fit
 ## MFO###myMFO_classfr                1.0000000    0.0000000       0.5000000
 ## Random###myrandom_classfr          0.8312611    0.1668598       0.4972757
 ## Max.cor.Y.rcv.1X1###glmnet         0.9632073    0.7949015       0.9608594
-## Max.cor.Y.rcv.3X1##rcv#glmnet      0.9644760    0.7891078       0.9582555
-## Max.cor.Y.rcv.3X3##rcv#glmnet      0.9644760    0.7891078       0.9582555
-## Max.cor.Y.rcv.3X5##rcv#glmnet      0.9644760    0.7891078       0.9582555
-## Max.cor.Y.rcv.5X1##rcv#glmnet      0.9642223    0.7925840       0.9607052
-## Max.cor.Y.rcv.5X3##rcv#glmnet      0.9642223    0.7925840       0.9607052
-## Max.cor.Y.rcv.5X5##rcv#glmnet      0.9642223    0.7925840       0.9607052
-## Max.cor.Y.rcv.1X1.cp.0###rpart     0.9705658    0.7937428       0.9504198
 ## Max.cor.Y##rcv#rpart               0.9632073    0.7786790       0.8746354
 ## Max.cor.Y.Time.Poly##rcv#glmnet    0.9652372    0.7844728       0.9565422
-## Max.cor.Y.Time.Lag##rcv#glmnet     0.9781781    0.7056779       0.9581739
-## Interact.High.cor.Y##rcv#glmnet    0.9657447    0.7786790       0.9539100
-## Low.cor.X##rcv#glmnet              0.9769094    0.6998841       0.9582998
-## All.X##rcv#glmnet                  0.9779244    0.6998841       0.9585414
+## Max.cor.Y.Time.Lag##rcv#glmnet     0.9781781    0.7056779       0.9581563
+## Interact.High.cor.Y##rcv#glmnet    0.9626998    0.7925840       0.9625372
+## Low.cor.X##rcv#glmnet              0.9647298    0.7856315       0.9622982
+## All.X##rcv#glmnet                  0.9659985    0.7809965       0.9528396
 ##                                 opt.prob.threshold.fit max.f.score.fit
 ## MFO###myMFO_classfr                                0.1       0.3045703
 ## Random###myrandom_classfr                          0.1       0.3045703
 ## Max.cor.Y.rcv.1X1###glmnet                         0.5       0.8099174
-## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.4       0.8099174
-## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.4       0.8099174
-## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.4       0.8099174
-## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.5       0.8104265
-## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.5       0.8104265
-## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.5       0.8104265
-## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.4       0.8235294
 ## Max.cor.Y##rcv#rpart                               0.6       0.8000000
 ## Max.cor.Y.Time.Poly##rcv#glmnet                    0.4       0.8099174
 ## Max.cor.Y.Time.Lag##rcv#glmnet                     0.3       0.8103347
-## Interact.High.cor.Y##rcv#glmnet                    0.4       0.8091873
-## Low.cor.X##rcv#glmnet                              0.3       0.8084359
-## All.X##rcv#glmnet                                  0.3       0.8070588
+## Interact.High.cor.Y##rcv#glmnet                    0.4       0.8084359
+## Low.cor.X##rcv#glmnet                              0.2       0.8118701
+## All.X##rcv#glmnet                                  0.4       0.8101715
 ##                                 max.Accuracy.fit max.Kappa.fit
 ## MFO###myMFO_classfr                    0.1796420     0.0000000
 ## Random###myrandom_classfr              0.1796420     0.0000000
 ## Max.cor.Y.rcv.1X1###glmnet             0.9329725     0.7692476
-## Max.cor.Y.rcv.3X1##rcv#glmnet          0.9335973     0.7691678
-## Max.cor.Y.rcv.3X3##rcv#glmnet          0.9333193     0.7690803
-## Max.cor.Y.rcv.3X5##rcv#glmnet          0.9332218     0.7686375
-## Max.cor.Y.rcv.5X1##rcv#glmnet          0.9331818     0.7689055
-## Max.cor.Y.rcv.5X3##rcv#glmnet          0.9333905     0.7698577
-## Max.cor.Y.rcv.5X5##rcv#glmnet          0.9331816     0.7691429
-## Max.cor.Y.rcv.1X1.cp.0###rpart         0.9381765     0.7860827
 ## Max.cor.Y##rcv#rpart                   0.9296422     0.7515134
 ## Max.cor.Y.Time.Poly##rcv#glmnet        0.9322790     0.7643948
-## Max.cor.Y.Time.Lag##rcv#glmnet         0.9281861     0.7362844
-## Interact.High.cor.Y##rcv#glmnet        0.9315850     0.7616337
-## Low.cor.X##rcv#glmnet                  0.9261046     0.7284544
-## All.X##rcv#glmnet                      0.9263124     0.7277552
+## Max.cor.Y.Time.Lag##rcv#glmnet         0.9279084     0.7350030
+## Interact.High.cor.Y##rcv#glmnet        0.9315850     0.7641040
+## Low.cor.X##rcv#glmnet                  0.9323486     0.7651127
+## All.X##rcv#glmnet                      0.9320707     0.7630270
 ##                                 max.AUCpROC.OOB max.Sens.OOB max.Spec.OOB
 ## MFO###myMFO_classfr                   0.5000000    1.0000000    0.0000000
 ## Random###myrandom_classfr             0.5125675    0.8077437    0.2173913
 ## Max.cor.Y.rcv.1X1###glmnet            0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X1##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X3##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.3X5##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X1##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X3##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.5X5##rcv#glmnet         0.5962443    0.9098798    0.2826087
-## Max.cor.Y.rcv.1X1.cp.0###rpart        0.6174697    0.9218959    0.3130435
 ## Max.cor.Y##rcv#rpart                  0.5870523    0.9045394    0.2695652
 ## Max.cor.Y.Time.Poly##rcv#glmnet       0.5965780    0.9105474    0.2826087
-## Max.cor.Y.Time.Lag##rcv#glmnet        0.5928717    0.9379172    0.2478261
-## Interact.High.cor.Y##rcv#glmnet       0.5957392    0.9132176    0.2782609
-## Low.cor.X##rcv#glmnet                 0.5876850    0.9405874    0.2347826
-## All.X##rcv#glmnet                     0.5876850    0.9405874    0.2347826
+## Max.cor.Y.Time.Lag##rcv#glmnet        0.5925379    0.9372497    0.2478261
+## Interact.High.cor.Y##rcv#glmnet       0.6009259    0.9105474    0.2913043
+## Low.cor.X##rcv#glmnet                 0.6015934    0.9118825    0.2913043
+## All.X##rcv#glmnet                     0.5950717    0.9118825    0.2782609
 ##                                 max.AUCROCR.OOB opt.prob.threshold.OOB
 ## MFO###myMFO_classfr                   0.5000000                    0.1
 ## Random###myrandom_classfr             0.4857956                    0.1
 ## Max.cor.Y.rcv.1X1###glmnet            0.8116126                    0.1
-## Max.cor.Y.rcv.3X1##rcv#glmnet         0.8067975                    0.1
-## Max.cor.Y.rcv.3X3##rcv#glmnet         0.8067975                    0.1
-## Max.cor.Y.rcv.3X5##rcv#glmnet         0.8067975                    0.1
-## Max.cor.Y.rcv.5X1##rcv#glmnet         0.8114863                    0.1
-## Max.cor.Y.rcv.5X3##rcv#glmnet         0.8114863                    0.1
-## Max.cor.Y.rcv.5X5##rcv#glmnet         0.8114863                    0.1
-## Max.cor.Y.rcv.1X1.cp.0###rpart        0.7773858                    0.1
 ## Max.cor.Y##rcv#rpart                  0.5892132                    0.6
 ## Max.cor.Y.Time.Poly##rcv#glmnet       0.8049472                    0.1
-## Max.cor.Y.Time.Lag##rcv#glmnet        0.8118709                    0.1
-## Interact.High.cor.Y##rcv#glmnet       0.7992251                    0.1
-## Low.cor.X##rcv#glmnet                 0.8150026                    0.1
-## All.X##rcv#glmnet                     0.8157921                    0.1
+## Max.cor.Y.Time.Lag##rcv#glmnet        0.8117635                    0.1
+## Interact.High.cor.Y##rcv#glmnet       0.8140971                    0.1
+## Low.cor.X##rcv#glmnet                 0.8160359                    0.1
+## All.X##rcv#glmnet                     0.7995951                    0.1
 ##                                 max.f.score.OOB max.Accuracy.OOB
 ## MFO###myMFO_classfr                   0.2349336        0.1331019
 ## Random###myrandom_classfr             0.2349336        0.1331019
 ## Max.cor.Y.rcv.1X1###glmnet            0.4405405        0.7604167
-## Max.cor.Y.rcv.3X1##rcv#glmnet         0.4375839        0.7575231
-## Max.cor.Y.rcv.3X3##rcv#glmnet         0.4375839        0.7575231
-## Max.cor.Y.rcv.3X5##rcv#glmnet         0.4375839        0.7575231
-## Max.cor.Y.rcv.5X1##rcv#glmnet         0.4609375        0.7604167
-## Max.cor.Y.rcv.5X3##rcv#glmnet         0.4609375        0.7604167
-## Max.cor.Y.rcv.5X5##rcv#glmnet         0.4609375        0.7604167
-## Max.cor.Y.rcv.1X1.cp.0###rpart        0.4207493        0.7673611
 ## Max.cor.Y##rcv#rpart                  0.2850575        0.8200231
 ## Max.cor.Y.Time.Poly##rcv#glmnet       0.4441261        0.7754630
 ## Max.cor.Y.Time.Lag##rcv#glmnet        0.4062196        0.6464120
-## Interact.High.cor.Y##rcv#glmnet       0.4144144        0.7743056
-## Low.cor.X##rcv#glmnet                 0.3945841        0.6377315
-## All.X##rcv#glmnet                     0.3917137        0.6261574
+## Interact.High.cor.Y##rcv#glmnet       0.4398340        0.7656250
+## Low.cor.X##rcv#glmnet                 0.4461942        0.7557870
+## All.X##rcv#glmnet                     0.4230769        0.7743056
 ##                                 max.Kappa.OOB inv.elapsedtime.everything
-## MFO###myMFO_classfr                 0.0000000                  3.3783784
-## Random###myrandom_classfr           0.0000000                  3.3557047
-## Max.cor.Y.rcv.1X1###glmnet          0.3148374                  0.9765625
-## Max.cor.Y.rcv.3X1##rcv#glmnet       0.3107477                  0.3489184
-## Max.cor.Y.rcv.3X3##rcv#glmnet       0.3107477                  0.2059732
-## Max.cor.Y.rcv.3X5##rcv#glmnet       0.3107477                  0.1203225
-## Max.cor.Y.rcv.5X1##rcv#glmnet       0.3373693                  0.2913753
-## Max.cor.Y.rcv.5X3##rcv#glmnet       0.3373693                  0.1549907
-## Max.cor.Y.rcv.5X5##rcv#glmnet       0.3373693                  0.1092896
-## Max.cor.Y.rcv.1X1.cp.0###rpart      0.2953321                  1.1668611
-## Max.cor.Y##rcv#rpart                0.1825002                  0.3346720
-## Max.cor.Y.Time.Poly##rcv#glmnet     0.3233542                  0.2022654
-## Max.cor.Y.Time.Lag##rcv#glmnet      0.2515036                  0.2513826
-## Interact.High.cor.Y##rcv#glmnet     0.2908255                  0.1661130
-## Low.cor.X##rcv#glmnet               0.2365595                  0.1760873
-## All.X##rcv#glmnet                   0.2314268                  0.1242854
+## MFO###myMFO_classfr                 0.0000000                  3.3112583
+## Random###myrandom_classfr           0.0000000                  3.2362460
+## Max.cor.Y.rcv.1X1###glmnet          0.3148374                  0.9671180
+## Max.cor.Y##rcv#rpart                0.1825002                  0.3301420
+## Max.cor.Y.Time.Poly##rcv#glmnet     0.3233542                  0.2045408
+## Max.cor.Y.Time.Lag##rcv#glmnet      0.2515036                  0.2366864
+## Interact.High.cor.Y##rcv#glmnet     0.3156027                  0.1939112
+## Low.cor.X##rcv#glmnet               0.3197713                  0.1465631
+## All.X##rcv#glmnet                   0.3001637                  0.1050310
 ##                                 inv.elapsedtime.final
-## MFO###myMFO_classfr                        333.333333
+## MFO###myMFO_classfr                        250.000000
 ## Random###myrandom_classfr                  500.000000
-## Max.cor.Y.rcv.1X1###glmnet                   3.623188
-## Max.cor.Y.rcv.3X1##rcv#glmnet                3.496503
-## Max.cor.Y.rcv.3X3##rcv#glmnet                3.663004
-## Max.cor.Y.rcv.3X5##rcv#glmnet                3.610108
-## Max.cor.Y.rcv.5X1##rcv#glmnet                3.690037
-## Max.cor.Y.rcv.5X3##rcv#glmnet                3.610108
-## Max.cor.Y.rcv.5X5##rcv#glmnet                3.717472
-## Max.cor.Y.rcv.1X1.cp.0###rpart              13.888889
-## Max.cor.Y##rcv#rpart                        13.157895
-## Max.cor.Y.Time.Poly##rcv#glmnet              3.076923
-## Max.cor.Y.Time.Lag##rcv#glmnet               3.225806
-## Interact.High.cor.Y##rcv#glmnet              2.450980
-## Low.cor.X##rcv#glmnet                        1.953125
-## All.X##rcv#glmnet                            1.579779
+## Max.cor.Y.rcv.1X1###glmnet                   3.546099
+## Max.cor.Y##rcv#rpart                        12.987013
+## Max.cor.Y.Time.Poly##rcv#glmnet              3.164557
+## Max.cor.Y.Time.Lag##rcv#glmnet               3.144654
+## Interact.High.cor.Y##rcv#glmnet              3.058104
+## Low.cor.X##rcv#glmnet                        1.941748
+## All.X##rcv#glmnet                            1.490313
 ```
 
 ```r
@@ -7072,29 +4843,19 @@ print(myplot_radar(radar_inp_df=plt_models_df))
 ```
 
 ```
-## Warning in RColorBrewer::brewer.pal(n, pal): n too large, allowed maximum for palette Set1 is 9
-## Returning the palette you asked for with that many colors
+## Warning: The shape palette can deal with a maximum of 6 discrete values
+## because more than 6 becomes difficult to discriminate; you have 9.
+## Consider specifying shapes manually if you must have them.
+```
+
+```
+## Warning: Removed 60 rows containing missing values (geom_point).
 ```
 
 ```
 ## Warning: The shape palette can deal with a maximum of 6 discrete values
-## because more than 6 becomes difficult to discriminate; you have
-## 16. Consider specifying shapes manually if you must have them.
-```
-
-```
-## Warning: Removed 200 rows containing missing values (geom_point).
-```
-
-```
-## Warning in RColorBrewer::brewer.pal(n, pal): n too large, allowed maximum for palette Set1 is 9
-## Returning the palette you asked for with that many colors
-```
-
-```
-## Warning: The shape palette can deal with a maximum of 6 discrete values
-## because more than 6 becomes difficult to discriminate; you have
-## 16. Consider specifying shapes manually if you must have them.
+## because more than 6 becomes difficult to discriminate; you have 9.
+## Consider specifying shapes manually if you must have them.
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_2-1.png) 
@@ -7216,7 +4977,7 @@ print(gp <- myplot_bar(df=mltd_models_df, xcol_name="id", ycol_names="value") +
 ```
 
 ```
-## Warning: Removed 4 rows containing missing values (geom_errorbar).
+## Warning: Removed 3 rows containing missing values (geom_errorbar).
 ```
 
 ```r
@@ -7233,7 +4994,7 @@ print(gp)
 ```
 
 ```
-## Warning: Removed 4 rows containing missing values (geom_errorbar).
+## Warning: Removed 3 rows containing missing values (geom_errorbar).
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_2-2.png) 
@@ -7251,86 +5012,51 @@ print(dsp_models_df <- orderBy(get_model_sel_frmla(), glb_models_df)[, dsp_model
 ##                                                              id
 ## Max.cor.Y##rcv#rpart                       Max.cor.Y##rcv#rpart
 ## Max.cor.Y.Time.Poly##rcv#glmnet Max.cor.Y.Time.Poly##rcv#glmnet
-## Interact.High.cor.Y##rcv#glmnet Interact.High.cor.Y##rcv#glmnet
-## Max.cor.Y.rcv.1X1.cp.0###rpart   Max.cor.Y.rcv.1X1.cp.0###rpart
-## Max.cor.Y.rcv.1X1###glmnet           Max.cor.Y.rcv.1X1###glmnet
-## Max.cor.Y.rcv.5X3##rcv#glmnet     Max.cor.Y.rcv.5X3##rcv#glmnet
-## Max.cor.Y.rcv.5X1##rcv#glmnet     Max.cor.Y.rcv.5X1##rcv#glmnet
-## Max.cor.Y.rcv.5X5##rcv#glmnet     Max.cor.Y.rcv.5X5##rcv#glmnet
-## Max.cor.Y.rcv.3X1##rcv#glmnet     Max.cor.Y.rcv.3X1##rcv#glmnet
-## Max.cor.Y.rcv.3X3##rcv#glmnet     Max.cor.Y.rcv.3X3##rcv#glmnet
-## Max.cor.Y.rcv.3X5##rcv#glmnet     Max.cor.Y.rcv.3X5##rcv#glmnet
-## Max.cor.Y.Time.Lag##rcv#glmnet   Max.cor.Y.Time.Lag##rcv#glmnet
-## Low.cor.X##rcv#glmnet                     Low.cor.X##rcv#glmnet
 ## All.X##rcv#glmnet                             All.X##rcv#glmnet
+## Interact.High.cor.Y##rcv#glmnet Interact.High.cor.Y##rcv#glmnet
+## Max.cor.Y.rcv.1X1###glmnet           Max.cor.Y.rcv.1X1###glmnet
+## Low.cor.X##rcv#glmnet                     Low.cor.X##rcv#glmnet
+## Max.cor.Y.Time.Lag##rcv#glmnet   Max.cor.Y.Time.Lag##rcv#glmnet
 ## MFO###myMFO_classfr                         MFO###myMFO_classfr
 ## Random###myrandom_classfr             Random###myrandom_classfr
 ##                                 max.Accuracy.OOB max.AUCROCR.OOB
 ## Max.cor.Y##rcv#rpart                   0.8200231       0.5892132
 ## Max.cor.Y.Time.Poly##rcv#glmnet        0.7754630       0.8049472
-## Interact.High.cor.Y##rcv#glmnet        0.7743056       0.7992251
-## Max.cor.Y.rcv.1X1.cp.0###rpart         0.7673611       0.7773858
+## All.X##rcv#glmnet                      0.7743056       0.7995951
+## Interact.High.cor.Y##rcv#glmnet        0.7656250       0.8140971
 ## Max.cor.Y.rcv.1X1###glmnet             0.7604167       0.8116126
-## Max.cor.Y.rcv.5X3##rcv#glmnet          0.7604167       0.8114863
-## Max.cor.Y.rcv.5X1##rcv#glmnet          0.7604167       0.8114863
-## Max.cor.Y.rcv.5X5##rcv#glmnet          0.7604167       0.8114863
-## Max.cor.Y.rcv.3X1##rcv#glmnet          0.7575231       0.8067975
-## Max.cor.Y.rcv.3X3##rcv#glmnet          0.7575231       0.8067975
-## Max.cor.Y.rcv.3X5##rcv#glmnet          0.7575231       0.8067975
-## Max.cor.Y.Time.Lag##rcv#glmnet         0.6464120       0.8118709
-## Low.cor.X##rcv#glmnet                  0.6377315       0.8150026
-## All.X##rcv#glmnet                      0.6261574       0.8157921
+## Low.cor.X##rcv#glmnet                  0.7557870       0.8160359
+## Max.cor.Y.Time.Lag##rcv#glmnet         0.6464120       0.8117635
 ## MFO###myMFO_classfr                    0.1331019       0.5000000
 ## Random###myrandom_classfr              0.1331019       0.4857956
 ##                                 max.AUCpROC.OOB max.Accuracy.fit
 ## Max.cor.Y##rcv#rpart                  0.5870523        0.9296422
 ## Max.cor.Y.Time.Poly##rcv#glmnet       0.5965780        0.9322790
-## Interact.High.cor.Y##rcv#glmnet       0.5957392        0.9315850
-## Max.cor.Y.rcv.1X1.cp.0###rpart        0.6174697        0.9381765
+## All.X##rcv#glmnet                     0.5950717        0.9320707
+## Interact.High.cor.Y##rcv#glmnet       0.6009259        0.9315850
 ## Max.cor.Y.rcv.1X1###glmnet            0.5962443        0.9329725
-## Max.cor.Y.rcv.5X3##rcv#glmnet         0.5962443        0.9333905
-## Max.cor.Y.rcv.5X1##rcv#glmnet         0.5962443        0.9331818
-## Max.cor.Y.rcv.5X5##rcv#glmnet         0.5962443        0.9331816
-## Max.cor.Y.rcv.3X1##rcv#glmnet         0.5962443        0.9335973
-## Max.cor.Y.rcv.3X3##rcv#glmnet         0.5962443        0.9333193
-## Max.cor.Y.rcv.3X5##rcv#glmnet         0.5962443        0.9332218
-## Max.cor.Y.Time.Lag##rcv#glmnet        0.5928717        0.9281861
-## Low.cor.X##rcv#glmnet                 0.5876850        0.9261046
-## All.X##rcv#glmnet                     0.5876850        0.9263124
+## Low.cor.X##rcv#glmnet                 0.6015934        0.9323486
+## Max.cor.Y.Time.Lag##rcv#glmnet        0.5925379        0.9279084
 ## MFO###myMFO_classfr                   0.5000000        0.1796420
 ## Random###myrandom_classfr             0.5125675        0.1796420
 ##                                 opt.prob.threshold.fit
 ## Max.cor.Y##rcv#rpart                               0.6
 ## Max.cor.Y.Time.Poly##rcv#glmnet                    0.4
+## All.X##rcv#glmnet                                  0.4
 ## Interact.High.cor.Y##rcv#glmnet                    0.4
-## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.4
 ## Max.cor.Y.rcv.1X1###glmnet                         0.5
-## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.5
-## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.5
-## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.5
-## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.4
-## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.4
-## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.4
+## Low.cor.X##rcv#glmnet                              0.2
 ## Max.cor.Y.Time.Lag##rcv#glmnet                     0.3
-## Low.cor.X##rcv#glmnet                              0.3
-## All.X##rcv#glmnet                                  0.3
 ## MFO###myMFO_classfr                                0.1
 ## Random###myrandom_classfr                          0.1
 ##                                 opt.prob.threshold.OOB
 ## Max.cor.Y##rcv#rpart                               0.6
 ## Max.cor.Y.Time.Poly##rcv#glmnet                    0.1
-## Interact.High.cor.Y##rcv#glmnet                    0.1
-## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.1
-## Max.cor.Y.rcv.1X1###glmnet                         0.1
-## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.1
-## Max.cor.Y.Time.Lag##rcv#glmnet                     0.1
-## Low.cor.X##rcv#glmnet                              0.1
 ## All.X##rcv#glmnet                                  0.1
+## Interact.High.cor.Y##rcv#glmnet                    0.1
+## Max.cor.Y.rcv.1X1###glmnet                         0.1
+## Low.cor.X##rcv#glmnet                              0.1
+## Max.cor.Y.Time.Lag##rcv#glmnet                     0.1
 ## MFO###myMFO_classfr                                0.1
 ## Random###myrandom_classfr                          0.1
 ```
@@ -7340,29 +5066,19 @@ print(myplot_radar(radar_inp_df = dsp_models_df))
 ```
 
 ```
-## Warning in RColorBrewer::brewer.pal(n, pal): n too large, allowed maximum for palette Set1 is 9
-## Returning the palette you asked for with that many colors
+## Warning: The shape palette can deal with a maximum of 6 discrete values
+## because more than 6 becomes difficult to discriminate; you have 9.
+## Consider specifying shapes manually if you must have them.
+```
+
+```
+## Warning: Removed 21 rows containing missing values (geom_point).
 ```
 
 ```
 ## Warning: The shape palette can deal with a maximum of 6 discrete values
-## because more than 6 becomes difficult to discriminate; you have
-## 16. Consider specifying shapes manually if you must have them.
-```
-
-```
-## Warning: Removed 70 rows containing missing values (geom_point).
-```
-
-```
-## Warning in RColorBrewer::brewer.pal(n, pal): n too large, allowed maximum for palette Set1 is 9
-## Returning the palette you asked for with that many colors
-```
-
-```
-## Warning: The shape palette can deal with a maximum of 6 discrete values
-## because more than 6 becomes difficult to discriminate; you have
-## 16. Consider specifying shapes manually if you must have them.
+## because more than 6 becomes difficult to discriminate; you have 9.
+## Consider specifying shapes manually if you must have them.
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_2-3.png) 
@@ -7378,7 +5094,7 @@ print("Metrics used for model selection:"); print(get_model_sel_frmla())
 ```
 ## ~-max.Accuracy.OOB - max.AUCROCR.OOB - max.AUCpROC.OOB - max.Accuracy.fit - 
 ##     opt.prob.threshold.OOB
-## <environment: 0x7f8ff66ebce0>
+## <environment: 0x7fe3e517d070>
 ```
 
 ```r
@@ -7650,12 +5366,12 @@ myprint_mdl(glb_sel_mdl <- glb_models_lst[[glb_sel_mdl_id]])
 
 ```
 ##             Length Class      Mode     
-## a0           100   -none-     numeric  
-## beta        5700   dgCMatrix  S4       
-## df           100   -none-     numeric  
+## a0            89   -none-     numeric  
+## beta        5073   dgCMatrix  S4       
+## df            89   -none-     numeric  
 ## dim            2   -none-     numeric  
-## lambda       100   -none-     numeric  
-## dev.ratio    100   -none-     numeric  
+## lambda        89   -none-     numeric  
+## dev.ratio     89   -none-     numeric  
 ## nulldev        1   -none-     numeric  
 ## npasses        1   -none-     numeric  
 ## jerr           1   -none-     numeric  
@@ -7669,117 +5385,33 @@ myprint_mdl(glb_sel_mdl <- glb_models_lst[[glb_sel_mdl_id]])
 ## tuneValue      2   data.frame list     
 ## obsLevels      2   -none-     character
 ## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                            -3.797789581 
-##                 NDSSName.my.fctr#Mltmd# 
-##                            -0.033305395 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                            -0.609594650 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                             1.951072023 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                            -0.268438616 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                            -0.165907382 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                            -0.128680248 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                             2.226214409 
-##              NDSSName.my.fctrCltr#Arts# 
-##                            -0.172700226 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                            -0.142721283 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                            -0.305563165 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                             2.487652981 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                             1.989726118 
-##             NDSSName.my.fctrStyls##Fshn 
-##                            -0.252459875 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                             1.824219364 
-##                 NDSSName.my.fctrTStyl## 
-##                            -0.420594594 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                            -0.113478486 
-##              PubDate.day.minutes.poly.1 
-##                             9.907499536 
-##              PubDate.day.minutes.poly.2 
-##                             1.591602549 
-##              PubDate.day.minutes.poly.4 
-##                             4.067701888 
-##              PubDate.hour.fctr(15.3,23] 
-##                             0.040523622 
-##                     PubDate.last2.log1p 
-##                             0.012602937 
-##                     PubDate.last4.log1p 
-##                             0.022795288 
-##                     PubDate.last8.log1p 
-##                             0.003719588 
-##                           PubDate.wkend 
-##                             0.143132859 
-##                         WordCount.log1p 
-##                             0.149525804 
-##                         WordCount.root2 
-##                             0.023690424 
+##                     (Intercept)       NDSS.my.fctr#Opnn#RmFrDbt 
+##                     -4.15778549                     -0.29068581 
+##    NDSS.my.fctr#Opnn#ThPblcEdtr NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                      2.70584441                      3.68584256 
+##          NDSS.my.fctrOpEd#Opnn#          NDSS.my.fctrScnc#Hlth# 
+##                      4.00374690                      3.09723359 
+##         NDSS.my.fctrStyls#U.S.#             NDSS.my.fctrTStyl## 
+##                      2.85084048                     -0.13236677 
+##      PubDate.day.minutes.poly.1                 WordCount.log1p 
+##                      5.59078306                      0.08550402 
+##                 WordCount.root2 
+##                      0.04496835 
 ## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                            -3.930420228 
-##                 NDSSName.my.fctr#Mltmd# 
-##                            -0.060818787 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                            -0.690598861 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                             2.059371027 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                            -0.298341354 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                            -0.177530124 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                            -0.157260610 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                             2.302913242 
-##              NDSSName.my.fctrCltr#Arts# 
-##                            -0.186887476 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                            -0.171078777 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                            -0.343168978 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                             2.575027796 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                             2.065753009 
-##             NDSSName.my.fctrStyls##Fshn 
-##                            -0.291299477 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                             1.900303104 
-##                 NDSSName.my.fctrTStyl## 
-##                            -0.447367186 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                            -0.146040451 
-##                  NDSSName.my.fctrmyOthr 
-##                            -0.021887251 
-##              PubDate.day.minutes.poly.1 
-##                            10.325074080 
-##              PubDate.day.minutes.poly.2 
-##                             1.878898682 
-##              PubDate.day.minutes.poly.4 
-##                             4.431162446 
-##              PubDate.hour.fctr(15.3,23] 
-##                             0.042785355 
-##                     PubDate.last2.log1p 
-##                             0.014138234 
-##                     PubDate.last4.log1p 
-##                             0.024615262 
-##                     PubDate.last8.log1p 
-##                             0.005991056 
-##                           PubDate.wkend 
-##                             0.151771573 
-##                         WordCount.log1p 
-##                             0.156106145 
-##                         WordCount.root2 
-##                             0.024698908
+##                     (Intercept)       NDSS.my.fctr#Opnn#RmFrDbt 
+##                    -4.284190646                    -0.447707141 
+##    NDSS.my.fctr#Opnn#ThPblcEdtr NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                     2.827765103                     3.751516261 
+##      NDSS.my.fctrBsnss#Tchnlgy#          NDSS.my.fctrOpEd#Opnn# 
+##                     0.081535690                     4.070511321 
+##          NDSS.my.fctrScnc#Hlth#         NDSS.my.fctrStyls#U.S.# 
+##                     3.163208431                     2.914061199 
+##             NDSS.my.fctrTStyl##      PubDate.day.minutes.poly.1 
+##                    -0.187607543                     7.038308760 
+##                   PubDate.wkend                 WordCount.log1p 
+##                     0.008146344                     0.096036181 
+##                 WordCount.root2 
+##                     0.046479071
 ```
 
 ```
@@ -7821,64 +5453,64 @@ print(glb_featsimp_df)
 ```
 
 ```
-##                                                imp All.X##rcv#glmnet.imp
-## PubDate.day.minutes.poly.1              100.000000            100.000000
-## PubDate.day.minutes.poly.4               46.118345             46.118345
-## NDSSName.my.fctrOpEd#Opnn#               29.608813             29.608813
-## NDSSName.my.fctrBsnss#Crsswrds/Gms#      27.135657             27.135657
-## NDSSName.my.fctrScnc#Hlth#               24.964890             24.964890
-## NDSSName.my.fctr#Opnn#ThPblcEdtr         24.849247             24.849247
-## NDSSName.my.fctrStyls#U.S.#              23.449567             23.449567
-## PubDate.day.minutes.poly.2               22.879214             22.879214
-## WordCount.log1p                           7.599061              7.599061
-## PubDate.wkend                             7.555716              7.555716
-## PubDate.hour.fctr(15.3,23]                6.568901              6.568901
-## WordCount.root2                           6.405483              6.405483
-## PubDate.last4.log1p                       6.403279              6.403279
-## PubDate.last2.log1p                       6.307833              6.307833
-## PubDate.last8.log1p                       6.231915              6.231915
-## .rnorm                                    6.181073              6.181073
-## NDSSName.my.fctrBsnss#Tchnlgy#            6.181073              6.181073
-## NDSSName.my.fctrCltr##                    6.181073              6.181073
-## NDSSName.my.fctrMtr#N.Y./Rgn#             6.181073              6.181073
-## PubDate.date.fctr(7,13]                   6.181073              6.181073
-## PubDate.date.fctr(13,19]                  6.181073              6.181073
-## PubDate.date.fctr(19,25]                  6.181073              6.181073
-## PubDate.date.fctr(25,31]                  6.181073              6.181073
-## PubDate.day.minutes.poly.3                6.181073              6.181073
-## PubDate.day.minutes.poly.5                6.181073              6.181073
-## PubDate.hour.fctr(7.67,15.3]              6.181073              6.181073
-## PubDate.juliandate                        6.181073              6.181073
-## PubDate.last16.log1p                      6.181073              6.181073
-## PubDate.last32.log1p                      6.181073              6.181073
-## PubDate.minute.fctr(14.8,29.5]            6.181073              6.181073
-## PubDate.minute.fctr(29.5,44.2]            6.181073              6.181073
-## PubDate.minute.fctr(44.2,59.1]            6.181073              6.181073
-## PubDate.month.fctr10                      6.181073              6.181073
-## PubDate.month.fctr11                      6.181073              6.181073
-## PubDate.month.fctr12                      6.181073              6.181073
-## PubDate.second.fctr(14.8,29.5]            6.181073              6.181073
-## PubDate.second.fctr(29.5,44.2]            6.181073              6.181073
-## PubDate.second.fctr(44.2,59.1]            6.181073              6.181073
-## PubDate.wkday.fctr1                       6.181073              6.181073
-## PubDate.wkday.fctr2                       6.181073              6.181073
-## PubDate.wkday.fctr3                       6.181073              6.181073
-## PubDate.wkday.fctr4                       6.181073              6.181073
-## PubDate.wkday.fctr5                       6.181073              6.181073
-## PubDate.wkday.fctr6                       6.181073              6.181073
-## WordCount.nexp                            6.181073              6.181073
-## NDSSName.my.fctrmyOthr                    6.019416              6.019416
-## NDSSName.my.fctr#Mltmd#                   5.672845              5.672845
-## NDSSName.my.fctrTrvl#Trvl#                4.901316              4.901316
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss   4.791503              4.791503
-## NDSSName.my.fctrFrgn#Wrld#                4.664559              4.664559
-## NDSSName.my.fctrBsnss#BsnssDy#Dlbk        4.575817              4.575817
-## NDSSName.my.fctrCltr#Arts#                4.494666              4.494666
-## NDSSName.my.fctrStyls##Fshn               3.582132              3.582132
-## NDSSName.my.fctr#U.S.#Edctn               3.501802              3.501802
-## NDSSName.my.fctrFrgn#Wrld#AsPcfc          3.104915              3.104915
-## NDSSName.my.fctrTStyl##                   2.131448              2.131448
-## NDSSName.my.fctr#Opnn#RmFrDbt             0.000000              0.000000
+##                                            imp All.X##rcv#glmnet.imp
+## PubDate.day.minutes.poly.1          100.000000            100.000000
+## NDSS.my.fctrOpEd#Opnn#               68.562523             68.562523
+## NDSS.my.fctrBsnss#Crsswrds/Gms#      63.559761             63.559761
+## NDSS.my.fctrScnc#Hlth#               54.307908             54.307908
+## NDSS.my.fctrStyls#U.S.#              50.421526             50.421526
+## NDSS.my.fctr#Opnn#ThPblcEdtr         48.417943             48.417943
+## WordCount.log1p                       6.701272              6.701272
+## WordCount.root2                       6.021636              6.021636
+## NDSS.my.fctrBsnss#Tchnlgy#            5.690755              5.690755
+## PubDate.wkend                         5.345889              5.345889
+## .rnorm                                5.307609              5.307609
+## NDSS.my.fctr#Mltmd#                   5.307609              5.307609
+## NDSS.my.fctr#U.S.#Edctn               5.307609              5.307609
+## NDSS.my.fctrBsnss#BsnssDy#Dlbk        5.307609              5.307609
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss   5.307609              5.307609
+## NDSS.my.fctrCltr##                    5.307609              5.307609
+## NDSS.my.fctrCltr#Arts#                5.307609              5.307609
+## NDSS.my.fctrFrgn#Wrld#                5.307609              5.307609
+## NDSS.my.fctrFrgn#Wrld#AsPcfc          5.307609              5.307609
+## NDSS.my.fctrMtr#N.Y./Rgn#             5.307609              5.307609
+## NDSS.my.fctrStyls##Fshn               5.307609              5.307609
+## NDSS.my.fctrTrvl#Trvl#                5.307609              5.307609
+## NDSS.my.fctrmyOthr                    5.307609              5.307609
+## PubDate.date.fctr(7,13]               5.307609              5.307609
+## PubDate.date.fctr(13,19]              5.307609              5.307609
+## PubDate.date.fctr(19,25]              5.307609              5.307609
+## PubDate.date.fctr(25,31]              5.307609              5.307609
+## PubDate.day.minutes.poly.2            5.307609              5.307609
+## PubDate.day.minutes.poly.3            5.307609              5.307609
+## PubDate.day.minutes.poly.4            5.307609              5.307609
+## PubDate.day.minutes.poly.5            5.307609              5.307609
+## PubDate.hour.fctr(7.67,15.3]          5.307609              5.307609
+## PubDate.hour.fctr(15.3,23]            5.307609              5.307609
+## PubDate.juliandate                    5.307609              5.307609
+## PubDate.last16.log1p                  5.307609              5.307609
+## PubDate.last2.log1p                   5.307609              5.307609
+## PubDate.last32.log1p                  5.307609              5.307609
+## PubDate.last4.log1p                   5.307609              5.307609
+## PubDate.last8.log1p                   5.307609              5.307609
+## PubDate.minute.fctr(14.8,29.5]        5.307609              5.307609
+## PubDate.minute.fctr(29.5,44.2]        5.307609              5.307609
+## PubDate.minute.fctr(44.2,59.1]        5.307609              5.307609
+## PubDate.month.fctr10                  5.307609              5.307609
+## PubDate.month.fctr11                  5.307609              5.307609
+## PubDate.month.fctr12                  5.307609              5.307609
+## PubDate.second.fctr(14.8,29.5]        5.307609              5.307609
+## PubDate.second.fctr(29.5,44.2]        5.307609              5.307609
+## PubDate.second.fctr(44.2,59.1]        5.307609              5.307609
+## PubDate.wkday.fctr1                   5.307609              5.307609
+## PubDate.wkday.fctr2                   5.307609              5.307609
+## PubDate.wkday.fctr3                   5.307609              5.307609
+## PubDate.wkday.fctr4                   5.307609              5.307609
+## PubDate.wkday.fctr5                   5.307609              5.307609
+## PubDate.wkday.fctr6                   5.307609              5.307609
+## WordCount.nexp                        5.307609              5.307609
+## NDSS.my.fctrTStyl##                   2.967145              2.967145
+## NDSS.my.fctr#Opnn#RmFrDbt             0.000000              0.000000
 ```
 
 ```r
@@ -7965,33 +5597,28 @@ if (glb_is_classification && glb_is_binomial)
 ```
 ## [1] "Min/Max Boundaries: "
 ##   UniqueID Pplr.fctr Pplr.fctr.All.X..rcv.glmnet.prob
-## 1     3918         N                       0.03938738
-## 2     2555         N                       0.02746354
-## 3      302         N                       0.24364717
+## 1     2555         N                       0.01260243
+## 2      302         N                       0.10198151
 ##   Pplr.fctr.All.X..rcv.glmnet Pplr.fctr.All.X..rcv.glmnet.err
 ## 1                           N                           FALSE
-## 2                           N                           FALSE
-## 3                           Y                            TRUE
+## 2                           Y                            TRUE
 ##   Pplr.fctr.All.X..rcv.glmnet.err.abs Pplr.fctr.All.X..rcv.glmnet.is.acc
-## 1                          0.03938738                               TRUE
-## 2                          0.02746354                               TRUE
-## 3                          0.24364717                              FALSE
+## 1                          0.01260243                               TRUE
+## 2                          0.10198151                              FALSE
 ##   Pplr.fctr.All.X..rcv.glmnet.accurate Pplr.fctr.All.X..rcv.glmnet.error
-## 1                                 TRUE                         0.0000000
-## 2                                 TRUE                         0.0000000
-## 3                                FALSE                         0.1436472
+## 1                                 TRUE                       0.000000000
+## 2                                FALSE                       0.001981509
 ##   .label
-## 1   3918
-## 2   2555
-## 3    302
+## 1   2555
+## 2    302
 ## [1] "Inaccurate: "
 ##   UniqueID Pplr.fctr Pplr.fctr.All.X..rcv.glmnet.prob
-## 1      172         Y                       0.06329231
-## 2     3554         Y                       0.06519608
-## 3       92         Y                       0.06728628
-## 4     3076         Y                       0.07036009
-## 5     6354         Y                       0.07093837
-## 6     4020         Y                       0.07165963
+## 1     4020         Y                       0.02959503
+## 2     4775         Y                       0.03504702
+## 3     6354         Y                       0.03540579
+## 4     4745         Y                       0.03706549
+## 5      172         Y                       0.03819629
+## 6     2283         Y                       0.03988159
 ##   Pplr.fctr.All.X..rcv.glmnet Pplr.fctr.All.X..rcv.glmnet.err
 ## 1                           N                            TRUE
 ## 2                           N                            TRUE
@@ -8000,75 +5627,75 @@ if (glb_is_classification && glb_is_binomial)
 ## 5                           N                            TRUE
 ## 6                           N                            TRUE
 ##   Pplr.fctr.All.X..rcv.glmnet.err.abs Pplr.fctr.All.X..rcv.glmnet.is.acc
-## 1                           0.9367077                              FALSE
-## 2                           0.9348039                              FALSE
-## 3                           0.9327137                              FALSE
-## 4                           0.9296399                              FALSE
-## 5                           0.9290616                              FALSE
-## 6                           0.9283404                              FALSE
+## 1                           0.9704050                              FALSE
+## 2                           0.9649530                              FALSE
+## 3                           0.9645942                              FALSE
+## 4                           0.9629345                              FALSE
+## 5                           0.9618037                              FALSE
+## 6                           0.9601184                              FALSE
 ##   Pplr.fctr.All.X..rcv.glmnet.accurate Pplr.fctr.All.X..rcv.glmnet.error
-## 1                                FALSE                       -0.03670769
-## 2                                FALSE                       -0.03480392
-## 3                                FALSE                       -0.03271372
-## 4                                FALSE                       -0.02963991
-## 5                                FALSE                       -0.02906163
-## 6                                FALSE                       -0.02834037
+## 1                                FALSE                       -0.07040497
+## 2                                FALSE                       -0.06495298
+## 3                                FALSE                       -0.06459421
+## 4                                FALSE                       -0.06293451
+## 5                                FALSE                       -0.06180371
+## 6                                FALSE                       -0.06011841
 ##     UniqueID Pplr.fctr Pplr.fctr.All.X..rcv.glmnet.prob
-## 156     1774         N                        0.1120934
-## 332     4664         N                        0.1360889
-## 361     6480         N                        0.1410233
-## 396      508         N                        0.1509912
-## 400     1922         N                        0.1520510
-## 635      483         N                        0.7423412
+## 94      3334         N                        0.1012627
+## 200      982         N                        0.1389648
+## 218     1500         N                        0.1565391
+## 238     5832         N                        0.2091344
+## 242     5441         N                        0.2151956
+## 383     1448         N                        0.9039811
 ##     Pplr.fctr.All.X..rcv.glmnet Pplr.fctr.All.X..rcv.glmnet.err
-## 156                           Y                            TRUE
-## 332                           Y                            TRUE
-## 361                           Y                            TRUE
-## 396                           Y                            TRUE
-## 400                           Y                            TRUE
-## 635                           Y                            TRUE
+## 94                            Y                            TRUE
+## 200                           Y                            TRUE
+## 218                           Y                            TRUE
+## 238                           Y                            TRUE
+## 242                           Y                            TRUE
+## 383                           Y                            TRUE
 ##     Pplr.fctr.All.X..rcv.glmnet.err.abs Pplr.fctr.All.X..rcv.glmnet.is.acc
-## 156                           0.1120934                              FALSE
-## 332                           0.1360889                              FALSE
-## 361                           0.1410233                              FALSE
-## 396                           0.1509912                              FALSE
-## 400                           0.1520510                              FALSE
-## 635                           0.7423412                              FALSE
+## 94                            0.1012627                              FALSE
+## 200                           0.1389648                              FALSE
+## 218                           0.1565391                              FALSE
+## 238                           0.2091344                              FALSE
+## 242                           0.2151956                              FALSE
+## 383                           0.9039811                              FALSE
 ##     Pplr.fctr.All.X..rcv.glmnet.accurate Pplr.fctr.All.X..rcv.glmnet.error
-## 156                                FALSE                        0.01209336
-## 332                                FALSE                        0.03608890
-## 361                                FALSE                        0.04102331
-## 396                                FALSE                        0.05099123
-## 400                                FALSE                        0.05205101
-## 635                                FALSE                        0.64234122
+## 94                                 FALSE                       0.001262711
+## 200                                FALSE                       0.038964799
+## 218                                FALSE                       0.056539106
+## 238                                FALSE                       0.109134369
+## 242                                FALSE                       0.115195645
+## 383                                FALSE                       0.803981082
 ##     UniqueID Pplr.fctr Pplr.fctr.All.X..rcv.glmnet.prob
-## 641      770         N                        0.7842764
-## 642      221         N                        0.7905685
-## 643      472         N                        0.7907410
-## 644     1448         N                        0.8011158
-## 645     3590         N                        0.8019486
-## 646     2995         N                        0.8069664
+## 385     4943         N                        0.9166355
+## 386      770         N                        0.9216170
+## 387      221         N                        0.9266596
+## 388     3590         N                        0.9284441
+## 389      472         N                        0.9287613
+## 390     2995         N                        0.9308453
 ##     Pplr.fctr.All.X..rcv.glmnet Pplr.fctr.All.X..rcv.glmnet.err
-## 641                           Y                            TRUE
-## 642                           Y                            TRUE
-## 643                           Y                            TRUE
-## 644                           Y                            TRUE
-## 645                           Y                            TRUE
-## 646                           Y                            TRUE
+## 385                           Y                            TRUE
+## 386                           Y                            TRUE
+## 387                           Y                            TRUE
+## 388                           Y                            TRUE
+## 389                           Y                            TRUE
+## 390                           Y                            TRUE
 ##     Pplr.fctr.All.X..rcv.glmnet.err.abs Pplr.fctr.All.X..rcv.glmnet.is.acc
-## 641                           0.7842764                              FALSE
-## 642                           0.7905685                              FALSE
-## 643                           0.7907410                              FALSE
-## 644                           0.8011158                              FALSE
-## 645                           0.8019486                              FALSE
-## 646                           0.8069664                              FALSE
+## 385                           0.9166355                              FALSE
+## 386                           0.9216170                              FALSE
+## 387                           0.9266596                              FALSE
+## 388                           0.9284441                              FALSE
+## 389                           0.9287613                              FALSE
+## 390                           0.9308453                              FALSE
 ##     Pplr.fctr.All.X..rcv.glmnet.accurate Pplr.fctr.All.X..rcv.glmnet.error
-## 641                                FALSE                         0.6842764
-## 642                                FALSE                         0.6905685
-## 643                                FALSE                         0.6907410
-## 644                                FALSE                         0.7011158
-## 645                                FALSE                         0.7019486
-## 646                                FALSE                         0.7069664
+## 385                                FALSE                         0.8166355
+## 386                                FALSE                         0.8216170
+## 387                                FALSE                         0.8266596
+## 388                                FALSE                         0.8284441
+## 389                                FALSE                         0.8287613
+## 390                                FALSE                         0.8308453
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.models_2-10.png) 
@@ -8094,100 +5721,100 @@ if (!is.null(glbFeatsCategory)) {
 ```
 
 ```
-##                                NDSSName.my.fctr .n.OOB .n.Fit .n.Tst
+##                                    NDSS.my.fctr .n.OOB .n.Fit .n.Tst
 ## OpEd#Opnn#                           OpEd#Opnn#     89    437    164
-## #Opnn#ThPblcEdtr               #Opnn#ThPblcEdtr      4     16     10
 ## Styls#U.S.#                         Styls#U.S.#     50    127     61
-## Bsnss#Crsswrds/Gms#         Bsnss#Crsswrds/Gms#     18    105     42
 ## Scnc#Hlth#                           Scnc#Hlth#     48    148     57
+## #Opnn#ThPblcEdtr               #Opnn#ThPblcEdtr      4     16     10
+## Bsnss#Crsswrds/Gms#         Bsnss#Crsswrds/Gms#     18    105     42
 ## Bsnss#Tchnlgy#                   Bsnss#Tchnlgy#    126    213    114
-## ##                                           ##    371    913    342
-## Bsnss#BsnssDy#Dlbk           Bsnss#BsnssDy#Dlbk    323    629    304
-## Mtr#N.Y./Rgn#                     Mtr#N.Y./Rgn#     70    128     67
-## Cltr#Arts#                           Cltr#Arts#    185    490    174
 ## #Opnn#RmFrDbt                     #Opnn#RmFrDbt     20     42     20
+## Bsnss#BsnssDy#Dlbk           Bsnss#BsnssDy#Dlbk    323    629    304
+## ##                                           ##    371    913    342
+## Cltr#Arts#                           Cltr#Arts#    185    490    174
+## Mtr#N.Y./Rgn#                     Mtr#N.Y./Rgn#     70    128     67
 ## Styls##Fshn                         Styls##Fshn     15    104     15
 ## Bsnss#BsnssDy#SmllBsnss Bsnss#BsnssDy#SmllBsnss     40    100     41
-## myOthr                                   myOthr      5     33      5
-## Trvl#Trvl#                           Trvl#Trvl#     34     83     35
-## Cltr##                                   Cltr##      1     NA     70
 ## Frgn#Wrld#AsPcfc               Frgn#Wrld#AsPcfc     53    150     56
-## #Mltmd#                                 #Mltmd#     49     92     52
 ## TStyl##                                 TStyl##    101    623    105
+## Trvl#Trvl#                           Trvl#Trvl#     34     83     35
+## #Mltmd#                                 #Mltmd#     49     92     52
+## myOthr                                   myOthr      5     33      5
 ## #U.S.#Edctn                         #U.S.#Edctn     82    243     89
+## Cltr##                                   Cltr##      1     NA     70
 ## Frgn#Wrld#                           Frgn#Wrld#     44    128     47
 ##                         .freqRatio.Fit .freqRatio.OOB .freqRatio.Tst
 ## OpEd#Opnn#                 0.090965862   0.0515046296    0.087700535
-## #Opnn#ThPblcEdtr           0.003330558   0.0023148148    0.005347594
 ## Styls#U.S.#                0.026436303   0.0289351852    0.032620321
-## Bsnss#Crsswrds/Gms#        0.021856786   0.0104166667    0.022459893
 ## Scnc#Hlth#                 0.030807660   0.0277777778    0.030481283
+## #Opnn#ThPblcEdtr           0.003330558   0.0023148148    0.005347594
+## Bsnss#Crsswrds/Gms#        0.021856786   0.0104166667    0.022459893
 ## Bsnss#Tchnlgy#             0.044338052   0.0729166667    0.060962567
-## ##                         0.190049958   0.2146990741    0.182887701
-## Bsnss#BsnssDy#Dlbk         0.130932556   0.1869212963    0.162566845
-## Mtr#N.Y./Rgn#              0.026644463   0.0405092593    0.035828877
-## Cltr#Arts#                 0.101998335   0.1070601852    0.093048128
 ## #Opnn#RmFrDbt              0.008742714   0.0115740741    0.010695187
+## Bsnss#BsnssDy#Dlbk         0.130932556   0.1869212963    0.162566845
+## ##                         0.190049958   0.2146990741    0.182887701
+## Cltr#Arts#                 0.101998335   0.1070601852    0.093048128
+## Mtr#N.Y./Rgn#              0.026644463   0.0405092593    0.035828877
 ## Styls##Fshn                0.021648626   0.0086805556    0.008021390
 ## Bsnss#BsnssDy#SmllBsnss    0.020815987   0.0231481481    0.021925134
-## myOthr                     0.006869276   0.0028935185    0.002673797
-## Trvl#Trvl#                 0.017277269   0.0196759259    0.018716578
-## Cltr##                              NA   0.0005787037    0.037433155
 ## Frgn#Wrld#AsPcfc           0.031223980   0.0306712963    0.029946524
-## #Mltmd#                    0.019150708   0.0283564815    0.027807487
 ## TStyl##                    0.129683597   0.0584490741    0.056149733
+## Trvl#Trvl#                 0.017277269   0.0196759259    0.018716578
+## #Mltmd#                    0.019150708   0.0283564815    0.027807487
+## myOthr                     0.006869276   0.0028935185    0.002673797
 ## #U.S.#Edctn                0.050582848   0.0474537037    0.047593583
+## Cltr##                              NA   0.0005787037    0.037433155
 ## Frgn#Wrld#                 0.026644463   0.0254629630    0.025133690
 ##                         err.abs.fit.sum err.abs.fit.mean .n.fit
-## OpEd#Opnn#                   169.920774       0.38883472    437
-## #Opnn#ThPblcEdtr               7.263079       0.45394245     16
-## Styls#U.S.#                   62.317403       0.49068821    127
-## Bsnss#Crsswrds/Gms#           37.637501       0.35845239    105
-## Scnc#Hlth#                    67.219902       0.45418853    148
-## Bsnss#Tchnlgy#                46.871671       0.22005479    213
-## ##                           132.756111       0.14540647    913
-## Bsnss#BsnssDy#Dlbk            96.765300       0.15383991    629
-## Mtr#N.Y./Rgn#                 19.934891       0.15574134    128
-## Cltr#Arts#                    60.231977       0.12292240    490
-## #Opnn#RmFrDbt                  6.538023       0.15566721     42
-## Styls##Fshn                    8.953809       0.08609432    104
-## Bsnss#BsnssDy#SmllBsnss       13.032416       0.13032416    100
-## myOthr                         3.723231       0.11282519     33
-## Trvl#Trvl#                     6.800950       0.08193916     83
+## OpEd#Opnn#                   119.836470       0.27422533    437
+## Styls#U.S.#                   56.628946       0.44589721    127
+## Scnc#Hlth#                    57.015658       0.38524093    148
+## #Opnn#ThPblcEdtr               6.584894       0.41155588     16
+## Bsnss#Crsswrds/Gms#           27.017444       0.25730899    105
+## Bsnss#Tchnlgy#                39.873202       0.18719813    213
+## #Opnn#RmFrDbt                  7.034814       0.16749556     42
+## Bsnss#BsnssDy#Dlbk            81.819044       0.13007797    629
+## ##                           101.017935       0.11064396    913
+## Cltr#Arts#                    48.216560       0.09840114    490
+## Mtr#N.Y./Rgn#                 15.400336       0.12031512    128
+## Styls##Fshn                    6.787573       0.06526513    104
+## Bsnss#BsnssDy#SmllBsnss       10.499902       0.10499902    100
+## Frgn#Wrld#AsPcfc              13.904763       0.09269842    150
+## TStyl##                       33.400369       0.05361215    623
+## Trvl#Trvl#                     4.002682       0.04822508     83
+## #Mltmd#                        5.892332       0.06404709     92
+## myOthr                         2.320443       0.07031647     33
+## #U.S.#Edctn                   12.184453       0.05014178    243
 ## Cltr##                               NA               NA     NA
-## Frgn#Wrld#AsPcfc              15.573858       0.10382572    150
-## #Mltmd#                        8.371241       0.09099175     92
-## TStyl##                       43.550981       0.06990527    623
-## #U.S.#Edctn                   15.497987       0.06377772    243
-## Frgn#Wrld#                     8.953551       0.06994962    128
+## Frgn#Wrld#                     5.444890       0.04253820    128
 ##                         err.abs.OOB.sum err.abs.OOB.mean
-## OpEd#Opnn#                   46.5737830       0.52330093
-## #Opnn#ThPblcEdtr              2.0080675       0.50201689
-## Styls#U.S.#                  23.6328413       0.47265683
-## Bsnss#Crsswrds/Gms#           8.3911301       0.46617390
-## Scnc#Hlth#                   22.1189167       0.46081076
-## Bsnss#Tchnlgy#               29.7319043       0.23596749
-## ##                           78.0147094       0.21028224
-## Bsnss#BsnssDy#Dlbk           66.1713471       0.20486485
-## Mtr#N.Y./Rgn#                13.4746063       0.19249438
-## Cltr#Arts#                   34.6944525       0.18753758
-## #Opnn#RmFrDbt                 3.7425266       0.18712633
-## Styls##Fshn                   2.1565235       0.14376823
-## Bsnss#BsnssDy#SmllBsnss       5.6217083       0.14054271
-## myOthr                        0.5675988       0.11351975
-## Trvl#Trvl#                    3.6251966       0.10662343
-## Cltr##                        0.1032201       0.10322006
-## Frgn#Wrld#AsPcfc              5.3470704       0.10088812
-## #Mltmd#                       4.8359493       0.09869284
-## TStyl##                       9.5035315       0.09409437
-## #U.S.#Edctn                   6.0212009       0.07342928
-## Frgn#Wrld#                    3.1996976       0.07272040
+## OpEd#Opnn#                  51.18065179       0.57506350
+## Styls#U.S.#                 25.99760848       0.51995217
+## Scnc#Hlth#                  24.69049636       0.51438534
+## #Opnn#ThPblcEdtr             1.99109686       0.49777421
+## Bsnss#Crsswrds/Gms#          8.73848753       0.48547153
+## Bsnss#Tchnlgy#              25.76388022       0.20447524
+## #Opnn#RmFrDbt                3.91776433       0.19588822
+## Bsnss#BsnssDy#Dlbk          59.90568728       0.18546652
+## ##                          67.73033042       0.18256154
+## Cltr#Arts#                  31.26604266       0.16900564
+## Mtr#N.Y./Rgn#               11.39362621       0.16276609
+## Styls##Fshn                  1.91928194       0.12795213
+## Bsnss#BsnssDy#SmllBsnss      4.62878656       0.11571966
+## Frgn#Wrld#AsPcfc             4.79443402       0.09046102
+## TStyl##                      7.86776348       0.07789865
+## Trvl#Trvl#                   2.55254529       0.07507486
+## #Mltmd#                      3.51781240       0.07179209
+## myOthr                       0.33933658       0.06786732
+## #U.S.#Edctn                  5.11442705       0.06237106
+## Cltr##                       0.04526133       0.04526133
+## Frgn#Wrld#                   1.88150036       0.04276137
 ##           .n.OOB           .n.Fit           .n.Tst   .freqRatio.Fit 
 ##      1728.000000               NA      1870.000000               NA 
 ##   .freqRatio.OOB   .freqRatio.Tst  err.abs.fit.sum err.abs.fit.mean 
 ##         1.000000         1.000000               NA               NA 
 ##           .n.fit  err.abs.OOB.sum err.abs.OOB.mean 
-##               NA       369.535982         4.690731
+##               NA       345.236821         4.469969
 ```
 
 ```r
@@ -8202,7 +5829,7 @@ fit.models_2_chunk_df <-
 
 ```
 ##              label step_major step_minor label_minor     bgn end elapsed
-## 1 fit.models_2_bgn          1          0    teardown 276.531  NA      NA
+## 1 fit.models_2_bgn          1          0    teardown 187.068  NA      NA
 ```
 
 ```r
@@ -8211,8 +5838,8 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.models", major.inc=FALSE)
 
 ```
 ##         label step_major step_minor label_minor     bgn     end elapsed
-## 12 fit.models          6          2           2 261.729 276.542  14.813
-## 13 fit.models          6          3           3 276.543      NA      NA
+## 12 fit.models          6          2           2 174.229 187.078  12.849
+## 13 fit.models          6          3           3 187.078      NA      NA
 ```
 
 
@@ -8282,10 +5909,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.data.training", major.inc=TRUE)
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 13        fit.models          6          3           3 276.543 282.563
-## 14 fit.data.training          7          0           0 282.564      NA
+## 13        fit.models          6          3           3 187.078 192.947
+## 14 fit.data.training          7          0           0 192.948      NA
 ##    elapsed
-## 13    6.02
+## 13   5.869
 ## 14      NA
 ```
 
@@ -8341,7 +5968,7 @@ gsub(mygetPredictIds(glb_rsp_var)$value, "", row.names(mdlimp_df), fixed = TRUE)
             ret_lst <- 
                 myfit_mdl(mdl_specs_lst = myinit_mdl_specs_lst(mdl_specs_lst = list(
                         id.prefix = mdlIdPfx, 
-                        type = glb_model_type, tune.df = glb_tune_models_df,
+                        type = glb_model_type, tune.df = glbMdlTuneParams,
                         trainControl.method = "repeatedcv",
                         trainControl.number = glb_rcv_n_folds,
                         trainControl.repeats = glb_rcv_n_repeats,
@@ -8644,76 +6271,76 @@ trainControl.allowParallel = if (method %in% c("glm", "glmnet")) FALSE else TRUE
 ##  Variables Accuracy   Kappa AccuracySD KappaSD Selected
 ##          2   0.8204 0.03718   0.003445 0.01035         
 ##          4   0.8760 0.44502   0.003122 0.01919         
-##          8   0.8736 0.44378   0.003353 0.02080         
-##         16   0.9015 0.63767   0.006518 0.02345         
-##         32   0.9010 0.63663   0.006363 0.02247         
-##         55   0.9029 0.64631   0.006957 0.02433        *
+##          8   0.8738 0.44420   0.003283 0.02061         
+##         16   0.9016 0.63787   0.006552 0.02352         
+##         32   0.9011 0.63667   0.006474 0.02303         
+##         55   0.9030 0.64644   0.006845 0.02410        *
 ## 
 ## The top 5 variables (out of 55):
-##    WordCount.log1p, WordCount.root2, WordCount.nexp, NDSSName.my.fctrOpEd#Opnn#, PubDate.day.minutes.poly.1
+##    WordCount.log1p, WordCount.root2, WordCount.nexp, NDSS.my.fctrOpEd#Opnn#, PubDate.day.minutes.poly.1
 ## 
-##  [1] "WordCount.log1p"                        
-##  [2] "WordCount.root2"                        
-##  [3] "WordCount.nexp"                         
-##  [4] "NDSSName.my.fctrOpEd#Opnn#"             
-##  [5] "PubDate.day.minutes.poly.1"             
-##  [6] "PubDate.day.minutes.poly.4"             
-##  [7] "PubDate.hour.fctr(15.3,23]"             
-##  [8] "PubDate.last2.log1p"                    
-##  [9] "PubDate.last4.log1p"                    
-## [10] "NDSSName.my.fctrScnc#Hlth#"             
-## [11] "NDSSName.my.fctrBsnss#Crsswrds/Gms#"    
-## [12] "PubDate.day.minutes.poly.5"             
-## [13] "PubDate.last8.log1p"                    
-## [14] "NDSSName.my.fctrStyls#U.S.#"            
-## [15] "PubDate.wkend"                          
-## [16] "PubDate.last16.log1p"                   
-## [17] "PubDate.day.minutes.poly.2"             
-## [18] "PubDate.juliandate"                     
-## [19] "PubDate.wkday.fctr6"                    
-## [20] "PubDate.month.fctr11"                   
-## [21] "PubDate.second.fctr(14.8,29.5]"         
-## [22] "PubDate.date.fctr(7,13]"                
-## [23] "PubDate.last32.log1p"                   
-## [24] ".rnorm"                                 
-## [25] "PubDate.wkday.fctr1"                    
-## [26] "PubDate.day.minutes.poly.3"             
-## [27] "PubDate.date.fctr(25,31]"               
-## [28] "PubDate.hour.fctr(7.67,15.3]"           
-## [29] "PubDate.minute.fctr(14.8,29.5]"         
-## [30] "PubDate.month.fctr10"                   
-## [31] "NDSSName.my.fctrBsnss#Tchnlgy#"         
-## [32] "PubDate.second.fctr(29.5,44.2]"         
-## [33] "NDSSName.my.fctrmyOthr"                 
-## [34] "PubDate.date.fctr(13,19]"               
-## [35] "PubDate.wkday.fctr3"                    
-## [36] "PubDate.minute.fctr(44.2,59.1]"         
-## [37] "PubDate.wkday.fctr4"                    
-## [38] "PubDate.second.fctr(44.2,59.1]"         
-## [39] "NDSSName.my.fctr#Opnn#RmFrDbt"          
-## [40] "PubDate.date.fctr(19,25]"               
-## [41] "NDSSName.my.fctrMtr#N.Y./Rgn#"          
-## [42] "NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss"
-## [43] "NDSSName.my.fctrTrvl#Trvl#"             
-## [44] "NDSSName.my.fctrStyls##Fshn"            
-## [45] "NDSSName.my.fctr#Mltmd#"                
-## [46] "PubDate.wkday.fctr2"                    
-## [47] "NDSSName.my.fctrFrgn#Wrld#"             
-## [48] "NDSSName.my.fctrFrgn#Wrld#AsPcfc"       
-## [49] "PubDate.wkday.fctr5"                    
-## [50] "PubDate.minute.fctr(29.5,44.2]"         
-## [51] "NDSSName.my.fctr#U.S.#Edctn"            
-## [52] "NDSSName.my.fctrCltr#Arts#"             
-## [53] "NDSSName.my.fctrBsnss#BsnssDy#Dlbk"     
-## [54] "NDSSName.my.fctr##"                     
-## [55] "NDSSName.my.fctrTStyl##"
+##  [1] "WordCount.log1p"                    
+##  [2] "WordCount.root2"                    
+##  [3] "WordCount.nexp"                     
+##  [4] "NDSS.my.fctrOpEd#Opnn#"             
+##  [5] "PubDate.day.minutes.poly.1"         
+##  [6] "PubDate.day.minutes.poly.4"         
+##  [7] "PubDate.hour.fctr(15.3,23]"         
+##  [8] "PubDate.last4.log1p"                
+##  [9] "PubDate.last2.log1p"                
+## [10] "NDSS.my.fctrScnc#Hlth#"             
+## [11] "NDSS.my.fctrBsnss#Crsswrds/Gms#"    
+## [12] "PubDate.day.minutes.poly.5"         
+## [13] "PubDate.last8.log1p"                
+## [14] "NDSS.my.fctrStyls#U.S.#"            
+## [15] "PubDate.wkend"                      
+## [16] "PubDate.last16.log1p"               
+## [17] "PubDate.day.minutes.poly.2"         
+## [18] "PubDate.juliandate"                 
+## [19] "PubDate.wkday.fctr6"                
+## [20] "PubDate.month.fctr11"               
+## [21] "PubDate.second.fctr(14.8,29.5]"     
+## [22] "PubDate.date.fctr(7,13]"            
+## [23] ".rnorm"                             
+## [24] "PubDate.wkday.fctr1"                
+## [25] "PubDate.day.minutes.poly.3"         
+## [26] "PubDate.date.fctr(25,31]"           
+## [27] "PubDate.hour.fctr(7.67,15.3]"       
+## [28] "PubDate.last32.log1p"               
+## [29] "PubDate.minute.fctr(14.8,29.5]"     
+## [30] "PubDate.month.fctr10"               
+## [31] "NDSS.my.fctrBsnss#Tchnlgy#"         
+## [32] "PubDate.second.fctr(29.5,44.2]"     
+## [33] "NDSS.my.fctrmyOthr"                 
+## [34] "PubDate.date.fctr(13,19]"           
+## [35] "PubDate.wkday.fctr3"                
+## [36] "PubDate.minute.fctr(44.2,59.1]"     
+## [37] "PubDate.wkday.fctr4"                
+## [38] "PubDate.second.fctr(44.2,59.1]"     
+## [39] "NDSS.my.fctr#Opnn#RmFrDbt"          
+## [40] "PubDate.date.fctr(19,25]"           
+## [41] "NDSS.my.fctrMtr#N.Y./Rgn#"          
+## [42] "NDSS.my.fctrBsnss#BsnssDy#SmllBsnss"
+## [43] "NDSS.my.fctrTrvl#Trvl#"             
+## [44] "NDSS.my.fctrStyls##Fshn"            
+## [45] "NDSS.my.fctr#Mltmd#"                
+## [46] "PubDate.wkday.fctr2"                
+## [47] "NDSS.my.fctrFrgn#Wrld#"             
+## [48] "NDSS.my.fctrFrgn#Wrld#AsPcfc"       
+## [49] "PubDate.wkday.fctr5"                
+## [50] "PubDate.minute.fctr(29.5,44.2]"     
+## [51] "NDSS.my.fctr#U.S.#Edctn"            
+## [52] "NDSS.my.fctrCltr#Arts#"             
+## [53] "NDSS.my.fctrBsnss#BsnssDy#Dlbk"     
+## [54] "NDSS.my.fctr##"                     
+## [55] "NDSS.my.fctrTStyl##"
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.data.training_0-1.png) 
 
 ```
 ## [1] "fitting model: Final##rcv#glmnet"
-## [1] "    indep_vars: WordCount.root2,WordCount.log1p,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5"
+## [1] "    indep_vars: WordCount.root2,WordCount.log1p,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5"
 ## + Fold1.Rep1: alpha=0.100, lambda=0.07781 
 ## - Fold1.Rep1: alpha=0.100, lambda=0.07781 
 ## + Fold1.Rep1: alpha=0.325, lambda=0.07781 
@@ -8806,19 +6433,19 @@ trainControl.allowParallel = if (method %in% c("glm", "glmnet")) FALSE else TRUE
 ## - Fold3.Rep3: alpha=1.000, lambda=0.07781 
 ## Aggregating results
 ## Selecting tuning parameters
-## Fitting alpha = 0.55, lambda = 0.00361 on full training set
+## Fitting alpha = 0.775, lambda = 0.00361 on full training set
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.data.training_0-2.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.data.training_0-3.png) 
 
 ```
 ##             Length Class      Mode     
-## a0            93   -none-     numeric  
-## beta        5301   dgCMatrix  S4       
-## df            93   -none-     numeric  
+## a0            89   -none-     numeric  
+## beta        5073   dgCMatrix  S4       
+## df            89   -none-     numeric  
 ## dim            2   -none-     numeric  
-## lambda        93   -none-     numeric  
-## dev.ratio     93   -none-     numeric  
+## lambda        89   -none-     numeric  
+## dev.ratio     89   -none-     numeric  
 ## nulldev        1   -none-     numeric  
 ## npasses        1   -none-     numeric  
 ## jerr           1   -none-     numeric  
@@ -8832,165 +6459,81 @@ trainControl.allowParallel = if (method %in% c("glm", "glmnet")) FALSE else TRUE
 ## tuneValue      2   data.frame list     
 ## obsLevels      2   -none-     character
 ## [1] "min lambda > lambdaOpt:"
-##                             (Intercept) 
-##                             -6.71740932 
-##                 NDSSName.my.fctr#Mltmd# 
-##                             -0.95451508 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                             -3.04595818 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                              3.15684109 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                             -1.88518827 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                             -0.24938082 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                             -0.73887006 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                              3.21815213 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                              0.44788750 
-##              NDSSName.my.fctrCltr#Arts# 
-##                             -0.18319632 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                             -1.20835894 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                             -1.61909013 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                              3.71825778 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                              2.69372416 
-##             NDSSName.my.fctrStyls##Fshn 
-##                             -1.34904273 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                              2.46572272 
-##                 NDSSName.my.fctrTStyl## 
-##                             -1.33936830 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                             -0.68785697 
-##                  NDSSName.my.fctrmyOthr 
-##                             -1.37260505 
-##                 PubDate.date.fctr(7,13] 
-##                              0.03756858 
-##                PubDate.date.fctr(13,19] 
-##                             -0.04997442 
-##                PubDate.date.fctr(25,31] 
-##                              0.02915688 
-##              PubDate.day.minutes.poly.1 
-##                             14.63604197 
-##              PubDate.day.minutes.poly.2 
-##                             19.28093122 
-##              PubDate.day.minutes.poly.3 
-##                              3.42079095 
-##              PubDate.day.minutes.poly.4 
-##                              2.07653730 
-##            PubDate.hour.fctr(7.67,15.3] 
-##                              0.24042550 
-##                    PubDate.last16.log1p 
-##                              0.06699389 
-##                     PubDate.last2.log1p 
-##                              0.01463237 
-##          PubDate.minute.fctr(29.5,44.2] 
-##                             -0.15908416 
-##                    PubDate.month.fctr11 
-##                             -0.07224476 
-##          PubDate.second.fctr(44.2,59.1] 
-##                             -0.08388152 
-##                     PubDate.wkday.fctr1 
-##                              0.09440272 
-##                     PubDate.wkday.fctr2 
-##                             -0.03634627 
-##                     PubDate.wkday.fctr5 
-##                             -0.15064565 
-##                     PubDate.wkday.fctr6 
-##                             -0.21128855 
-##                           PubDate.wkend 
-##                              0.42922277 
-##                         WordCount.log1p 
-##                              0.38451519 
-##                         WordCount.root2 
-##                              0.05236843 
+##                         (Intercept)                 NDSS.my.fctr#Mltmd# 
+##                         -6.88661237                         -0.69017131 
+##           NDSS.my.fctr#Opnn#RmFrDbt        NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                         -2.75091575                          3.16599950 
+##             NDSS.my.fctr#U.S.#Edctn      NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                         -1.62723326                         -0.13226493 
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss     NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                         -0.57337620                          3.30038315 
+##          NDSS.my.fctrBsnss#Tchnlgy#              NDSS.my.fctrCltr#Arts# 
+##                          0.49759684                         -0.02664973 
+##              NDSS.my.fctrFrgn#Wrld#        NDSS.my.fctrFrgn#Wrld#AsPcfc 
+##                         -0.84857323                         -1.38630180 
+##              NDSS.my.fctrOpEd#Opnn#              NDSS.my.fctrScnc#Hlth# 
+##                          3.78134805                          2.76279694 
+##             NDSS.my.fctrStyls##Fshn             NDSS.my.fctrStyls#U.S.# 
+##                         -1.04374095                          2.53368117 
+##                 NDSS.my.fctrTStyl##              NDSS.my.fctrTrvl#Trvl# 
+##                         -1.17568321                         -0.40646984 
+##                  NDSS.my.fctrmyOthr            PubDate.date.fctr(13,19] 
+##                         -0.92034972                         -0.03969260 
+##          PubDate.day.minutes.poly.1          PubDate.day.minutes.poly.2 
+##                         14.45900129                         15.50466097 
+##          PubDate.day.minutes.poly.3          PubDate.day.minutes.poly.4 
+##                          2.12223169                          4.01900421 
+##        PubDate.hour.fctr(7.67,15.3]                PubDate.last16.log1p 
+##                          0.13654098                          0.09222896 
+##                PubDate.last32.log1p      PubDate.minute.fctr(29.5,44.2] 
+##                          0.01367946                         -0.13143954 
+##                PubDate.month.fctr11      PubDate.second.fctr(44.2,59.1] 
+##                         -0.05213495                         -0.05593654 
+##                 PubDate.wkday.fctr1                 PubDate.wkday.fctr5 
+##                          0.08523292                         -0.11897940 
+##                 PubDate.wkday.fctr6                       PubDate.wkend 
+##                         -0.07242575                          0.30994932 
+##                     WordCount.log1p                     WordCount.root2 
+##                          0.35761159                          0.05338155 
 ## [1] "max lambda < lambdaOpt:"
-##                             (Intercept) 
-##                           -6.830834e+00 
-##                 NDSSName.my.fctr#Mltmd# 
-##                           -1.020841e+00 
-##           NDSSName.my.fctr#Opnn#RmFrDbt 
-##                           -3.136910e+00 
-##        NDSSName.my.fctr#Opnn#ThPblcEdtr 
-##                            3.164358e+00 
-##             NDSSName.my.fctr#U.S.#Edctn 
-##                           -1.985122e+00 
-##      NDSSName.my.fctrBsnss#BsnssDy#Dlbk 
-##                           -2.726760e-01 
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss 
-##                           -7.755608e-01 
-##     NDSSName.my.fctrBsnss#Crsswrds/Gms# 
-##                            3.214818e+00 
-##          NDSSName.my.fctrBsnss#Tchnlgy# 
-##                            4.430681e-01 
-##              NDSSName.my.fctrCltr#Arts# 
-##                           -2.116312e-01 
-##              NDSSName.my.fctrFrgn#Wrld# 
-##                           -1.304342e+00 
-##        NDSSName.my.fctrFrgn#Wrld#AsPcfc 
-##                           -1.682973e+00 
-##              NDSSName.my.fctrOpEd#Opnn# 
-##                            3.721324e+00 
-##              NDSSName.my.fctrScnc#Hlth# 
-##                            2.688810e+00 
-##             NDSSName.my.fctrStyls##Fshn 
-##                           -1.425434e+00 
-##             NDSSName.my.fctrStyls#U.S.# 
-##                            2.459984e+00 
-##                 NDSSName.my.fctrTStyl## 
-##                           -1.387084e+00 
-##              NDSSName.my.fctrTrvl#Trvl# 
-##                           -7.480692e-01 
-##                  NDSSName.my.fctrmyOthr 
-##                           -1.482128e+00 
-##                 PubDate.date.fctr(7,13] 
-##                            4.406889e-02 
-##                PubDate.date.fctr(13,19] 
-##                           -5.356303e-02 
-##                PubDate.date.fctr(25,31] 
-##                            3.547036e-02 
-##              PubDate.day.minutes.poly.1 
-##                            1.496003e+01 
-##              PubDate.day.minutes.poly.2 
-##                            2.037019e+01 
-##              PubDate.day.minutes.poly.3 
-##                            3.488587e+00 
-##              PubDate.day.minutes.poly.4 
-##                            1.513324e+00 
-##            PubDate.hour.fctr(7.67,15.3] 
-##                            2.728426e-01 
-##                      PubDate.juliandate 
-##                           -1.676444e-05 
-##                    PubDate.last16.log1p 
-##                            7.368211e-02 
-##                     PubDate.last2.log1p 
-##                            1.445898e-02 
-##          PubDate.minute.fctr(29.5,44.2] 
-##                           -1.653137e-01 
-##                    PubDate.month.fctr11 
-##                           -7.889861e-02 
-##          PubDate.second.fctr(44.2,59.1] 
-##                           -9.011477e-02 
-##                     PubDate.wkday.fctr1 
-##                            9.895137e-02 
-##                     PubDate.wkday.fctr2 
-##                           -4.419254e-02 
-##                     PubDate.wkday.fctr5 
-##                           -1.577937e-01 
-##                     PubDate.wkday.fctr6 
-##                           -2.387115e-01 
-##                           PubDate.wkend 
-##                            4.346004e-01 
-##                         WordCount.log1p 
-##                            3.934762e-01 
-##                         WordCount.root2 
-##                            5.234272e-02
+##                         (Intercept)                 NDSS.my.fctr#Mltmd# 
+##                        -7.024434156                        -0.773459716 
+##           NDSS.my.fctr#Opnn#RmFrDbt        NDSS.my.fctr#Opnn#ThPblcEdtr 
+##                        -2.859705647                         3.170283546 
+##             NDSS.my.fctr#U.S.#Edctn      NDSS.my.fctrBsnss#BsnssDy#Dlbk 
+##                        -1.742809921                        -0.166521901 
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss     NDSS.my.fctrBsnss#Crsswrds/Gms# 
+##                        -0.624120498                         3.290504426 
+##          NDSS.my.fctrBsnss#Tchnlgy#              NDSS.my.fctrCltr#Arts# 
+##                         0.487995233                        -0.068894966 
+##              NDSS.my.fctrFrgn#Wrld#        NDSS.my.fctrFrgn#Wrld#AsPcfc 
+##                        -0.958508086                        -1.466854531 
+##              NDSS.my.fctrOpEd#Opnn#              NDSS.my.fctrScnc#Hlth# 
+##                         3.777480362                         2.750599151 
+##             NDSS.my.fctrStyls##Fshn             NDSS.my.fctrStyls#U.S.# 
+##                        -1.138065219                         2.520151641 
+##                 NDSS.my.fctrTStyl##              NDSS.my.fctrTrvl#Trvl# 
+##                        -1.236297003                        -0.481831991 
+##                  NDSS.my.fctrmyOthr             PubDate.date.fctr(7,13] 
+##                        -1.041571187                         0.002075209 
+##            PubDate.date.fctr(13,19]          PubDate.day.minutes.poly.1 
+##                        -0.048106489                        14.872950090 
+##          PubDate.day.minutes.poly.2          PubDate.day.minutes.poly.3 
+##                        16.952838409                         2.192634396 
+##          PubDate.day.minutes.poly.4        PubDate.hour.fctr(7.67,15.3] 
+##                         3.288655447                         0.178973137 
+##                PubDate.last16.log1p                PubDate.last32.log1p 
+##                         0.098282543                         0.015961358 
+##      PubDate.minute.fctr(29.5,44.2]                PubDate.month.fctr11 
+##                        -0.140081948                        -0.062964474 
+##      PubDate.second.fctr(44.2,59.1]                 PubDate.wkday.fctr1 
+##                        -0.064448103                         0.093086616 
+##                 PubDate.wkday.fctr2                 PubDate.wkday.fctr5 
+##                        -0.010913486                        -0.128522776 
+##                 PubDate.wkday.fctr6                       PubDate.wkend 
+##                        -0.110017248                         0.318726398 
+##                     WordCount.log1p                     WordCount.root2 
+##                         0.368532055                         0.053251505
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.data.training_0-4.png) ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.data.training_0-5.png) 
@@ -8998,26 +6541,26 @@ trainControl.allowParallel = if (method %in% c("glm", "glmnet")) FALSE else TRUE
 ```
 ##          Prediction
 ## Reference    N    Y
-##         N 4967  472
-##         Y  220  873
+##         N 4981  458
+##         Y  228  865
 ##       Accuracy          Kappa  AccuracyLower  AccuracyUpper   AccuracyNull 
-##   8.940600e-01   6.518908e-01   8.863433e-01   9.014229e-01   8.326699e-01 
+##   8.949786e-01   6.523492e-01   8.872900e-01   9.023124e-01   8.326699e-01 
 ## AccuracyPValue  McnemarPValue 
-##   3.486892e-45   1.406613e-21 
+##   1.409434e-46   2.264774e-18 
 ##                  id
 ## 1 Final##rcv#glmnet
-##                                                                                                                                                                                                                                                                                                                                                                                                                                                                    feats
-## 1 WordCount.root2,WordCount.log1p,NDSSName.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.last32.log1p,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
+##                                                                                                                                                                                                                                                                                                                                                                                                                                                                feats
+## 1 WordCount.root2,WordCount.log1p,NDSS.my.fctr,PubDate.day.minutes.poly.1,PubDate.hour.fctr,PubDate.wkend,PubDate.day.minutes.poly.4,PubDate.day.minutes.poly.2,PubDate.last4.log1p,PubDate.last2.log1p,PubDate.last8.log1p,PubDate.last16.log1p,PubDate.day.minutes.poly.3,PubDate.month.fctr,PubDate.juliandate,.rnorm,PubDate.last32.log1p,PubDate.date.fctr,PubDate.second.fctr,PubDate.minute.fctr,PubDate.wkday.fctr,WordCount.nexp,PubDate.day.minutes.poly.5
 ##   max.nTuningRuns min.elapsedtime.everything min.elapsedtime.final
-## 1              25                     37.175                 0.898
+## 1              25                     36.624                 0.817
 ##   max.AUCpROC.fit max.Sens.fit max.Spec.fit max.AUCROCR.fit
-## 1       0.8012801    0.9612061    0.6413541       0.9361337
+## 1        0.801372      0.96139    0.6413541       0.9355675
 ##   opt.prob.threshold.fit max.f.score.fit max.Accuracy.fit
-## 1                    0.2       0.7161608        0.9063073
+## 1                    0.2       0.7160596        0.9065624
 ##   max.AccuracyLower.fit max.AccuracyUpper.fit max.Kappa.fit
-## 1             0.8863433             0.9014229     0.6394839
+## 1               0.88729             0.9023124     0.6401418
 ##   max.AccuracySD.fit max.KappaSD.fit
-## 1        0.005622392      0.02614856
+## 1        0.005702198      0.02639621
 ```
 
 ```r
@@ -9027,10 +6570,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "fit.data.training", major.inc=FALSE
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 14 fit.data.training          7          0           0 282.564 347.894
-## 15 fit.data.training          7          1           1 347.894      NA
+## 14 fit.data.training          7          0           0 192.948 258.677
+## 15 fit.data.training          7          1           1 258.677      NA
 ##    elapsed
-## 14   65.33
+## 14  65.729
 ## 15      NA
 ```
 
@@ -9078,122 +6621,122 @@ print(glb_featsimp_df)
 ```
 
 ```
-##                                         All.X##rcv#glmnet.imp        imp
-## PubDate.day.minutes.poly.2                          22.879214 100.000000
-## PubDate.day.minutes.poly.1                         100.000000  78.090459
-## NDSSName.my.fctrOpEd#Opnn#                          29.608813  29.735703
-## PubDate.day.minutes.poly.3                           6.181073  28.574510
-## NDSSName.my.fctrBsnss#Crsswrds/Gms#                 27.135657  27.538396
-## NDSSName.my.fctr#Opnn#ThPblcEdtr                    24.849247  27.293763
-## NDSSName.my.fctrScnc#Hlth#                          24.964890  25.245138
-## NDSSName.my.fctrStyls#U.S.#                         23.449567  24.247822
-## PubDate.day.minutes.poly.4                          46.118345  21.362667
-## NDSSName.my.fctrBsnss#Tchnlgy#                       6.181073  15.438969
-## PubDate.wkend                                        7.555716  15.379160
-## WordCount.log1p                                      7.599061  15.191568
-## PubDate.hour.fctr(7.67,15.3]                         6.181073  14.612298
-## PubDate.wkday.fctr1                                  6.181073  13.915416
-## PubDate.last16.log1p                                 6.181073  13.800288
-## WordCount.root2                                      6.405483  13.722145
-## PubDate.date.fctr(7,13]                              6.181073  13.671403
-## PubDate.date.fctr(25,31]                             6.181073  13.634277
-## PubDate.last2.log1p                                  6.307833  13.557058
-## .rnorm                                               6.181073  13.493535
-## NDSSName.my.fctrCltr##                               6.181073  13.493535
-## NDSSName.my.fctrMtr#N.Y./Rgn#                        6.181073  13.493535
-## PubDate.date.fctr(19,25]                             6.181073  13.493535
-## PubDate.day.minutes.poly.5                           6.181073  13.493535
-## PubDate.hour.fctr(15.3,23]                           6.568901  13.493535
-## PubDate.last32.log1p                                 6.181073  13.493535
-## PubDate.last4.log1p                                  6.403279  13.493535
-## PubDate.last8.log1p                                  6.231915  13.493535
-## PubDate.minute.fctr(14.8,29.5]                       6.181073  13.493535
-## PubDate.minute.fctr(44.2,59.1]                       6.181073  13.493535
-## PubDate.month.fctr10                                 6.181073  13.493535
-## PubDate.month.fctr12                                 6.181073  13.493535
-## PubDate.second.fctr(14.8,29.5]                       6.181073  13.493535
-## PubDate.second.fctr(29.5,44.2]                       6.181073  13.493535
-## PubDate.wkday.fctr3                                  6.181073  13.493535
-## PubDate.wkday.fctr4                                  6.181073  13.493535
-## WordCount.nexp                                       6.181073  13.493535
-## PubDate.juliandate                                   6.181073  13.493499
-## PubDate.wkday.fctr2                                  6.181073  13.318140
-## PubDate.date.fctr(13,19]                             6.181073  13.267690
-## PubDate.month.fctr11                                 6.181073  13.163927
-## PubDate.second.fctr(44.2,59.1]                       6.181073  13.114010
-## PubDate.wkday.fctr5                                  6.181073  12.820541
-## PubDate.minute.fctr(29.5,44.2]                       6.181073  12.785649
-## NDSSName.my.fctrCltr#Arts#                           4.494666  12.633131
-## PubDate.wkday.fctr6                                  6.181073  12.512620
-## NDSSName.my.fctrBsnss#BsnssDy#Dlbk                   4.575817  12.355071
-## NDSSName.my.fctrTrvl#Trvl#                           4.901316  10.361955
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss              4.791503  10.189240
-## NDSSName.my.fctr#Mltmd#                              5.672845   9.184598
-## NDSSName.my.fctrFrgn#Wrld#                           4.664559   8.013114
-## NDSSName.my.fctrTStyl##                              2.131448   7.543734
-## NDSSName.my.fctrStyls##Fshn                          3.582132   7.440496
-## NDSSName.my.fctrmyOthr                               6.019416   7.267138
-## NDSSName.my.fctrFrgn#Wrld#AsPcfc                     3.104915   6.287949
-## NDSSName.my.fctr#U.S.#Edctn                          3.501802   5.049357
-## NDSSName.my.fctr#Opnn#RmFrDbt                        0.000000   0.000000
-##                                         Final##rcv#glmnet.imp
-## PubDate.day.minutes.poly.2                         100.000000
-## PubDate.day.minutes.poly.1                          78.090459
-## NDSSName.my.fctrOpEd#Opnn#                          29.735703
-## PubDate.day.minutes.poly.3                          28.574510
-## NDSSName.my.fctrBsnss#Crsswrds/Gms#                 27.538396
-## NDSSName.my.fctr#Opnn#ThPblcEdtr                    27.293763
-## NDSSName.my.fctrScnc#Hlth#                          25.245138
-## NDSSName.my.fctrStyls#U.S.#                         24.247822
-## PubDate.day.minutes.poly.4                          21.362667
-## NDSSName.my.fctrBsnss#Tchnlgy#                      15.438969
-## PubDate.wkend                                       15.379160
-## WordCount.log1p                                     15.191568
-## PubDate.hour.fctr(7.67,15.3]                        14.612298
-## PubDate.wkday.fctr1                                 13.915416
-## PubDate.last16.log1p                                13.800288
-## WordCount.root2                                     13.722145
-## PubDate.date.fctr(7,13]                             13.671403
-## PubDate.date.fctr(25,31]                            13.634277
-## PubDate.last2.log1p                                 13.557058
-## .rnorm                                              13.493535
-## NDSSName.my.fctrCltr##                              13.493535
-## NDSSName.my.fctrMtr#N.Y./Rgn#                       13.493535
-## PubDate.date.fctr(19,25]                            13.493535
-## PubDate.day.minutes.poly.5                          13.493535
-## PubDate.hour.fctr(15.3,23]                          13.493535
-## PubDate.last32.log1p                                13.493535
-## PubDate.last4.log1p                                 13.493535
-## PubDate.last8.log1p                                 13.493535
-## PubDate.minute.fctr(14.8,29.5]                      13.493535
-## PubDate.minute.fctr(44.2,59.1]                      13.493535
-## PubDate.month.fctr10                                13.493535
-## PubDate.month.fctr12                                13.493535
-## PubDate.second.fctr(14.8,29.5]                      13.493535
-## PubDate.second.fctr(29.5,44.2]                      13.493535
-## PubDate.wkday.fctr3                                 13.493535
-## PubDate.wkday.fctr4                                 13.493535
-## WordCount.nexp                                      13.493535
-## PubDate.juliandate                                  13.493499
-## PubDate.wkday.fctr2                                 13.318140
-## PubDate.date.fctr(13,19]                            13.267690
-## PubDate.month.fctr11                                13.163927
-## PubDate.second.fctr(44.2,59.1]                      13.114010
-## PubDate.wkday.fctr5                                 12.820541
-## PubDate.minute.fctr(29.5,44.2]                      12.785649
-## NDSSName.my.fctrCltr#Arts#                          12.633131
-## PubDate.wkday.fctr6                                 12.512620
-## NDSSName.my.fctrBsnss#BsnssDy#Dlbk                  12.355071
-## NDSSName.my.fctrTrvl#Trvl#                          10.361955
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss             10.189240
-## NDSSName.my.fctr#Mltmd#                              9.184598
-## NDSSName.my.fctrFrgn#Wrld#                           8.013114
-## NDSSName.my.fctrTStyl##                              7.543734
-## NDSSName.my.fctrStyls##Fshn                          7.440496
-## NDSSName.my.fctrmyOthr                               7.267138
-## NDSSName.my.fctrFrgn#Wrld#AsPcfc                     6.287949
-## NDSSName.my.fctr#U.S.#Edctn                          5.049357
-## NDSSName.my.fctr#Opnn#RmFrDbt                        0.000000
+##                                     All.X##rcv#glmnet.imp        imp
+## PubDate.day.minutes.poly.2                       5.307609 100.000000
+## PubDate.day.minutes.poly.1                     100.000000  90.409031
+## NDSS.my.fctrOpEd#Opnn#                          68.562523  33.933845
+## PubDate.day.minutes.poly.4                       5.307609  32.183176
+## NDSS.my.fctrBsnss#Crsswrds/Gms#                 63.559761  31.442333
+## NDSS.my.fctr#Opnn#ThPblcEdtr                    48.417943  30.810953
+## NDSS.my.fctrScnc#Hlth#                          54.307908  28.675494
+## NDSS.my.fctrStyls#U.S.#                         50.421526  27.494881
+## PubDate.day.minutes.poly.3                       5.307609  25.727586
+## NDSS.my.fctrBsnss#Tchnlgy#                       5.690755  17.067558
+## WordCount.log1p                                  6.701272  16.433441
+## PubDate.wkend                                    5.345889  16.180212
+## PubDate.hour.fctr(7.67,15.3]                     5.307609  15.428347
+## PubDate.last16.log1p                             5.307609  15.052359
+## PubDate.wkday.fctr1                              5.307609  15.023834
+## WordCount.root2                                  6.021636  14.827828
+## PubDate.last32.log1p                             5.307609  14.634050
+## PubDate.date.fctr(7,13]                          5.307609  14.563041
+## .rnorm                                           5.307609  14.554558
+## NDSS.my.fctrCltr##                               5.307609  14.554558
+## NDSS.my.fctrMtr#N.Y./Rgn#                        5.307609  14.554558
+## PubDate.date.fctr(19,25]                         5.307609  14.554558
+## PubDate.date.fctr(25,31]                         5.307609  14.554558
+## PubDate.day.minutes.poly.5                       5.307609  14.554558
+## PubDate.hour.fctr(15.3,23]                       5.307609  14.554558
+## PubDate.juliandate                               5.307609  14.554558
+## PubDate.last2.log1p                              5.307609  14.554558
+## PubDate.last4.log1p                              5.307609  14.554558
+## PubDate.last8.log1p                              5.307609  14.554558
+## PubDate.minute.fctr(14.8,29.5]                   5.307609  14.554558
+## PubDate.minute.fctr(44.2,59.1]                   5.307609  14.554558
+## PubDate.month.fctr10                             5.307609  14.554558
+## PubDate.month.fctr12                             5.307609  14.554558
+## PubDate.second.fctr(14.8,29.5]                   5.307609  14.554558
+## PubDate.second.fctr(29.5,44.2]                   5.307609  14.554558
+## PubDate.wkday.fctr3                              5.307609  14.554558
+## PubDate.wkday.fctr4                              5.307609  14.554558
+## WordCount.nexp                                   5.307609  14.554558
+## PubDate.wkday.fctr2                              5.307609  14.509947
+## PubDate.date.fctr(13,19]                         5.307609  14.316575
+## NDSS.my.fctrCltr#Arts#                           5.307609  14.245181
+## PubDate.month.fctr11                             5.307609  14.242882
+## PubDate.second.fctr(44.2,59.1]                   5.307609  14.232858
+## PubDate.wkday.fctr6                              5.307609  14.029412
+## PubDate.wkday.fctr5                              5.307609  13.905284
+## PubDate.minute.fctr(29.5,44.2]                   5.307609  13.845057
+## NDSS.my.fctrBsnss#BsnssDy#Dlbk                   5.307609  13.736119
+## NDSS.my.fctrTrvl#Trvl#                           5.307609  12.161655
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss              5.307609  11.406198
+## NDSS.my.fctr#Mltmd#                              5.307609  10.674108
+## NDSS.my.fctrFrgn#Wrld#                           5.307609   9.752718
+## NDSS.my.fctrmyOthr                               5.307609   9.338429
+## NDSS.my.fctrStyls##Fshn                          5.307609   8.815485
+## NDSS.my.fctrTStyl##                              2.967145   8.276532
+## NDSS.my.fctrFrgn#Wrld#AsPcfc                     5.307609   7.114733
+## NDSS.my.fctr#U.S.#Edctn                          5.307609   5.735793
+## NDSS.my.fctr#Opnn#RmFrDbt                        0.000000   0.000000
+##                                     Final##rcv#glmnet.imp
+## PubDate.day.minutes.poly.2                     100.000000
+## PubDate.day.minutes.poly.1                      90.409031
+## NDSS.my.fctrOpEd#Opnn#                          33.933845
+## PubDate.day.minutes.poly.4                      32.183176
+## NDSS.my.fctrBsnss#Crsswrds/Gms#                 31.442333
+## NDSS.my.fctr#Opnn#ThPblcEdtr                    30.810953
+## NDSS.my.fctrScnc#Hlth#                          28.675494
+## NDSS.my.fctrStyls#U.S.#                         27.494881
+## PubDate.day.minutes.poly.3                      25.727586
+## NDSS.my.fctrBsnss#Tchnlgy#                      17.067558
+## WordCount.log1p                                 16.433441
+## PubDate.wkend                                   16.180212
+## PubDate.hour.fctr(7.67,15.3]                    15.428347
+## PubDate.last16.log1p                            15.052359
+## PubDate.wkday.fctr1                             15.023834
+## WordCount.root2                                 14.827828
+## PubDate.last32.log1p                            14.634050
+## PubDate.date.fctr(7,13]                         14.563041
+## .rnorm                                          14.554558
+## NDSS.my.fctrCltr##                              14.554558
+## NDSS.my.fctrMtr#N.Y./Rgn#                       14.554558
+## PubDate.date.fctr(19,25]                        14.554558
+## PubDate.date.fctr(25,31]                        14.554558
+## PubDate.day.minutes.poly.5                      14.554558
+## PubDate.hour.fctr(15.3,23]                      14.554558
+## PubDate.juliandate                              14.554558
+## PubDate.last2.log1p                             14.554558
+## PubDate.last4.log1p                             14.554558
+## PubDate.last8.log1p                             14.554558
+## PubDate.minute.fctr(14.8,29.5]                  14.554558
+## PubDate.minute.fctr(44.2,59.1]                  14.554558
+## PubDate.month.fctr10                            14.554558
+## PubDate.month.fctr12                            14.554558
+## PubDate.second.fctr(14.8,29.5]                  14.554558
+## PubDate.second.fctr(29.5,44.2]                  14.554558
+## PubDate.wkday.fctr3                             14.554558
+## PubDate.wkday.fctr4                             14.554558
+## WordCount.nexp                                  14.554558
+## PubDate.wkday.fctr2                             14.509947
+## PubDate.date.fctr(13,19]                        14.316575
+## NDSS.my.fctrCltr#Arts#                          14.245181
+## PubDate.month.fctr11                            14.242882
+## PubDate.second.fctr(44.2,59.1]                  14.232858
+## PubDate.wkday.fctr6                             14.029412
+## PubDate.wkday.fctr5                             13.905284
+## PubDate.minute.fctr(29.5,44.2]                  13.845057
+## NDSS.my.fctrBsnss#BsnssDy#Dlbk                  13.736119
+## NDSS.my.fctrTrvl#Trvl#                          12.161655
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss             11.406198
+## NDSS.my.fctr#Mltmd#                             10.674108
+## NDSS.my.fctrFrgn#Wrld#                           9.752718
+## NDSS.my.fctrmyOthr                               9.338429
+## NDSS.my.fctrStyls##Fshn                          8.815485
+## NDSS.my.fctrTStyl##                              8.276532
+## NDSS.my.fctrFrgn#Wrld#AsPcfc                     7.114733
+## NDSS.my.fctr#U.S.#Edctn                          5.735793
+## NDSS.my.fctr#Opnn#RmFrDbt                        0.000000
 ```
 
 ```r
@@ -9215,8 +6758,8 @@ if (glb_is_classification && glb_is_binomial)
 ## [1] "Min/Max Boundaries: "
 ##   UniqueID Pplr.fctr Pplr.fctr.All.X..rcv.glmnet.prob
 ## 1     1065         N                               NA
-## 2     4168         N                        0.0411419
-## 3     5647         N                        0.1290645
+## 2     4168         N                        0.0236808
+## 3     5647         N                        0.1062812
 ## 4      302         N                               NA
 ##   Pplr.fctr.All.X..rcv.glmnet Pplr.fctr.All.X..rcv.glmnet.err
 ## 1                        <NA>                              NA
@@ -9225,65 +6768,65 @@ if (glb_is_classification && glb_is_binomial)
 ## 4                        <NA>                              NA
 ##   Pplr.fctr.All.X..rcv.glmnet.err.abs Pplr.fctr.All.X..rcv.glmnet.is.acc
 ## 1                                  NA                                 NA
-## 2                           0.0411419                               TRUE
-## 3                           0.1290645                              FALSE
+## 2                           0.0236808                               TRUE
+## 3                           0.1062812                              FALSE
 ## 4                                  NA                                 NA
 ##   Pplr.fctr.Final..rcv.glmnet.prob Pplr.fctr.Final..rcv.glmnet
-## 1                      0.022283474                           N
-## 2                      0.007666321                           N
-## 3                      0.105843562                           Y
-## 4                      0.436516680                           Y
+## 1                       0.02895198                           N
+## 2                       0.00862190                           N
+## 3                       0.11218487                           Y
+## 4                       0.42886804                           Y
 ##   Pplr.fctr.Final..rcv.glmnet.err Pplr.fctr.Final..rcv.glmnet.err.abs
-## 1                           FALSE                         0.022283474
-## 2                           FALSE                         0.007666321
-## 3                            TRUE                         0.105843562
-## 4                            TRUE                         0.436516680
+## 1                           FALSE                          0.02895198
+## 2                           FALSE                          0.00862190
+## 3                            TRUE                          0.11218487
+## 4                            TRUE                          0.42886804
 ##   Pplr.fctr.Final..rcv.glmnet.is.acc Pplr.fctr.Final..rcv.glmnet.accurate
 ## 1                               TRUE                                 TRUE
 ## 2                               TRUE                                 TRUE
 ## 3                              FALSE                                FALSE
 ## 4                              FALSE                                FALSE
 ##   Pplr.fctr.Final..rcv.glmnet.error .label
-## 1                       0.000000000   1065
-## 2                       0.000000000   4168
-## 3                       0.005843562   5647
-## 4                       0.336516680    302
+## 1                        0.00000000   1065
+## 2                        0.00000000   4168
+## 3                        0.01218487   5647
+## 4                        0.32886804    302
 ## [1] "Inaccurate: "
 ##   UniqueID Pplr.fctr Pplr.fctr.All.X..rcv.glmnet.prob
-## 1     2182         Y                       0.04423435
+## 1     2182         Y                       0.02937511
 ## 2     4352         Y                               NA
-## 3     5486         Y                               NA
-## 4     4721         Y                       0.06779771
-## 5     1696         Y                       0.05294423
-## 6      364         Y                       0.06987153
+## 3     4721         Y                       0.05500531
+## 4     1696         Y                       0.02684498
+## 5     5486         Y                               NA
+## 6      364         Y                       0.03487556
 ##   Pplr.fctr.All.X..rcv.glmnet Pplr.fctr.All.X..rcv.glmnet.err
 ## 1                           N                            TRUE
 ## 2                        <NA>                              NA
-## 3                        <NA>                              NA
+## 3                           N                            TRUE
 ## 4                           N                            TRUE
-## 5                           N                            TRUE
+## 5                        <NA>                              NA
 ## 6                           N                            TRUE
 ##   Pplr.fctr.All.X..rcv.glmnet.err.abs Pplr.fctr.All.X..rcv.glmnet.is.acc
-## 1                           0.9557656                              FALSE
+## 1                           0.9706249                              FALSE
 ## 2                                  NA                                 NA
-## 3                                  NA                                 NA
-## 4                           0.9322023                              FALSE
-## 5                           0.9470558                              FALSE
-## 6                           0.9301285                              FALSE
+## 3                           0.9449947                              FALSE
+## 4                           0.9731550                              FALSE
+## 5                                  NA                                 NA
+## 6                           0.9651244                              FALSE
 ##   Pplr.fctr.Final..rcv.glmnet.prob Pplr.fctr.Final..rcv.glmnet
-## 1                      0.006646728                           N
-## 2                      0.009472057                           N
-## 3                      0.013199051                           N
-## 4                      0.013513861                           N
-## 5                      0.015668226                           N
-## 6                      0.019168273                           N
+## 1                      0.007066632                           N
+## 2                      0.011579123                           N
+## 3                      0.014803392                           N
+## 4                      0.014856448                           N
+## 5                      0.017198535                           N
+## 6                      0.019459474                           N
 ##   Pplr.fctr.Final..rcv.glmnet.err Pplr.fctr.Final..rcv.glmnet.err.abs
-## 1                            TRUE                           0.9933533
-## 2                            TRUE                           0.9905279
-## 3                            TRUE                           0.9868009
-## 4                            TRUE                           0.9864861
-## 5                            TRUE                           0.9843318
-## 6                            TRUE                           0.9808317
+## 1                            TRUE                           0.9929334
+## 2                            TRUE                           0.9884209
+## 3                            TRUE                           0.9851966
+## 4                            TRUE                           0.9851436
+## 5                            TRUE                           0.9828015
+## 6                            TRUE                           0.9805405
 ##   Pplr.fctr.Final..rcv.glmnet.is.acc Pplr.fctr.Final..rcv.glmnet.accurate
 ## 1                              FALSE                                FALSE
 ## 2                              FALSE                                FALSE
@@ -9292,138 +6835,138 @@ if (glb_is_classification && glb_is_binomial)
 ## 5                              FALSE                                FALSE
 ## 6                              FALSE                                FALSE
 ##   Pplr.fctr.Final..rcv.glmnet.error
-## 1                       -0.09335327
-## 2                       -0.09052794
-## 3                       -0.08680095
-## 4                       -0.08648614
-## 5                       -0.08433177
-## 6                       -0.08083173
+## 1                       -0.09293337
+## 2                       -0.08842088
+## 3                       -0.08519661
+## 4                       -0.08514355
+## 5                       -0.08280147
+## 6                       -0.08054053
 ##      UniqueID Pplr.fctr Pplr.fctr.All.X..rcv.glmnet.prob
-## 190       789         N                        0.1059522
-## 220      3588         N                               NA
-## 380      3380         N                               NA
-## 410        72         N                        0.1364144
-## 905      2226         N                        0.1913497
-## 1105     5462         N                               NA
+## 191       988         N                       0.07208817
+## 221      3609         N                       0.11095536
+## 382      4016         N                       0.06234938
+## 413      3378         N                               NA
+## 909      1805         N                       0.51677328
+## 1110     6511         N                               NA
 ##      Pplr.fctr.All.X..rcv.glmnet Pplr.fctr.All.X..rcv.glmnet.err
-## 190                            Y                            TRUE
-## 220                         <NA>                              NA
-## 380                         <NA>                              NA
-## 410                            Y                            TRUE
-## 905                            Y                            TRUE
-## 1105                        <NA>                              NA
+## 191                            N                           FALSE
+## 221                            Y                            TRUE
+## 382                            N                           FALSE
+## 413                         <NA>                              NA
+## 909                            Y                            TRUE
+## 1110                        <NA>                              NA
 ##      Pplr.fctr.All.X..rcv.glmnet.err.abs
-## 190                            0.1059522
-## 220                                   NA
-## 380                                   NA
-## 410                            0.1364144
-## 905                            0.1913497
-## 1105                                  NA
+## 191                           0.07208817
+## 221                           0.11095536
+## 382                           0.06234938
+## 413                                   NA
+## 909                           0.51677328
+## 1110                                  NA
 ##      Pplr.fctr.All.X..rcv.glmnet.is.acc Pplr.fctr.Final..rcv.glmnet.prob
-## 190                               FALSE                        0.1129611
-## 220                                  NA                        0.1179667
-## 380                                  NA                        0.1378456
-## 410                               FALSE                        0.1413828
-## 905                               FALSE                        0.3794899
-## 1105                                 NA                        0.7300482
+## 191                                TRUE                        0.1117584
+## 221                               FALSE                        0.1158289
+## 382                                TRUE                        0.1346807
+## 413                                  NA                        0.1377206
+## 909                               FALSE                        0.3730036
+## 1110                                 NA                        0.7233569
 ##      Pplr.fctr.Final..rcv.glmnet Pplr.fctr.Final..rcv.glmnet.err
-## 190                            Y                            TRUE
-## 220                            Y                            TRUE
-## 380                            Y                            TRUE
-## 410                            Y                            TRUE
-## 905                            Y                            TRUE
-## 1105                           Y                            TRUE
+## 191                            Y                            TRUE
+## 221                            Y                            TRUE
+## 382                            Y                            TRUE
+## 413                            Y                            TRUE
+## 909                            Y                            TRUE
+## 1110                           Y                            TRUE
 ##      Pplr.fctr.Final..rcv.glmnet.err.abs
-## 190                            0.1129611
-## 220                            0.1179667
-## 380                            0.1378456
-## 410                            0.1413828
-## 905                            0.3794899
-## 1105                           0.7300482
+## 191                            0.1117584
+## 221                            0.1158289
+## 382                            0.1346807
+## 413                            0.1377206
+## 909                            0.3730036
+## 1110                           0.7233569
 ##      Pplr.fctr.Final..rcv.glmnet.is.acc
-## 190                               FALSE
-## 220                               FALSE
-## 380                               FALSE
-## 410                               FALSE
-## 905                               FALSE
-## 1105                              FALSE
+## 191                               FALSE
+## 221                               FALSE
+## 382                               FALSE
+## 413                               FALSE
+## 909                               FALSE
+## 1110                              FALSE
 ##      Pplr.fctr.Final..rcv.glmnet.accurate
-## 190                                 FALSE
-## 220                                 FALSE
-## 380                                 FALSE
-## 410                                 FALSE
-## 905                                 FALSE
-## 1105                                FALSE
+## 191                                 FALSE
+## 221                                 FALSE
+## 382                                 FALSE
+## 413                                 FALSE
+## 909                                 FALSE
+## 1110                                FALSE
 ##      Pplr.fctr.Final..rcv.glmnet.error
-## 190                         0.01296111
-## 220                         0.01796670
-## 380                         0.03784555
-## 410                         0.04138278
-## 905                         0.27948986
-## 1105                        0.63004823
+## 191                         0.01175842
+## 221                         0.01582887
+## 382                         0.03468074
+## 413                         0.03772058
+## 909                         0.27300359
+## 1110                        0.62335692
 ##      UniqueID Pplr.fctr Pplr.fctr.All.X..rcv.glmnet.prob
-## 1182      770         N                               NA
-## 1183     2179         N                        0.7720249
-## 1184      472         N                               NA
-## 1185     2995         N                               NA
-## 1186     1612         N                        0.7937303
-## 1187     1448         N                               NA
+## 1188      770         N                               NA
+## 1189     2179         N                        0.9167004
+## 1190      472         N                               NA
+## 1191     2995         N                               NA
+## 1192     1612         N                        0.9192335
+## 1193     1448         N                               NA
 ##      Pplr.fctr.All.X..rcv.glmnet Pplr.fctr.All.X..rcv.glmnet.err
-## 1182                        <NA>                              NA
-## 1183                           Y                            TRUE
-## 1184                        <NA>                              NA
-## 1185                        <NA>                              NA
-## 1186                           Y                            TRUE
-## 1187                        <NA>                              NA
+## 1188                        <NA>                              NA
+## 1189                           Y                            TRUE
+## 1190                        <NA>                              NA
+## 1191                        <NA>                              NA
+## 1192                           Y                            TRUE
+## 1193                        <NA>                              NA
 ##      Pplr.fctr.All.X..rcv.glmnet.err.abs
-## 1182                                  NA
-## 1183                           0.7720249
-## 1184                                  NA
-## 1185                                  NA
-## 1186                           0.7937303
-## 1187                                  NA
+## 1188                                  NA
+## 1189                           0.9167004
+## 1190                                  NA
+## 1191                                  NA
+## 1192                           0.9192335
+## 1193                                  NA
 ##      Pplr.fctr.All.X..rcv.glmnet.is.acc Pplr.fctr.Final..rcv.glmnet.prob
-## 1182                                 NA                        0.9518142
-## 1183                              FALSE                        0.9542775
-## 1184                                 NA                        0.9580719
-## 1185                                 NA                        0.9628305
-## 1186                              FALSE                        0.9643315
-## 1187                                 NA                        0.9689304
+## 1188                                 NA                        0.9488795
+## 1189                              FALSE                        0.9498766
+## 1190                                 NA                        0.9568880
+## 1191                                 NA                        0.9602272
+## 1192                              FALSE                        0.9635908
+## 1193                                 NA                        0.9643650
 ##      Pplr.fctr.Final..rcv.glmnet Pplr.fctr.Final..rcv.glmnet.err
-## 1182                           Y                            TRUE
-## 1183                           Y                            TRUE
-## 1184                           Y                            TRUE
-## 1185                           Y                            TRUE
-## 1186                           Y                            TRUE
-## 1187                           Y                            TRUE
+## 1188                           Y                            TRUE
+## 1189                           Y                            TRUE
+## 1190                           Y                            TRUE
+## 1191                           Y                            TRUE
+## 1192                           Y                            TRUE
+## 1193                           Y                            TRUE
 ##      Pplr.fctr.Final..rcv.glmnet.err.abs
-## 1182                           0.9518142
-## 1183                           0.9542775
-## 1184                           0.9580719
-## 1185                           0.9628305
-## 1186                           0.9643315
-## 1187                           0.9689304
+## 1188                           0.9488795
+## 1189                           0.9498766
+## 1190                           0.9568880
+## 1191                           0.9602272
+## 1192                           0.9635908
+## 1193                           0.9643650
 ##      Pplr.fctr.Final..rcv.glmnet.is.acc
-## 1182                              FALSE
-## 1183                              FALSE
-## 1184                              FALSE
-## 1185                              FALSE
-## 1186                              FALSE
-## 1187                              FALSE
+## 1188                              FALSE
+## 1189                              FALSE
+## 1190                              FALSE
+## 1191                              FALSE
+## 1192                              FALSE
+## 1193                              FALSE
 ##      Pplr.fctr.Final..rcv.glmnet.accurate
-## 1182                                FALSE
-## 1183                                FALSE
-## 1184                                FALSE
-## 1185                                FALSE
-## 1186                                FALSE
-## 1187                                FALSE
+## 1188                                FALSE
+## 1189                                FALSE
+## 1190                                FALSE
+## 1191                                FALSE
+## 1192                                FALSE
+## 1193                                FALSE
 ##      Pplr.fctr.Final..rcv.glmnet.error
-## 1182                         0.8518142
-## 1183                         0.8542775
-## 1184                         0.8580719
-## 1185                         0.8628305
-## 1186                         0.8643315
-## 1187                         0.8689304
+## 1188                         0.8488795
+## 1189                         0.8498766
+## 1190                         0.8568880
+## 1191                         0.8602272
+## 1192                         0.8635908
+## 1193                         0.8643650
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/fit.data.training_1-6.png) 
@@ -9516,10 +7059,10 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 
 ```
 ##                label step_major step_minor label_minor     bgn     end
-## 15 fit.data.training          7          1           1 347.894 358.247
-## 16  predict.data.new          8          0           0 358.247      NA
+## 15 fit.data.training          7          1           1 258.677 269.153
+## 16  predict.data.new          8          0           0 269.154      NA
 ##    elapsed
-## 15  10.353
+## 15  10.476
 ## 16      NA
 ```
 
@@ -9605,11 +7148,11 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 
 ```
 ## [1] "ObsNew Prediction errors in categories:"
-##    NDSSName.my.fctr .n.Trn.N .n.Trn.Y .n.New.N .n.New.Y
-## 5       #U.S.#Edctn      325       NA       87        2
-## 10           Cltr##        1       NA       47       23
+##    NDSS.my.fctr .n.Trn.N .n.Trn.Y .n.New.N .n.New.Y
+## 5   #U.S.#Edctn      325       NA       87        2
+## 10       Cltr##        1       NA       48       22
 ## .n.Trn.N .n.Trn.Y .n.New.N .n.New.Y 
-##      326        0      134       25
+##      326        0      135       24
 ```
 
 ```
@@ -9620,232 +7163,127 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## The following object is masked from 'package:Matrix':
 ## 
 ##     expand
-## 
-## The following object is masked from 'package:mice':
-## 
-##     complete
 ```
 
 ```
-## [1] "OOBobs Pplr.fctr.All.X..rcv.glmnet Y: min < min of Train range: 12"
+## [1] "OOBobs Pplr.fctr.All.X..rcv.glmnet Y: min < min of Train range: 2"
 ##      UniqueID Pplr.fctr.All.X..rcv.glmnet PubDate.day.minutes.poly.2
-## 1751     1751                           Y               -0.001148534
-## 639       639                           Y                0.009120600
-## 1542     1542                           Y               -0.008640045
-## 1535     1535                           Y               -0.008325008
-## 2645     2645                           Y                0.012594250
-## 697       697                           Y               -0.008337839
-## 2382     2382                           Y               -0.006921772
-## 5630     5630                           Y               -0.007831741
-## 1677     1677                           Y               -0.008708358
 ## 6435     6435                           Y                0.002105741
-## 1871     1871                           Y               -0.001039862
 ## 4223     4223                           Y               -0.008758791
-##      PubDate.day.minutes.poly.4 PubDate.last2.log1p PubDate.last32.log1p
-## 1751               -0.007894421            5.463832             9.151227
-## 639                -0.017000978            2.995732            10.597135
-## 1542                0.008801265            6.313548             9.217117
-## 1535                0.007631110            5.111988             9.222862
-## 2645               -0.018240126            8.943637            10.695801
-## 697                 0.007674714            6.338594             9.641213
-## 2382                0.003523823            6.318968             9.397235
-## 5630                0.006070276            6.104793             9.495294
-## 1677                0.009654246            4.890349             9.758866
-## 6435               -0.010140008            7.624131            10.866967
-## 1871               -0.008047440            4.804021             9.176990
-## 4223                0.009518864            8.350902            11.242625
-##      PubDate.last8.log1p WordCount.log1p WordCount.root2
-## 1751            7.571988        7.070724       34.292856
-## 639            10.093116        6.986566       32.878564
-## 1542            7.846981        7.135687       35.425979
-## 1535            7.569928        6.463029       25.298221
-## 2645           10.083765        6.635947       27.586228
-## 697             7.019297        6.415097       24.698178
-## 2382            7.138867        5.755742       17.748239
-## 5630            7.152269        3.737670        6.403124
-## 1677            7.124478        6.756932       29.308702
-## 6435            8.695172        0.000000        0.000000
-## 1871            7.187657        7.034388       33.674916
-## 4223           10.840972        7.274480       37.973675
+##      WordCount.log1p WordCount.root2
+## 6435         0.00000         0.00000
+## 4223         7.27448        37.97368
 ##                                                    id      cor.y
 ## PubDate.day.minutes.poly.2 PubDate.day.minutes.poly.2 0.07097772
-## PubDate.day.minutes.poly.4 PubDate.day.minutes.poly.4 0.07394139
-## PubDate.last2.log1p               PubDate.last2.log1p 0.06567954
-## PubDate.last32.log1p             PubDate.last32.log1p 0.02254251
-## PubDate.last8.log1p               PubDate.last8.log1p 0.05657458
 ## WordCount.log1p                       WordCount.log1p 0.25431963
 ## WordCount.root2                       WordCount.root2 0.29212068
-##                            exclude.as.feat  cor.y.abs          cor.high.X
-## PubDate.day.minutes.poly.2           FALSE 0.07097772                <NA>
-## PubDate.day.minutes.poly.4           FALSE 0.07394139                <NA>
-## PubDate.last2.log1p                  FALSE 0.06567954 PubDate.last4.log1p
-## PubDate.last32.log1p                 FALSE 0.02254251                <NA>
-## PubDate.last8.log1p                  FALSE 0.05657458 PubDate.last4.log1p
-## WordCount.log1p                      FALSE 0.25431963     WordCount.root2
-## WordCount.root2                      FALSE 0.29212068                <NA>
+##                            exclude.as.feat  cor.y.abs      cor.high.X
+## PubDate.day.minutes.poly.2           FALSE 0.07097772            <NA>
+## WordCount.log1p                      FALSE 0.25431963 WordCount.root2
+## WordCount.root2                      FALSE 0.29212068            <NA>
 ##                            freqRatio percentUnique zeroVar   nzv
 ## PubDate.day.minutes.poly.2  1.225490      18.08022   FALSE FALSE
-## PubDate.day.minutes.poly.4  1.225490      18.08022   FALSE FALSE
-## PubDate.last2.log1p         1.375000      51.16350   FALSE FALSE
-## PubDate.last32.log1p        1.000000      91.13595   FALSE FALSE
-## PubDate.last8.log1p         1.166667      75.15309   FALSE FALSE
 ## WordCount.log1p             2.315789      24.15799   FALSE FALSE
 ## WordCount.root2             2.315789      24.15799   FALSE FALSE
 ##                            is.cor.y.abs.low interaction.feat
 ## PubDate.day.minutes.poly.2            FALSE               NA
-## PubDate.day.minutes.poly.4            FALSE               NA
-## PubDate.last2.log1p                   FALSE               NA
-## PubDate.last32.log1p                  FALSE               NA
-## PubDate.last8.log1p                   FALSE               NA
 ## WordCount.log1p                       FALSE               NA
 ## WordCount.root2                       FALSE               NA
 ##                            shapiro.test.p.value rsp_var_raw id_var rsp_var
 ## PubDate.day.minutes.poly.2         8.020999e-64       FALSE     NA      NA
-## PubDate.day.minutes.poly.4         1.523136e-47       FALSE     NA      NA
-## PubDate.last2.log1p                4.200850e-29       FALSE     NA      NA
-## PubDate.last32.log1p               1.048418e-44       FALSE     NA      NA
-## PubDate.last8.log1p                1.021260e-42       FALSE     NA      NA
 ## WordCount.log1p                    1.576866e-49       FALSE     NA      NA
 ## WordCount.root2                    4.556481e-30       FALSE     NA      NA
 ##                                     max          min max.Pplr.fctr.N
 ## PubDate.day.minutes.poly.2   0.04268445 -0.008758791      0.04268445
-## PubDate.day.minutes.poly.4   0.06677441 -0.018327397      0.06543120
-## PubDate.last2.log1p         10.91197453  0.693147181     10.91197453
-## PubDate.last32.log1p        12.32340669  8.835792367     12.30546086
-## PubDate.last8.log1p         11.62246125  6.666956792     11.43577441
 ## WordCount.log1p              9.29771002  0.000000000      8.81966535
 ## WordCount.root2            104.46051886  0.000000000     82.24962006
 ##                            max.Pplr.fctr.Y min.Pplr.fctr.N min.Pplr.fctr.Y
 ## PubDate.day.minutes.poly.2      0.04254377    -0.008758791    -0.008758717
-## PubDate.day.minutes.poly.4      0.06149053    -0.018327397    -0.018219595
-## PubDate.last2.log1p            10.89191288     0.693147181     3.135494216
-## PubDate.last32.log1p           12.17840850     9.125653564     9.237663668
-## PubDate.last8.log1p            11.39428831     6.666956792     7.199678346
 ## WordCount.log1p                 9.29771002     0.000000000     1.945910149
 ## WordCount.root2               104.46051886     0.000000000     2.449489743
 ##                            max.Pplr.fctr.All.X..rcv.glmnet.N
 ## PubDate.day.minutes.poly.2                        0.04268445
-## PubDate.day.minutes.poly.4                        0.06213811
-## PubDate.last2.log1p                              10.71916205
-## PubDate.last32.log1p                             12.17383350
-## PubDate.last8.log1p                              11.40150216
-## WordCount.log1p                                   7.05961763
-## WordCount.root2                                  34.10278581
+## WordCount.log1p                                   7.06902343
+## WordCount.root2                                  34.26368340
 ##                            max.Pplr.fctr.All.X..rcv.glmnet.Y
 ## PubDate.day.minutes.poly.2                        0.04254377
-## PubDate.day.minutes.poly.4                        0.06610094
-## PubDate.last2.log1p                              10.84161805
-## PubDate.last32.log1p                             12.21791228
-## PubDate.last8.log1p                              11.62246125
 ## WordCount.log1p                                   9.14088311
 ## WordCount.root2                                  96.58157174
 ##                            min.Pplr.fctr.All.X..rcv.glmnet.N
 ## PubDate.day.minutes.poly.2                      -0.008758672
-## PubDate.day.minutes.poly.4                      -0.018326850
-## PubDate.last2.log1p                              1.386294361
-## PubDate.last32.log1p                             9.194210990
-## PubDate.last8.log1p                              6.934397210
 ## WordCount.log1p                                  0.000000000
 ## WordCount.root2                                  0.000000000
 ##                            min.Pplr.fctr.All.X..rcv.glmnet.Y
 ## PubDate.day.minutes.poly.2                      -0.008758791
-## PubDate.day.minutes.poly.4                      -0.018240126
-## PubDate.last2.log1p                              2.995732274
-## PubDate.last32.log1p                             9.151227107
-## PubDate.last8.log1p                              7.019296654
 ## WordCount.log1p                                  0.000000000
 ## WordCount.root2                                  0.000000000
 ##                            max.Pplr.fctr.Final..rcv.glmnet.N
 ## PubDate.day.minutes.poly.2                        0.04268445
-## PubDate.day.minutes.poly.4                        0.06543120
-## PubDate.last2.log1p                              10.74567954
-## PubDate.last32.log1p                             12.32340669
-## PubDate.last8.log1p                              11.27955479
-## WordCount.log1p                                   7.97384438
-## WordCount.root2                                  53.87949517
+## WordCount.log1p                                   7.94093976
+## WordCount.root2                                  53.00000000
 ##                            max.Pplr.fctr.Final..rcv.glmnet.Y
 ## PubDate.day.minutes.poly.2                        0.04254377
-## PubDate.day.minutes.poly.4                        0.06677441
-## PubDate.last2.log1p                              10.75436471
-## PubDate.last32.log1p                             12.30546086
-## PubDate.last8.log1p                              11.33227851
 ## WordCount.log1p                                   8.69232228
 ## WordCount.root2                                  77.17512553
 ##                            min.Pplr.fctr.Final..rcv.glmnet.N
 ## PubDate.day.minutes.poly.2                      -0.008758791
-## PubDate.day.minutes.poly.4                      -0.018322678
-## PubDate.last2.log1p                              2.197224577
-## PubDate.last32.log1p                             8.862908295
-## PubDate.last8.log1p                              7.061334367
 ## WordCount.log1p                                  0.000000000
 ## WordCount.root2                                  0.000000000
 ##                            min.Pplr.fctr.Final..rcv.glmnet.Y
 ## PubDate.day.minutes.poly.2                      -0.008758672
-## PubDate.day.minutes.poly.4                      -0.018203392
-## PubDate.last2.log1p                              3.610917913
-## PubDate.last32.log1p                             8.835792367
-## PubDate.last8.log1p                              6.891625897
 ## WordCount.log1p                                  1.609437912
 ## WordCount.root2                                  2.000000000
-## [1] "OOBobs Pplr.fctr.All.X..rcv.glmnet Y: max > max of Train range: 7"
+## [1] "OOBobs Pplr.fctr.All.X..rcv.glmnet Y: max > max of Train range: 5"
 ##      UniqueID Pplr.fctr.All.X..rcv.glmnet PubDate.day.minutes.poly.1
-## 5233     5233                           Y               -0.016600865
 ## 6528     6528                           Y                0.001809613
 ## 302       302                           Y                0.024722851
 ## 6435     6435                           Y               -0.013151170
-## 6517     6517                           Y                0.020474279
 ## 3205     3205                           Y                0.002898990
 ## 6521     6521                           Y                0.013901702
 ##      PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.4
-## 5233                0.007145007               -0.017000978
 ## 6528               -0.004472838                0.007219141
 ## 302                 0.051829879                0.066100937
 ## 6435                0.010843928               -0.010140008
-## 6517                0.020825101                0.010136126
 ## 3205               -0.005881110                0.005605493
 ## 6521               -0.004412350               -0.013803062
 ##      PubDate.day.minutes.poly.5 PubDate.last16.log1p PubDate.last32.log1p
-## 5233                0.013803383             11.76273             11.81975
 ## 6528                0.006658270             11.95698             12.10953
 ## 302                 0.083442278             10.07706             10.33290
 ## 6435               -0.001891593             10.33864             10.86697
-## 6517               -0.004924177             11.44856             12.21791
 ## 3205                0.008323368             11.85059             12.00544
 ## 6521               -0.012191759             11.68539             12.19622
 ##      PubDate.last8.log1p WordCount.nexp
-## 5233           11.622461  5.482209e-194
 ## 6528           11.425547   0.000000e+00
 ## 302             9.741557   0.000000e+00
 ## 6435            8.695172   1.000000e+00
-## 6517            9.753188  2.750325e-314
 ## 3205           11.443361   1.026188e-10
 ## 6521           10.414633   0.000000e+00
-##                                                    id       cor.y
-## PubDate.day.minutes.poly.1 PubDate.day.minutes.poly.1  0.15675348
-## PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.3  0.02798355
-## PubDate.day.minutes.poly.4 PubDate.day.minutes.poly.4  0.07394139
-## PubDate.day.minutes.poly.5 PubDate.day.minutes.poly.5 -0.05592923
-## PubDate.last16.log1p             PubDate.last16.log1p  0.03845681
-## PubDate.last32.log1p             PubDate.last32.log1p  0.02254251
-## PubDate.last8.log1p               PubDate.last8.log1p  0.05657458
-## WordCount.nexp                         WordCount.nexp -0.05320840
-##                            exclude.as.feat  cor.y.abs          cor.high.X
-## PubDate.day.minutes.poly.1           FALSE 0.15675348                <NA>
-## PubDate.day.minutes.poly.3           FALSE 0.02798355                <NA>
-## PubDate.day.minutes.poly.4           FALSE 0.07394139                <NA>
-## PubDate.day.minutes.poly.5           FALSE 0.05592923                <NA>
-## PubDate.last16.log1p                 FALSE 0.03845681 PubDate.last8.log1p
-## PubDate.last32.log1p                 FALSE 0.02254251                <NA>
-## PubDate.last8.log1p                  FALSE 0.05657458 PubDate.last4.log1p
-## WordCount.nexp                       FALSE 0.05320840                <NA>
+##                                                    id        cor.y
+## PubDate.day.minutes.poly.1 PubDate.day.minutes.poly.1  0.156753478
+## PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.3  0.027983551
+## PubDate.day.minutes.poly.4 PubDate.day.minutes.poly.4  0.073941394
+## PubDate.day.minutes.poly.5 PubDate.day.minutes.poly.5 -0.055929231
+## PubDate.last16.log1p             PubDate.last16.log1p  0.040735543
+## PubDate.last32.log1p             PubDate.last32.log1p  0.003558081
+## PubDate.last8.log1p               PubDate.last8.log1p  0.054458821
+## WordCount.nexp                         WordCount.nexp -0.053208396
+##                            exclude.as.feat   cor.y.abs          cor.high.X
+## PubDate.day.minutes.poly.1           FALSE 0.156753478                <NA>
+## PubDate.day.minutes.poly.3           FALSE 0.027983551                <NA>
+## PubDate.day.minutes.poly.4           FALSE 0.073941394                <NA>
+## PubDate.day.minutes.poly.5           FALSE 0.055929231                <NA>
+## PubDate.last16.log1p                 FALSE 0.040735543                <NA>
+## PubDate.last32.log1p                 FALSE 0.003558081                <NA>
+## PubDate.last8.log1p                  FALSE 0.054458821 PubDate.last4.log1p
+## WordCount.nexp                       FALSE 0.053208396                <NA>
 ##                            freqRatio percentUnique zeroVar   nzv
 ## PubDate.day.minutes.poly.1  1.225490      18.08022   FALSE FALSE
 ## PubDate.day.minutes.poly.3  1.225490      18.08022   FALSE FALSE
 ## PubDate.day.minutes.poly.4  1.225490      18.08022   FALSE FALSE
 ## PubDate.day.minutes.poly.5  1.225490      18.08022   FALSE FALSE
-## PubDate.last16.log1p        1.000000      84.50704   FALSE FALSE
-## PubDate.last32.log1p        1.000000      91.13595   FALSE FALSE
-## PubDate.last8.log1p         1.166667      75.15309   FALSE FALSE
+## PubDate.last16.log1p        3.200000      84.44581   FALSE FALSE
+## PubDate.last32.log1p        8.000000      90.99816   FALSE FALSE
+## PubDate.last8.log1p         1.142857      75.12247   FALSE FALSE
 ## WordCount.nexp             17.761364      11.32884   FALSE FALSE
 ##                            is.cor.y.abs.low interaction.feat
 ## PubDate.day.minutes.poly.1            FALSE               NA
@@ -9853,7 +7291,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.day.minutes.poly.4            FALSE               NA
 ## PubDate.day.minutes.poly.5            FALSE               NA
 ## PubDate.last16.log1p                  FALSE               NA
-## PubDate.last32.log1p                  FALSE               NA
+## PubDate.last32.log1p                   TRUE               NA
 ## PubDate.last8.log1p                   FALSE               NA
 ## WordCount.nexp                        FALSE               NA
 ##                            shapiro.test.p.value rsp_var_raw id_var rsp_var
@@ -9861,36 +7299,36 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.day.minutes.poly.3         9.822405e-52       FALSE     NA      NA
 ## PubDate.day.minutes.poly.4         1.523136e-47       FALSE     NA      NA
 ## PubDate.day.minutes.poly.5         1.157500e-41       FALSE     NA      NA
-## PubDate.last16.log1p               8.465226e-47       FALSE     NA      NA
-## PubDate.last32.log1p               1.048418e-44       FALSE     NA      NA
-## PubDate.last8.log1p                1.021260e-42       FALSE     NA      NA
+## PubDate.last16.log1p               7.310334e-68       FALSE     NA      NA
+## PubDate.last32.log1p               2.783236e-77       FALSE     NA      NA
+## PubDate.last8.log1p                3.859176e-56       FALSE     NA      NA
 ## WordCount.nexp                     9.108805e-94       FALSE     NA      NA
 ##                                    max         min max.Pplr.fctr.N
 ## PubDate.day.minutes.poly.1  0.02475916 -0.02749464      0.02468654
 ## PubDate.day.minutes.poly.3  0.05215301 -0.04512497      0.05150779
 ## PubDate.day.minutes.poly.4  0.06677441 -0.01832740      0.06543120
 ## PubDate.day.minutes.poly.5  0.08471756 -0.02450918      0.08217780
-## PubDate.last16.log1p       11.95698288  8.00068478     11.94531808
-## PubDate.last32.log1p       12.32340669  8.83579237     12.30546086
-## PubDate.last8.log1p        11.62246125  6.66695679     11.43577441
+## PubDate.last16.log1p       11.95698288  0.00000000     11.94531808
+## PubDate.last32.log1p       12.32340669  0.00000000     12.21244232
+## PubDate.last8.log1p        11.62246125  0.00000000     11.43577441
 ## WordCount.nexp              1.00000000  0.00000000      1.00000000
 ##                            max.Pplr.fctr.Y min.Pplr.fctr.N min.Pplr.fctr.Y
 ## PubDate.day.minutes.poly.1     0.024468663     -0.02749464     -0.02745833
 ## PubDate.day.minutes.poly.3     0.049597025     -0.04512497     -0.04482024
 ## PubDate.day.minutes.poly.4     0.061490534     -0.01832740     -0.01821959
 ## PubDate.day.minutes.poly.5     0.074814724     -0.02450918     -0.02362780
-## PubDate.last16.log1p          11.877603300      8.05452261      8.00068478
-## PubDate.last32.log1p          12.178408497      9.12565356      9.23766367
-## PubDate.last8.log1p           11.394288315      6.66695679      7.19967835
+## PubDate.last16.log1p          11.877603300      0.00000000      0.00000000
+## PubDate.last32.log1p          12.178408497      0.00000000      0.00000000
+## PubDate.last8.log1p           11.394288315      0.00000000      0.00000000
 ## WordCount.nexp                 0.002478752      0.00000000      0.00000000
 ##                            max.Pplr.fctr.All.X..rcv.glmnet.N
 ## PubDate.day.minutes.poly.1                        0.02450498
 ## PubDate.day.minutes.poly.3                        0.04991290
 ## PubDate.day.minutes.poly.4                        0.06213811
 ## PubDate.day.minutes.poly.5                        0.07601554
-## PubDate.last16.log1p                             11.84854019
-## PubDate.last32.log1p                             12.17383350
-## PubDate.last8.log1p                              11.40150216
+## PubDate.last16.log1p                             11.86531323
+## PubDate.last32.log1p                             12.21791228
+## PubDate.last8.log1p                              11.62246125
 ## WordCount.nexp                                    1.00000000
 ##                            max.Pplr.fctr.All.X..rcv.glmnet.Y
 ## PubDate.day.minutes.poly.1                        0.02472285
@@ -9898,32 +7336,32 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.day.minutes.poly.4                        0.06610094
 ## PubDate.day.minutes.poly.5                        0.08344228
 ## PubDate.last16.log1p                             11.95698288
-## PubDate.last32.log1p                             12.21791228
-## PubDate.last8.log1p                              11.62246125
+## PubDate.last32.log1p                             12.19622431
+## PubDate.last8.log1p                              11.44336100
 ## WordCount.nexp                                    1.00000000
 ##                            min.Pplr.fctr.All.X..rcv.glmnet.N
 ## PubDate.day.minutes.poly.1                       -0.02749464
 ## PubDate.day.minutes.poly.3                       -0.04512497
 ## PubDate.day.minutes.poly.4                       -0.01832685
 ## PubDate.day.minutes.poly.5                       -0.02450918
-## PubDate.last16.log1p                              8.23164218
-## PubDate.last32.log1p                              9.19421099
-## PubDate.last8.log1p                               6.93439721
+## PubDate.last16.log1p                              0.00000000
+## PubDate.last32.log1p                              0.00000000
+## PubDate.last8.log1p                               0.00000000
 ## WordCount.nexp                                    0.00000000
 ##                            min.Pplr.fctr.All.X..rcv.glmnet.Y
 ## PubDate.day.minutes.poly.1                       -0.02745833
 ## PubDate.day.minutes.poly.3                       -0.04482024
-## PubDate.day.minutes.poly.4                       -0.01824013
+## PubDate.day.minutes.poly.4                       -0.01791547
 ## PubDate.day.minutes.poly.5                       -0.02362780
-## PubDate.last16.log1p                              8.29953457
-## PubDate.last32.log1p                              9.15122711
-## PubDate.last8.log1p                               7.01929665
+## PubDate.last16.log1p                              0.00000000
+## PubDate.last32.log1p                              0.00000000
+## PubDate.last8.log1p                               7.12447826
 ## WordCount.nexp                                    0.00000000
 ##                            max.Pplr.fctr.Final..rcv.glmnet.N
-## PubDate.day.minutes.poly.1                        0.02468654
-## PubDate.day.minutes.poly.3                        0.05150779
-## PubDate.day.minutes.poly.4                        0.06543120
-## PubDate.day.minutes.poly.5                        0.08217780
+## PubDate.day.minutes.poly.1                        0.02432341
+## PubDate.day.minutes.poly.3                        0.04834381
+## PubDate.day.minutes.poly.4                        0.05893666
+## PubDate.day.minutes.poly.5                        0.07011504
 ## PubDate.last16.log1p                             11.88113167
 ## PubDate.last32.log1p                             12.32340669
 ## PubDate.last8.log1p                              11.27955479
@@ -9955,89 +7393,57 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.last32.log1p                              8.83579237
 ## PubDate.last8.log1p                               6.89162590
 ## WordCount.nexp                                    0.00000000
-## [1] "OOBobs Pplr.fctr.All.X..rcv.glmnet N: min < min of Train range: 1"
-##      UniqueID Pplr.fctr.All.X..rcv.glmnet PubDate.last4.log1p
-## 2383     2383                           N            4.158883
-##                                      id     cor.y exclude.as.feat
-## PubDate.last4.log1p PubDate.last4.log1p 0.0697764           FALSE
-##                     cor.y.abs cor.high.X freqRatio percentUnique zeroVar
-## PubDate.last4.log1p 0.0697764       <NA>     1.125      64.98775   FALSE
-##                       nzv is.cor.y.abs.low interaction.feat
-## PubDate.last4.log1p FALSE            FALSE               NA
-##                     shapiro.test.p.value rsp_var_raw id_var rsp_var
-## PubDate.last4.log1p         9.671475e-32       FALSE     NA      NA
-##                          max      min max.Pplr.fctr.N max.Pplr.fctr.Y
-## PubDate.last4.log1p 11.24276 4.158883        11.24276         11.2174
-##                     min.Pplr.fctr.N min.Pplr.fctr.Y
-## PubDate.last4.log1p        4.382027        5.153292
-##                     max.Pplr.fctr.All.X..rcv.glmnet.N
-## PubDate.last4.log1p                           10.8627
-##                     max.Pplr.fctr.All.X..rcv.glmnet.Y
-## PubDate.last4.log1p                          11.02225
-##                     min.Pplr.fctr.All.X..rcv.glmnet.N
-## PubDate.last4.log1p                          4.158883
-##                     min.Pplr.fctr.All.X..rcv.glmnet.Y
-## PubDate.last4.log1p                          5.897154
-##                     max.Pplr.fctr.Final..rcv.glmnet.N
-## PubDate.last4.log1p                          10.98656
-##                     max.Pplr.fctr.Final..rcv.glmnet.Y
-## PubDate.last4.log1p                          11.08721
-##                     min.Pplr.fctr.Final..rcv.glmnet.N
-## PubDate.last4.log1p                          4.941642
-##                     min.Pplr.fctr.Final..rcv.glmnet.Y
-## PubDate.last4.log1p                          5.442418
-## [1] "OOBobs total range outliers: 19"
-## [1] "newobs Pplr.fctr.Final..rcv.glmnet N: min < min of Train range: 29"
-##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.last32.log1p
-## 7744     7744                           N             9.100860
-## 7745     7745                           N             9.061608
-## 7747     7747                           N             9.050172
-## 7749     7749                           N             8.980550
-## 7750     7750                           N             8.997518
-## 7751     7751                           N             8.982310
-##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.last32.log1p
-## 7745     7745                           N             9.061608
-## 7761     7761                           N             9.001100
-## 7763     7763                           N             9.065315
-## 7766     7766                           N             9.022081
-## 7936     7936                           N             8.932741
-## 7941     7941                           N             8.956351
-##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.last32.log1p
-## 7941     7941                           N             8.956351
-## 7942     7942                           N             8.921991
-## 7943     7943                           N             8.906393
-## 7944     7944                           N             8.991064
-## 7945     7945                           N             9.004054
-## 7946     7946                           N             9.121509
-##                                        id      cor.y exclude.as.feat
-## PubDate.last32.log1p PubDate.last32.log1p 0.02254251           FALSE
-##                       cor.y.abs cor.high.X freqRatio percentUnique zeroVar
-## PubDate.last32.log1p 0.02254251       <NA>         1      91.13595   FALSE
-##                        nzv is.cor.y.abs.low interaction.feat
-## PubDate.last32.log1p FALSE            FALSE               NA
-##                      shapiro.test.p.value rsp_var_raw id_var rsp_var
-## PubDate.last32.log1p         1.048418e-44       FALSE     NA      NA
-##                           max      min max.Pplr.fctr.N max.Pplr.fctr.Y
-## PubDate.last32.log1p 12.32341 8.835792        12.30546        12.21791
-##                      min.Pplr.fctr.N min.Pplr.fctr.Y
-## PubDate.last32.log1p        9.125654         9.17699
+## [1] "OOBobs Pplr.fctr.All.X..rcv.glmnet N: max > max of Train range: 2"
+##      UniqueID Pplr.fctr.All.X..rcv.glmnet PubDate.last32.log1p
+## 5233     5233                           N             11.81975
+## 6517     6517                           N             12.21791
+##      PubDate.last8.log1p
+## 5233           11.622461
+## 6517            9.753188
+##                                        id       cor.y exclude.as.feat
+## PubDate.last32.log1p PubDate.last32.log1p 0.003558081           FALSE
+## PubDate.last8.log1p   PubDate.last8.log1p 0.054458821           FALSE
+##                        cor.y.abs          cor.high.X freqRatio
+## PubDate.last32.log1p 0.003558081                <NA>  8.000000
+## PubDate.last8.log1p  0.054458821 PubDate.last4.log1p  1.142857
+##                      percentUnique zeroVar   nzv is.cor.y.abs.low
+## PubDate.last32.log1p      90.99816   FALSE FALSE             TRUE
+## PubDate.last8.log1p       75.12247   FALSE FALSE            FALSE
+##                      interaction.feat shapiro.test.p.value rsp_var_raw
+## PubDate.last32.log1p               NA         2.783236e-77       FALSE
+## PubDate.last8.log1p                NA         3.859176e-56       FALSE
+##                      id_var rsp_var      max min max.Pplr.fctr.N
+## PubDate.last32.log1p     NA      NA 12.32341   0        12.21244
+## PubDate.last8.log1p      NA      NA 11.62246   0        11.43577
+##                      max.Pplr.fctr.Y min.Pplr.fctr.N min.Pplr.fctr.Y
+## PubDate.last32.log1p        12.17841               0               0
+## PubDate.last8.log1p         11.39429               0               0
 ##                      max.Pplr.fctr.All.X..rcv.glmnet.N
-## PubDate.last32.log1p                          12.17383
-##                      max.Pplr.fctr.All.X..rcv.glmnet.Y
 ## PubDate.last32.log1p                          12.21791
+## PubDate.last8.log1p                           11.62246
+##                      max.Pplr.fctr.All.X..rcv.glmnet.Y
+## PubDate.last32.log1p                          12.19622
+## PubDate.last8.log1p                           11.44336
 ##                      min.Pplr.fctr.All.X..rcv.glmnet.N
-## PubDate.last32.log1p                          9.194211
+## PubDate.last32.log1p                                 0
+## PubDate.last8.log1p                                  0
 ##                      min.Pplr.fctr.All.X..rcv.glmnet.Y
-## PubDate.last32.log1p                          9.151227
+## PubDate.last32.log1p                          0.000000
+## PubDate.last8.log1p                           7.124478
 ##                      max.Pplr.fctr.Final..rcv.glmnet.N
 ## PubDate.last32.log1p                          12.32341
+## PubDate.last8.log1p                           11.27955
 ##                      max.Pplr.fctr.Final..rcv.glmnet.Y
 ## PubDate.last32.log1p                          12.30546
+## PubDate.last8.log1p                           11.33228
 ##                      min.Pplr.fctr.Final..rcv.glmnet.N
 ## PubDate.last32.log1p                          8.862908
+## PubDate.last8.log1p                           7.061334
 ##                      min.Pplr.fctr.Final..rcv.glmnet.Y
 ## PubDate.last32.log1p                          8.835792
-## [1] "newobs Pplr.fctr.Final..rcv.glmnet N: max > max of Train range: 1189"
+## PubDate.last8.log1p                           6.891626
+## [1] "OOBobs total range outliers: 8"
+## [1] "newobs Pplr.fctr.Final..rcv.glmnet N: max > max of Train range: 1186"
 ##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.juliandate
 ## 6533     6533                           N                335
 ## 6540     6540                           N                335
@@ -10053,19 +7459,19 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## 6543             9.400878
 ## 6545             9.402860
 ##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.juliandate
-## 6717     6717                           N                336
-## 6880     6880                           N                338
-## 7332     7332                           N                345
-## 7537     7537                           N                349
-## 7724     7724                           N                351
-## 8062     8062                           N                356
+## 6629     6629                           N                335
+## 7478     7478                           N                346
+## 7575     7575                           N                349
+## 7720     7720                           N                351
+## 7907     7907                           N                352
+## 8236     8236                           N                360
 ##      PubDate.last32.log1p
-## 6717            10.684760
-## 6880            10.930371
-## 7332             9.601842
-## 7537            10.000796
-## 7724             9.325097
-## 8062            10.218590
+## 6629            12.219719
+## 7478            10.902777
+## 7575            10.133924
+## 7720             9.276783
+## 7907            10.825760
+## 8236            11.729246
 ##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.juliandate
 ## 8394     8394                           N                365
 ## 8395     8395                           N                365
@@ -10080,36 +7486,36 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## 8398             11.09410
 ## 8400             11.07855
 ## 8401             11.05398
-##                                        id      cor.y exclude.as.feat
-## PubDate.juliandate     PubDate.juliandate 0.01436107           FALSE
-## PubDate.last32.log1p PubDate.last32.log1p 0.02254251           FALSE
-##                       cor.y.abs         cor.high.X freqRatio percentUnique
-## PubDate.juliandate   0.01436107 PubDate.month.fctr   1.03252      1.393141
-## PubDate.last32.log1p 0.02254251               <NA>   1.00000     91.135946
-##                      zeroVar   nzv is.cor.y.abs.low interaction.feat
-## PubDate.juliandate     FALSE FALSE            FALSE               NA
-## PubDate.last32.log1p   FALSE FALSE            FALSE               NA
-##                      shapiro.test.p.value rsp_var_raw id_var rsp_var
-## PubDate.juliandate           1.389406e-35       FALSE     NA      NA
-## PubDate.last32.log1p         1.048418e-44       FALSE     NA      NA
-##                            max        min max.Pplr.fctr.N max.Pplr.fctr.Y
-## PubDate.juliandate   365.00000 244.000000       334.00000       334.00000
-## PubDate.last32.log1p  12.32341   8.835792        12.30546        12.21791
-##                      min.Pplr.fctr.N min.Pplr.fctr.Y
-## PubDate.juliandate        244.000000       244.00000
-## PubDate.last32.log1p        9.125654         9.17699
+##                                        id       cor.y exclude.as.feat
+## PubDate.juliandate     PubDate.juliandate 0.014361075           FALSE
+## PubDate.last32.log1p PubDate.last32.log1p 0.003558081           FALSE
+##                        cor.y.abs         cor.high.X freqRatio
+## PubDate.juliandate   0.014361075 PubDate.month.fctr   1.03252
+## PubDate.last32.log1p 0.003558081               <NA>   8.00000
+##                      percentUnique zeroVar   nzv is.cor.y.abs.low
+## PubDate.juliandate        1.393141   FALSE FALSE            FALSE
+## PubDate.last32.log1p     90.998163   FALSE FALSE             TRUE
+##                      interaction.feat shapiro.test.p.value rsp_var_raw
+## PubDate.juliandate                 NA         1.389406e-35       FALSE
+## PubDate.last32.log1p               NA         2.783236e-77       FALSE
+##                      id_var rsp_var       max min max.Pplr.fctr.N
+## PubDate.juliandate       NA      NA 365.00000 244       334.00000
+## PubDate.last32.log1p     NA      NA  12.32341   0        12.21244
+##                      max.Pplr.fctr.Y min.Pplr.fctr.N min.Pplr.fctr.Y
+## PubDate.juliandate         334.00000             244             244
+## PubDate.last32.log1p        12.21791               0               0
 ##                      max.Pplr.fctr.All.X..rcv.glmnet.N
-## PubDate.juliandate                           332.00000
-## PubDate.last32.log1p                          12.17383
-##                      max.Pplr.fctr.All.X..rcv.glmnet.Y
 ## PubDate.juliandate                           334.00000
 ## PubDate.last32.log1p                          12.21791
+##                      max.Pplr.fctr.All.X..rcv.glmnet.Y
+## PubDate.juliandate                           334.00000
+## PubDate.last32.log1p                          12.19622
 ##                      min.Pplr.fctr.All.X..rcv.glmnet.N
-## PubDate.juliandate                          244.000000
-## PubDate.last32.log1p                          9.194211
+## PubDate.juliandate                                 244
+## PubDate.last32.log1p                                 0
 ##                      min.Pplr.fctr.All.X..rcv.glmnet.Y
-## PubDate.juliandate                          244.000000
-## PubDate.last32.log1p                          9.151227
+## PubDate.juliandate                                 244
+## PubDate.last32.log1p                                 0
 ##                      max.Pplr.fctr.Final..rcv.glmnet.N
 ## PubDate.juliandate                           365.00000
 ## PubDate.last32.log1p                          12.32341
@@ -10122,100 +7528,49 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ##                      min.Pplr.fctr.Final..rcv.glmnet.Y
 ## PubDate.juliandate                          335.000000
 ## PubDate.last32.log1p                          8.835792
-## [1] "newobs Pplr.fctr.Final..rcv.glmnet Y: min < min of Train range: 10"
-##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.last32.log1p
-## 6635     6635                           Y            10.171451
-## 6636     6636                           Y            10.162461
-## 7742     7742                           Y             9.087268
-## 7743     7743                           Y             9.096836
-## 7746     7746                           Y             9.060215
-## 7748     7748                           Y             9.049115
-## 7759     7759                           Y             9.069813
-## 7938     7938                           Y             8.860641
-## 7939     7939                           Y             8.835792
-## 8217     8217                           Y            11.168659
-##      PubDate.last8.log1p WordCount.log1p WordCount.root2
-## 6635            7.156177        7.609862        44.91102
-## 6636            6.891626        6.853299        30.75711
-## 7742            7.708860        7.565275        43.92038
-## 7743            7.748891        6.144186        21.56386
-## 7746            7.610358        6.363028        24.06242
-## 7748            7.536897        5.455321        15.26434
-## 7759            7.826842        6.809039        30.08322
-## 7938            7.494430        6.543912        26.34388
-## 7939            7.101676        6.115892        21.26029
-## 8217            9.528794        1.609438         2.00000
-##                                        id      cor.y exclude.as.feat
-## PubDate.last32.log1p PubDate.last32.log1p 0.02254251           FALSE
-## PubDate.last8.log1p   PubDate.last8.log1p 0.05657458           FALSE
-## WordCount.log1p           WordCount.log1p 0.25431963           FALSE
-## WordCount.root2           WordCount.root2 0.29212068           FALSE
-##                       cor.y.abs          cor.high.X freqRatio
-## PubDate.last32.log1p 0.02254251                <NA>  1.000000
-## PubDate.last8.log1p  0.05657458 PubDate.last4.log1p  1.166667
-## WordCount.log1p      0.25431963     WordCount.root2  2.315789
-## WordCount.root2      0.29212068                <NA>  2.315789
-##                      percentUnique zeroVar   nzv is.cor.y.abs.low
-## PubDate.last32.log1p      91.13595   FALSE FALSE            FALSE
-## PubDate.last8.log1p       75.15309   FALSE FALSE            FALSE
-## WordCount.log1p           24.15799   FALSE FALSE            FALSE
-## WordCount.root2           24.15799   FALSE FALSE            FALSE
-##                      interaction.feat shapiro.test.p.value rsp_var_raw
-## PubDate.last32.log1p               NA         1.048418e-44       FALSE
-## PubDate.last8.log1p                NA         1.021260e-42       FALSE
-## WordCount.log1p                    NA         1.576866e-49       FALSE
-## WordCount.root2                    NA         4.556481e-30       FALSE
-##                      id_var rsp_var       max      min max.Pplr.fctr.N
-## PubDate.last32.log1p     NA      NA  12.32341 8.835792       12.305461
-## PubDate.last8.log1p      NA      NA  11.62246 6.666957       11.622461
-## WordCount.log1p          NA      NA   9.29771 0.000000        8.819665
-## WordCount.root2          NA      NA 104.46052 0.000000       82.249620
-##                      max.Pplr.fctr.Y min.Pplr.fctr.N min.Pplr.fctr.Y
-## PubDate.last32.log1p        12.21791        9.125654        9.176990
-## PubDate.last8.log1p         11.44336        6.666957        7.187657
-## WordCount.log1p              9.29771        0.000000        1.945910
-## WordCount.root2            104.46052        0.000000        2.449490
-##                      max.Pplr.fctr.All.X..rcv.glmnet.N
-## PubDate.last32.log1p                         12.173834
-## PubDate.last8.log1p                          11.401502
-## WordCount.log1p                               7.059618
-## WordCount.root2                              34.102786
-##                      max.Pplr.fctr.All.X..rcv.glmnet.Y
-## PubDate.last32.log1p                         12.217912
-## PubDate.last8.log1p                          11.622461
-## WordCount.log1p                               9.140883
-## WordCount.root2                              96.581572
-##                      min.Pplr.fctr.All.X..rcv.glmnet.N
-## PubDate.last32.log1p                          9.194211
-## PubDate.last8.log1p                           6.934397
-## WordCount.log1p                               0.000000
-## WordCount.root2                               0.000000
-##                      min.Pplr.fctr.All.X..rcv.glmnet.Y
-## PubDate.last32.log1p                          9.151227
-## PubDate.last8.log1p                           7.019297
-## WordCount.log1p                               0.000000
-## WordCount.root2                               0.000000
-##                      max.Pplr.fctr.Final..rcv.glmnet.N
-## PubDate.last32.log1p                         12.323407
-## PubDate.last8.log1p                          11.279555
-## WordCount.log1p                               7.973844
-## WordCount.root2                              53.879495
-##                      max.Pplr.fctr.Final..rcv.glmnet.Y
-## PubDate.last32.log1p                         12.305461
-## PubDate.last8.log1p                          11.332279
-## WordCount.log1p                               8.692322
-## WordCount.root2                              77.175126
-##                      min.Pplr.fctr.Final..rcv.glmnet.N
-## PubDate.last32.log1p                          8.862908
-## PubDate.last8.log1p                           7.061334
-## WordCount.log1p                               0.000000
-## WordCount.root2                               0.000000
-##                      min.Pplr.fctr.Final..rcv.glmnet.Y
-## PubDate.last32.log1p                          8.835792
-## PubDate.last8.log1p                           6.891626
-## WordCount.log1p                               1.609438
-## WordCount.root2                               2.000000
-## [1] "newobs Pplr.fctr.Final..rcv.glmnet Y: max > max of Train range: 681"
+## [1] "newobs Pplr.fctr.Final..rcv.glmnet Y: min < min of Train range: 1"
+##      UniqueID Pplr.fctr.Final..rcv.glmnet WordCount.log1p WordCount.root2
+## 8217     8217                           Y        1.609438               2
+##                              id     cor.y exclude.as.feat cor.y.abs
+## WordCount.log1p WordCount.log1p 0.2543196           FALSE 0.2543196
+## WordCount.root2 WordCount.root2 0.2921207           FALSE 0.2921207
+##                      cor.high.X freqRatio percentUnique zeroVar   nzv
+## WordCount.log1p WordCount.root2  2.315789      24.15799   FALSE FALSE
+## WordCount.root2            <NA>  2.315789      24.15799   FALSE FALSE
+##                 is.cor.y.abs.low interaction.feat shapiro.test.p.value
+## WordCount.log1p            FALSE               NA         1.576866e-49
+## WordCount.root2            FALSE               NA         4.556481e-30
+##                 rsp_var_raw id_var rsp_var       max min max.Pplr.fctr.N
+## WordCount.log1p       FALSE     NA      NA   9.29771   0        8.819665
+## WordCount.root2       FALSE     NA      NA 104.46052   0       82.249620
+##                 max.Pplr.fctr.Y min.Pplr.fctr.N min.Pplr.fctr.Y
+## WordCount.log1p         9.29771               0         1.94591
+## WordCount.root2       104.46052               0         2.44949
+##                 max.Pplr.fctr.All.X..rcv.glmnet.N
+## WordCount.log1p                          7.069023
+## WordCount.root2                         34.263683
+##                 max.Pplr.fctr.All.X..rcv.glmnet.Y
+## WordCount.log1p                          9.140883
+## WordCount.root2                         96.581572
+##                 min.Pplr.fctr.All.X..rcv.glmnet.N
+## WordCount.log1p                                 0
+## WordCount.root2                                 0
+##                 min.Pplr.fctr.All.X..rcv.glmnet.Y
+## WordCount.log1p                                 0
+## WordCount.root2                                 0
+##                 max.Pplr.fctr.Final..rcv.glmnet.N
+## WordCount.log1p                           7.94094
+## WordCount.root2                          53.00000
+##                 max.Pplr.fctr.Final..rcv.glmnet.Y
+## WordCount.log1p                          8.692322
+## WordCount.root2                         77.175126
+##                 min.Pplr.fctr.Final..rcv.glmnet.N
+## WordCount.log1p                                 0
+## WordCount.root2                                 0
+##                 min.Pplr.fctr.Final..rcv.glmnet.Y
+## WordCount.log1p                          1.609438
+## WordCount.root2                          2.000000
+## [1] "newobs Pplr.fctr.Final..rcv.glmnet Y: max > max of Train range: 684"
 ##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.day.minutes.poly.1
 ## 6534     6534                           Y                 0.02047428
 ## 6535     6535                           Y                 0.02043797
@@ -10245,33 +7600,33 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## 6538   0.000000e+00
 ## 6539   0.000000e+00
 ##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.day.minutes.poly.1
-## 6549     6549                           Y               0.0103067569
-## 6568     6568                           Y               0.0058403094
-## 6859     6859                           Y              -0.0003328293
-## 8074     8074                           Y              -0.0039277748
-## 8137     8137                           Y              -0.0057434038
-## 8179     8179                           Y              -0.0037098993
+## 6671     6671                           Y                0.002463239
+## 6873     6873                           Y               -0.004799277
+## 7317     7317                           Y                0.012231324
+## 7528     7528                           Y                0.020437967
+## 7734     7734                           Y                0.007002312
+## 8145     8145                           Y               -0.010355102
 ##      PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.4
-## 6549               -0.009159941              -0.0099955355
-## 6568               -0.008760997              -0.0002028669
-## 6859               -0.001377328               0.0092461622
-## 8074                0.004086564               0.0087598734
-## 8137                0.006605125               0.0066524422
-## 8179                0.003766018               0.0089316619
+## 6671               -0.005335173                0.006293548
+## 6873                0.005333956                0.007895719
+## 7317               -0.007282868               -0.012874650
+## 7528                0.020614888                0.009828175
+## 7734               -0.009404459               -0.002840648
+## 8145                0.010795979               -0.003014347
 ##      PubDate.day.minutes.poly.5 PubDate.juliandate PubDate.last32.log1p
-## 6549               0.0006942245                335             9.471242
-## 6568               0.0095286285                335             9.661734
-## 6859               0.0021075916                338             9.886443
-## 8074              -0.0065295954                356            10.655847
-## 8137              -0.0098074102                357            10.956440
-## 8179              -0.0060564299                358            11.239304
+## 6671                0.007723689                336             9.941120
+## 6873               -0.008268638                338            10.918446
+## 7317               -0.006115494                345             9.800014
+## 7528               -0.005269034                349            10.284797
+## 7734                0.008456902                351             9.242904
+## 8145               -0.009591936                357            11.002700
 ##      WordCount.nexp
-## 6549   0.000000e+00
-## 6568  5.688906e-247
-## 6859  7.149792e-142
-## 8074   0.000000e+00
-## 8137   0.000000e+00
-## 8179   0.000000e+00
+## 6671   0.000000e+00
+## 6873  2.032231e-313
+## 7317  2.329036e-211
+## 7528  2.699143e-152
+## 7734  5.709040e-171
+## 8145   0.000000e+00
 ##      UniqueID Pplr.fctr.Final..rcv.glmnet PubDate.day.minutes.poly.1
 ## 8386     8386                           Y               -0.004762964
 ## 8391     8391                           Y               -0.007559033
@@ -10300,29 +7655,29 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## 8397              0
 ## 8399              0
 ## 8402              0
-##                                                    id       cor.y
-## PubDate.day.minutes.poly.1 PubDate.day.minutes.poly.1  0.15675348
-## PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.3  0.02798355
-## PubDate.day.minutes.poly.4 PubDate.day.minutes.poly.4  0.07394139
-## PubDate.day.minutes.poly.5 PubDate.day.minutes.poly.5 -0.05592923
-## PubDate.juliandate                 PubDate.juliandate  0.01436107
-## PubDate.last32.log1p             PubDate.last32.log1p  0.02254251
-## WordCount.nexp                         WordCount.nexp -0.05320840
-##                            exclude.as.feat  cor.y.abs         cor.high.X
-## PubDate.day.minutes.poly.1           FALSE 0.15675348               <NA>
-## PubDate.day.minutes.poly.3           FALSE 0.02798355               <NA>
-## PubDate.day.minutes.poly.4           FALSE 0.07394139               <NA>
-## PubDate.day.minutes.poly.5           FALSE 0.05592923               <NA>
-## PubDate.juliandate                   FALSE 0.01436107 PubDate.month.fctr
-## PubDate.last32.log1p                 FALSE 0.02254251               <NA>
-## WordCount.nexp                       FALSE 0.05320840               <NA>
+##                                                    id        cor.y
+## PubDate.day.minutes.poly.1 PubDate.day.minutes.poly.1  0.156753478
+## PubDate.day.minutes.poly.3 PubDate.day.minutes.poly.3  0.027983551
+## PubDate.day.minutes.poly.4 PubDate.day.minutes.poly.4  0.073941394
+## PubDate.day.minutes.poly.5 PubDate.day.minutes.poly.5 -0.055929231
+## PubDate.juliandate                 PubDate.juliandate  0.014361075
+## PubDate.last32.log1p             PubDate.last32.log1p  0.003558081
+## WordCount.nexp                         WordCount.nexp -0.053208396
+##                            exclude.as.feat   cor.y.abs         cor.high.X
+## PubDate.day.minutes.poly.1           FALSE 0.156753478               <NA>
+## PubDate.day.minutes.poly.3           FALSE 0.027983551               <NA>
+## PubDate.day.minutes.poly.4           FALSE 0.073941394               <NA>
+## PubDate.day.minutes.poly.5           FALSE 0.055929231               <NA>
+## PubDate.juliandate                   FALSE 0.014361075 PubDate.month.fctr
+## PubDate.last32.log1p                 FALSE 0.003558081               <NA>
+## WordCount.nexp                       FALSE 0.053208396               <NA>
 ##                            freqRatio percentUnique zeroVar   nzv
 ## PubDate.day.minutes.poly.1   1.22549     18.080220   FALSE FALSE
 ## PubDate.day.minutes.poly.3   1.22549     18.080220   FALSE FALSE
 ## PubDate.day.minutes.poly.4   1.22549     18.080220   FALSE FALSE
 ## PubDate.day.minutes.poly.5   1.22549     18.080220   FALSE FALSE
 ## PubDate.juliandate           1.03252      1.393141   FALSE FALSE
-## PubDate.last32.log1p         1.00000     91.135946   FALSE FALSE
+## PubDate.last32.log1p         8.00000     90.998163   FALSE FALSE
 ## WordCount.nexp              17.76136     11.328843   FALSE FALSE
 ##                            is.cor.y.abs.low interaction.feat
 ## PubDate.day.minutes.poly.1            FALSE               NA
@@ -10330,7 +7685,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.day.minutes.poly.4            FALSE               NA
 ## PubDate.day.minutes.poly.5            FALSE               NA
 ## PubDate.juliandate                    FALSE               NA
-## PubDate.last32.log1p                  FALSE               NA
+## PubDate.last32.log1p                   TRUE               NA
 ## WordCount.nexp                        FALSE               NA
 ##                            shapiro.test.p.value rsp_var_raw id_var rsp_var
 ## PubDate.day.minutes.poly.1         1.590362e-18       FALSE     NA      NA
@@ -10338,7 +7693,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.day.minutes.poly.4         1.523136e-47       FALSE     NA      NA
 ## PubDate.day.minutes.poly.5         1.157500e-41       FALSE     NA      NA
 ## PubDate.juliandate                 1.389406e-35       FALSE     NA      NA
-## PubDate.last32.log1p               1.048418e-44       FALSE     NA      NA
+## PubDate.last32.log1p               2.783236e-77       FALSE     NA      NA
 ## WordCount.nexp                     9.108805e-94       FALSE     NA      NA
 ##                                     max          min max.Pplr.fctr.N
 ## PubDate.day.minutes.poly.1   0.02475916  -0.02749464      0.02472285
@@ -10346,7 +7701,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.day.minutes.poly.4   0.06677441  -0.01832740      0.06610094
 ## PubDate.day.minutes.poly.5   0.08471756  -0.02450918      0.08344228
 ## PubDate.juliandate         365.00000000 244.00000000    334.00000000
-## PubDate.last32.log1p        12.32340669   8.83579237     12.30546086
+## PubDate.last32.log1p        12.32340669   0.00000000     12.21244232
 ## WordCount.nexp               1.00000000   0.00000000      1.00000000
 ##                            max.Pplr.fctr.Y min.Pplr.fctr.N min.Pplr.fctr.Y
 ## PubDate.day.minutes.poly.1    2.446866e-02     -0.02749464     -0.02745833
@@ -10354,15 +7709,15 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.day.minutes.poly.4    6.149053e-02     -0.01832740     -0.01821959
 ## PubDate.day.minutes.poly.5    7.481472e-02     -0.02450918     -0.02362780
 ## PubDate.juliandate            3.340000e+02    244.00000000    244.00000000
-## PubDate.last32.log1p          1.221791e+01      9.12565356      9.17699039
+## PubDate.last32.log1p          1.221791e+01      0.00000000      0.00000000
 ## WordCount.nexp                2.478752e-03      0.00000000      0.00000000
 ##                            max.Pplr.fctr.All.X..rcv.glmnet.N
 ## PubDate.day.minutes.poly.1                        0.02450498
 ## PubDate.day.minutes.poly.3                        0.04991290
 ## PubDate.day.minutes.poly.4                        0.06213811
 ## PubDate.day.minutes.poly.5                        0.07601554
-## PubDate.juliandate                              332.00000000
-## PubDate.last32.log1p                             12.17383350
+## PubDate.juliandate                              334.00000000
+## PubDate.last32.log1p                             12.21791228
 ## WordCount.nexp                                    1.00000000
 ##                            max.Pplr.fctr.All.X..rcv.glmnet.Y
 ## PubDate.day.minutes.poly.1                        0.02472285
@@ -10370,7 +7725,7 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.day.minutes.poly.4                        0.06610094
 ## PubDate.day.minutes.poly.5                        0.08344228
 ## PubDate.juliandate                              334.00000000
-## PubDate.last32.log1p                             12.21791228
+## PubDate.last32.log1p                             12.19622431
 ## WordCount.nexp                                    1.00000000
 ##                            min.Pplr.fctr.All.X..rcv.glmnet.N
 ## PubDate.day.minutes.poly.1                       -0.02749464
@@ -10378,21 +7733,21 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ## PubDate.day.minutes.poly.4                       -0.01832685
 ## PubDate.day.minutes.poly.5                       -0.02450918
 ## PubDate.juliandate                              244.00000000
-## PubDate.last32.log1p                              9.19421099
+## PubDate.last32.log1p                              0.00000000
 ## WordCount.nexp                                    0.00000000
 ##                            min.Pplr.fctr.All.X..rcv.glmnet.Y
 ## PubDate.day.minutes.poly.1                       -0.02745833
 ## PubDate.day.minutes.poly.3                       -0.04482024
-## PubDate.day.minutes.poly.4                       -0.01824013
+## PubDate.day.minutes.poly.4                       -0.01791547
 ## PubDate.day.minutes.poly.5                       -0.02362780
 ## PubDate.juliandate                              244.00000000
-## PubDate.last32.log1p                              9.15122711
+## PubDate.last32.log1p                              0.00000000
 ## WordCount.nexp                                    0.00000000
 ##                            max.Pplr.fctr.Final..rcv.glmnet.N
-## PubDate.day.minutes.poly.1                        0.02468654
-## PubDate.day.minutes.poly.3                        0.05150779
-## PubDate.day.minutes.poly.4                        0.06543120
-## PubDate.day.minutes.poly.5                        0.08217780
+## PubDate.day.minutes.poly.1                        0.02432341
+## PubDate.day.minutes.poly.3                        0.04834381
+## PubDate.day.minutes.poly.4                        0.05893666
+## PubDate.day.minutes.poly.5                        0.07011504
 ## PubDate.juliandate                              365.00000000
 ## PubDate.last32.log1p                             12.32340669
 ## WordCount.nexp                                    1.00000000
@@ -10437,82 +7792,54 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 
 ```
 ## [1] "Cross Validation issues:"
-##            MFO###myMFO_classfr      Random###myrandom_classfr 
-##                              0                              0 
-##     Max.cor.Y.rcv.1X1###glmnet Max.cor.Y.rcv.1X1.cp.0###rpart 
-##                              0                              0
+##        MFO###myMFO_classfr  Random###myrandom_classfr 
+##                          0                          0 
+## Max.cor.Y.rcv.1X1###glmnet 
+##                          0
 ```
 
 ```
 ##                                 max.Accuracy.OOB max.AUCROCR.OOB
 ## Max.cor.Y##rcv#rpart                   0.8200231       0.5892132
 ## Max.cor.Y.Time.Poly##rcv#glmnet        0.7754630       0.8049472
-## Interact.High.cor.Y##rcv#glmnet        0.7743056       0.7992251
-## Max.cor.Y.rcv.1X1.cp.0###rpart         0.7673611       0.7773858
+## All.X##rcv#glmnet                      0.7743056       0.7995951
+## Interact.High.cor.Y##rcv#glmnet        0.7656250       0.8140971
 ## Max.cor.Y.rcv.1X1###glmnet             0.7604167       0.8116126
-## Max.cor.Y.rcv.5X3##rcv#glmnet          0.7604167       0.8114863
-## Max.cor.Y.rcv.5X1##rcv#glmnet          0.7604167       0.8114863
-## Max.cor.Y.rcv.5X5##rcv#glmnet          0.7604167       0.8114863
-## Max.cor.Y.rcv.3X1##rcv#glmnet          0.7575231       0.8067975
-## Max.cor.Y.rcv.3X3##rcv#glmnet          0.7575231       0.8067975
-## Max.cor.Y.rcv.3X5##rcv#glmnet          0.7575231       0.8067975
-## Max.cor.Y.Time.Lag##rcv#glmnet         0.6464120       0.8118709
-## Low.cor.X##rcv#glmnet                  0.6377315       0.8150026
-## All.X##rcv#glmnet                      0.6261574       0.8157921
+## Low.cor.X##rcv#glmnet                  0.7557870       0.8160359
+## Max.cor.Y.Time.Lag##rcv#glmnet         0.6464120       0.8117635
 ## MFO###myMFO_classfr                    0.1331019       0.5000000
 ## Random###myrandom_classfr              0.1331019       0.4857956
 ## Final##rcv#glmnet                             NA              NA
 ##                                 max.AUCpROC.OOB max.Accuracy.fit
 ## Max.cor.Y##rcv#rpart                  0.5870523        0.9296422
 ## Max.cor.Y.Time.Poly##rcv#glmnet       0.5965780        0.9322790
-## Interact.High.cor.Y##rcv#glmnet       0.5957392        0.9315850
-## Max.cor.Y.rcv.1X1.cp.0###rpart        0.6174697        0.9381765
+## All.X##rcv#glmnet                     0.5950717        0.9320707
+## Interact.High.cor.Y##rcv#glmnet       0.6009259        0.9315850
 ## Max.cor.Y.rcv.1X1###glmnet            0.5962443        0.9329725
-## Max.cor.Y.rcv.5X3##rcv#glmnet         0.5962443        0.9333905
-## Max.cor.Y.rcv.5X1##rcv#glmnet         0.5962443        0.9331818
-## Max.cor.Y.rcv.5X5##rcv#glmnet         0.5962443        0.9331816
-## Max.cor.Y.rcv.3X1##rcv#glmnet         0.5962443        0.9335973
-## Max.cor.Y.rcv.3X3##rcv#glmnet         0.5962443        0.9333193
-## Max.cor.Y.rcv.3X5##rcv#glmnet         0.5962443        0.9332218
-## Max.cor.Y.Time.Lag##rcv#glmnet        0.5928717        0.9281861
-## Low.cor.X##rcv#glmnet                 0.5876850        0.9261046
-## All.X##rcv#glmnet                     0.5876850        0.9263124
+## Low.cor.X##rcv#glmnet                 0.6015934        0.9323486
+## Max.cor.Y.Time.Lag##rcv#glmnet        0.5925379        0.9279084
 ## MFO###myMFO_classfr                   0.5000000        0.1796420
 ## Random###myrandom_classfr             0.5125675        0.1796420
-## Final##rcv#glmnet                            NA        0.9063073
+## Final##rcv#glmnet                            NA        0.9065624
 ##                                 opt.prob.threshold.fit
 ## Max.cor.Y##rcv#rpart                               0.6
 ## Max.cor.Y.Time.Poly##rcv#glmnet                    0.4
+## All.X##rcv#glmnet                                  0.4
 ## Interact.High.cor.Y##rcv#glmnet                    0.4
-## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.4
 ## Max.cor.Y.rcv.1X1###glmnet                         0.5
-## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.5
-## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.5
-## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.5
-## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.4
-## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.4
-## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.4
+## Low.cor.X##rcv#glmnet                              0.2
 ## Max.cor.Y.Time.Lag##rcv#glmnet                     0.3
-## Low.cor.X##rcv#glmnet                              0.3
-## All.X##rcv#glmnet                                  0.3
 ## MFO###myMFO_classfr                                0.1
 ## Random###myrandom_classfr                          0.1
 ## Final##rcv#glmnet                                  0.2
 ##                                 opt.prob.threshold.OOB
 ## Max.cor.Y##rcv#rpart                               0.6
 ## Max.cor.Y.Time.Poly##rcv#glmnet                    0.1
-## Interact.High.cor.Y##rcv#glmnet                    0.1
-## Max.cor.Y.rcv.1X1.cp.0###rpart                     0.1
-## Max.cor.Y.rcv.1X1###glmnet                         0.1
-## Max.cor.Y.rcv.5X3##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.5X1##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.5X5##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.3X1##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.3X3##rcv#glmnet                      0.1
-## Max.cor.Y.rcv.3X5##rcv#glmnet                      0.1
-## Max.cor.Y.Time.Lag##rcv#glmnet                     0.1
-## Low.cor.X##rcv#glmnet                              0.1
 ## All.X##rcv#glmnet                                  0.1
+## Interact.High.cor.Y##rcv#glmnet                    0.1
+## Max.cor.Y.rcv.1X1###glmnet                         0.1
+## Low.cor.X##rcv#glmnet                              0.1
+## Max.cor.Y.Time.Lag##rcv#glmnet                     0.1
 ## MFO###myMFO_classfr                                0.1
 ## Random###myrandom_classfr                          0.1
 ## Final##rcv#glmnet                                   NA
@@ -10521,141 +7848,141 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ```
 ## [1] "All.X##rcv#glmnet OOB confusion matrix & accuracy: "
 ##          Prediction
-## Reference   N   Y
-##         N 874 624
-##         Y  22 208
+## Reference    N    Y
+##         N 1195  303
+##         Y   87  143
 ##                         .freqRatio.Fit .freqRatio.OOB .freqRatio.Tst
 ## OpEd#Opnn#                 0.090965862   0.0515046296    0.087700535
-## #Opnn#ThPblcEdtr           0.003330558   0.0023148148    0.005347594
 ## Styls#U.S.#                0.026436303   0.0289351852    0.032620321
-## Bsnss#Crsswrds/Gms#        0.021856786   0.0104166667    0.022459893
 ## Scnc#Hlth#                 0.030807660   0.0277777778    0.030481283
+## #Opnn#ThPblcEdtr           0.003330558   0.0023148148    0.005347594
+## Bsnss#Crsswrds/Gms#        0.021856786   0.0104166667    0.022459893
 ## Bsnss#Tchnlgy#             0.044338052   0.0729166667    0.060962567
-## ##                         0.190049958   0.2146990741    0.182887701
-## Bsnss#BsnssDy#Dlbk         0.130932556   0.1869212963    0.162566845
-## Mtr#N.Y./Rgn#              0.026644463   0.0405092593    0.035828877
-## Cltr#Arts#                 0.101998335   0.1070601852    0.093048128
 ## #Opnn#RmFrDbt              0.008742714   0.0115740741    0.010695187
+## Bsnss#BsnssDy#Dlbk         0.130932556   0.1869212963    0.162566845
+## ##                         0.190049958   0.2146990741    0.182887701
+## Cltr#Arts#                 0.101998335   0.1070601852    0.093048128
+## Mtr#N.Y./Rgn#              0.026644463   0.0405092593    0.035828877
 ## Styls##Fshn                0.021648626   0.0086805556    0.008021390
 ## Bsnss#BsnssDy#SmllBsnss    0.020815987   0.0231481481    0.021925134
-## myOthr                     0.006869276   0.0028935185    0.002673797
-## Trvl#Trvl#                 0.017277269   0.0196759259    0.018716578
-## Cltr##                              NA   0.0005787037    0.037433155
 ## Frgn#Wrld#AsPcfc           0.031223980   0.0306712963    0.029946524
-## #Mltmd#                    0.019150708   0.0283564815    0.027807487
 ## TStyl##                    0.129683597   0.0584490741    0.056149733
+## Trvl#Trvl#                 0.017277269   0.0196759259    0.018716578
+## #Mltmd#                    0.019150708   0.0283564815    0.027807487
+## myOthr                     0.006869276   0.0028935185    0.002673797
 ## #U.S.#Edctn                0.050582848   0.0474537037    0.047593583
+## Cltr##                              NA   0.0005787037    0.037433155
 ## Frgn#Wrld#                 0.026644463   0.0254629630    0.025133690
 ##                         .n.Fit .n.New.N .n.New.Y .n.OOB .n.Trn.N .n.Trn.Y
 ## OpEd#Opnn#                 437       NA      164     89      117      409
-## #Opnn#ThPblcEdtr            16       NA       10      4        4       16
 ## Styls#U.S.#                127       NA       61     50       77      100
-## Bsnss#Crsswrds/Gms#        105       NA       42     18       20      103
 ## Scnc#Hlth#                 148       NA       57     48       74      122
+## #Opnn#ThPblcEdtr            16       NA       10      4        4       16
+## Bsnss#Crsswrds/Gms#        105       NA       42     18       20      103
 ## Bsnss#Tchnlgy#             213       34       80    126      288       51
-## ##                         913      262       80    371     1169      115
-## Bsnss#BsnssDy#Dlbk         629      201      103    323      864       88
-## Mtr#N.Y./Rgn#              128       36       31     70      181       17
+## #Opnn#RmFrDbt               42       19        1     20       61        1
+## Bsnss#BsnssDy#Dlbk         629      197      107    323      864       88
+## ##                         913      265       77    371     1169      115
 ## Cltr#Arts#                 490      157       17    185      625       50
-## #Opnn#RmFrDbt               42       20       NA     20       61        1
+## Mtr#N.Y./Rgn#              128       37       30     70      181       17
 ## Styls##Fshn                104       15       NA     15      118        1
-## Bsnss#BsnssDy#SmllBsnss    100       36        5     40      135        5
-## myOthr                      33        5       NA      5       38       NA
-## Trvl#Trvl#                  83       35       NA     34      116        1
-## Cltr##                      NA       47       23      1        1       NA
-## Frgn#Wrld#AsPcfc           150       51        5     53      200        3
-## #Mltmd#                     92       52       NA     49      139        2
+## Bsnss#BsnssDy#SmllBsnss    100       35        6     40      135        5
+## Frgn#Wrld#AsPcfc           150       49        7     53      200        3
 ## TStyl##                    623      104        1    101      715        9
+## Trvl#Trvl#                  83       35       NA     34      116        1
+## #Mltmd#                     92       52       NA     49      139        2
+## myOthr                      33        5       NA      5       38       NA
 ## #U.S.#Edctn                243       87        2     82      325       NA
+## Cltr##                      NA       48       22      1        1       NA
 ## Frgn#Wrld#                 128       47       NA     44      172       NA
 ##                         .n.Tst .n.fit .n.new .n.trn err.abs.OOB.mean
-## OpEd#Opnn#                 164    437    164    526       0.52330093
-## #Opnn#ThPblcEdtr            10     16     10     20       0.50201689
-## Styls#U.S.#                 61    127     61    177       0.47265683
-## Bsnss#Crsswrds/Gms#         42    105     42    123       0.46617390
-## Scnc#Hlth#                  57    148     57    196       0.46081076
-## Bsnss#Tchnlgy#             114    213    114    339       0.23596749
-## ##                         342    913    342   1284       0.21028224
-## Bsnss#BsnssDy#Dlbk         304    629    304    952       0.20486485
-## Mtr#N.Y./Rgn#               67    128     67    198       0.19249438
-## Cltr#Arts#                 174    490    174    675       0.18753758
-## #Opnn#RmFrDbt               20     42     20     62       0.18712633
-## Styls##Fshn                 15    104     15    119       0.14376823
-## Bsnss#BsnssDy#SmllBsnss     41    100     41    140       0.14054271
-## myOthr                       5     33      5     38       0.11351975
-## Trvl#Trvl#                  35     83     35    117       0.10662343
-## Cltr##                      70     NA     70      1       0.10322006
-## Frgn#Wrld#AsPcfc            56    150     56    203       0.10088812
-## #Mltmd#                     52     92     52    141       0.09869284
-## TStyl##                    105    623    105    724       0.09409437
-## #U.S.#Edctn                 89    243     89    325       0.07342928
-## Frgn#Wrld#                  47    128     47    172       0.07272040
+## OpEd#Opnn#                 164    437    164    526       0.57506350
+## Styls#U.S.#                 61    127     61    177       0.51995217
+## Scnc#Hlth#                  57    148     57    196       0.51438534
+## #Opnn#ThPblcEdtr            10     16     10     20       0.49777421
+## Bsnss#Crsswrds/Gms#         42    105     42    123       0.48547153
+## Bsnss#Tchnlgy#             114    213    114    339       0.20447524
+## #Opnn#RmFrDbt               20     42     20     62       0.19588822
+## Bsnss#BsnssDy#Dlbk         304    629    304    952       0.18546652
+## ##                         342    913    342   1284       0.18256154
+## Cltr#Arts#                 174    490    174    675       0.16900564
+## Mtr#N.Y./Rgn#               67    128     67    198       0.16276609
+## Styls##Fshn                 15    104     15    119       0.12795213
+## Bsnss#BsnssDy#SmllBsnss     41    100     41    140       0.11571966
+## Frgn#Wrld#AsPcfc            56    150     56    203       0.09046102
+## TStyl##                    105    623    105    724       0.07789865
+## Trvl#Trvl#                  35     83     35    117       0.07507486
+## #Mltmd#                     52     92     52    141       0.07179209
+## myOthr                       5     33      5     38       0.06786732
+## #U.S.#Edctn                 89    243     89    325       0.06237106
+## Cltr##                      70     NA     70      1       0.04526133
+## Frgn#Wrld#                  47    128     47    172       0.04276137
 ##                         err.abs.fit.mean err.abs.new.mean err.abs.trn.mean
-## OpEd#Opnn#                    0.38883472               NA       0.33295283
-## #Opnn#ThPblcEdtr              0.45394245               NA       0.32096412
-## Styls#U.S.#                   0.49068821               NA       0.45281920
-## Bsnss#Crsswrds/Gms#           0.35845239               NA       0.23739811
-## Scnc#Hlth#                    0.45418853               NA       0.38566104
-## Bsnss#Tchnlgy#                0.22005479               NA       0.23159760
-## ##                            0.14540647               NA       0.13629887
-## Bsnss#BsnssDy#Dlbk            0.15383991               NA       0.15219558
-## Mtr#N.Y./Rgn#                 0.15574134               NA       0.15274373
-## Cltr#Arts#                    0.12292240               NA       0.10912086
-## #Opnn#RmFrDbt                 0.15566721               NA       0.05718416
-## Styls##Fshn                   0.08609432               NA       0.03338503
-## Bsnss#BsnssDy#SmllBsnss       0.13032416               NA       0.08239213
-## myOthr                        0.11282519               NA       0.02825053
-## Trvl#Trvl#                    0.08193916               NA       0.03226070
-## Cltr##                                NA               NA       0.07220822
-## Frgn#Wrld#AsPcfc              0.10382572               NA       0.04236734
-## #Mltmd#                       0.09099175               NA       0.04168488
-## TStyl##                       0.06990527               NA       0.02853194
-## #U.S.#Edctn                   0.06377772               NA       0.01167100
-## Frgn#Wrld#                    0.06994962               NA       0.01407013
+## OpEd#Opnn#                    0.27422533               NA       0.33251375
+## Styls#U.S.#                   0.44589721               NA       0.45567870
+## Scnc#Hlth#                    0.38524093               NA       0.38793668
+## #Opnn#ThPblcEdtr              0.41155588               NA       0.32998288
+## Bsnss#Crsswrds/Gms#           0.25730899               NA       0.23852271
+## Bsnss#Tchnlgy#                0.18719813               NA       0.23001139
+## #Opnn#RmFrDbt                 0.16749556               NA       0.06272545
+## Bsnss#BsnssDy#Dlbk            0.13007797               NA       0.15397456
+## ##                            0.11064396               NA       0.13393000
+## Cltr#Arts#                    0.09840114               NA       0.11214813
+## Mtr#N.Y./Rgn#                 0.12031512               NA       0.14888110
+## Styls##Fshn                   0.06526513               NA       0.03797197
+## Bsnss#BsnssDy#SmllBsnss       0.10499902               NA       0.08673011
+## Frgn#Wrld#AsPcfc              0.09269842               NA       0.04536221
+## TStyl##                       0.05361215               NA       0.02965505
+## Trvl#Trvl#                    0.04822508               NA       0.03739970
+## #Mltmd#                       0.06404709               NA       0.04594878
+## myOthr                        0.07031647               NA       0.03739458
+## #U.S.#Edctn                   0.05014178               NA       0.01357338
+## Cltr##                                NA               NA       0.06664375
+## Frgn#Wrld#                    0.04253820               NA       0.01777674
 ##                         err.abs.OOB.sum err.abs.fit.sum err.abs.new.sum
-## OpEd#Opnn#                   46.5737830      169.920774              NA
-## #Opnn#ThPblcEdtr              2.0080675        7.263079              NA
-## Styls#U.S.#                  23.6328413       62.317403              NA
-## Bsnss#Crsswrds/Gms#           8.3911301       37.637501              NA
-## Scnc#Hlth#                   22.1189167       67.219902              NA
-## Bsnss#Tchnlgy#               29.7319043       46.871671              NA
-## ##                           78.0147094      132.756111              NA
-## Bsnss#BsnssDy#Dlbk           66.1713471       96.765300              NA
-## Mtr#N.Y./Rgn#                13.4746063       19.934891              NA
-## Cltr#Arts#                   34.6944525       60.231977              NA
-## #Opnn#RmFrDbt                 3.7425266        6.538023              NA
-## Styls##Fshn                   2.1565235        8.953809              NA
-## Bsnss#BsnssDy#SmllBsnss       5.6217083       13.032416              NA
-## myOthr                        0.5675988        3.723231              NA
-## Trvl#Trvl#                    3.6251966        6.800950              NA
-## Cltr##                        0.1032201              NA              NA
-## Frgn#Wrld#AsPcfc              5.3470704       15.573858              NA
-## #Mltmd#                       4.8359493        8.371241              NA
-## TStyl##                       9.5035315       43.550981              NA
-## #U.S.#Edctn                   6.0212009       15.497987              NA
-## Frgn#Wrld#                    3.1996976        8.953551              NA
+## OpEd#Opnn#                  51.18065179      119.836470              NA
+## Styls#U.S.#                 25.99760848       56.628946              NA
+## Scnc#Hlth#                  24.69049636       57.015658              NA
+## #Opnn#ThPblcEdtr             1.99109686        6.584894              NA
+## Bsnss#Crsswrds/Gms#          8.73848753       27.017444              NA
+## Bsnss#Tchnlgy#              25.76388022       39.873202              NA
+## #Opnn#RmFrDbt                3.91776433        7.034814              NA
+## Bsnss#BsnssDy#Dlbk          59.90568728       81.819044              NA
+## ##                          67.73033042      101.017935              NA
+## Cltr#Arts#                  31.26604266       48.216560              NA
+## Mtr#N.Y./Rgn#               11.39362621       15.400336              NA
+## Styls##Fshn                  1.91928194        6.787573              NA
+## Bsnss#BsnssDy#SmllBsnss      4.62878656       10.499902              NA
+## Frgn#Wrld#AsPcfc             4.79443402       13.904763              NA
+## TStyl##                      7.86776348       33.400369              NA
+## Trvl#Trvl#                   2.55254529        4.002682              NA
+## #Mltmd#                      3.51781240        5.892332              NA
+## myOthr                       0.33933658        2.320443              NA
+## #U.S.#Edctn                  5.11442705       12.184453              NA
+## Cltr##                       0.04526133              NA              NA
+## Frgn#Wrld#                   1.88150036        5.444890              NA
 ##                         err.abs.trn.sum
-## OpEd#Opnn#                 175.13319010
-## #Opnn#ThPblcEdtr             6.41928249
-## Styls#U.S.#                 80.14899777
-## Bsnss#Crsswrds/Gms#         29.19996741
-## Scnc#Hlth#                  75.58956367
-## Bsnss#Tchnlgy#              78.51158544
-## ##                         175.00774839
-## Bsnss#BsnssDy#Dlbk         144.89018795
-## Mtr#N.Y./Rgn#               30.24325893
-## Cltr#Arts#                  73.65658273
-## #Opnn#RmFrDbt                3.54541784
-## Styls##Fshn                  3.97281808
-## Bsnss#BsnssDy#SmllBsnss     11.53489794
-## myOthr                       1.07352023
-## Trvl#Trvl#                   3.77450215
-## Cltr##                       0.07220822
-## Frgn#Wrld#AsPcfc             8.60057057
-## #Mltmd#                      5.87756799
-## TStyl##                     20.65712219
-## #U.S.#Edctn                  3.79307552
-## Frgn#Wrld#                   2.42006229
+## OpEd#Opnn#                 174.90223507
+## Styls#U.S.#                 80.65513073
+## Scnc#Hlth#                  76.03558884
+## #Opnn#ThPblcEdtr             6.59965754
+## Bsnss#Crsswrds/Gms#         29.33829341
+## Bsnss#Tchnlgy#              77.97386000
+## #Opnn#RmFrDbt                3.88897815
+## Bsnss#BsnssDy#Dlbk         146.58378254
+## ##                         171.96611762
+## Cltr#Arts#                  75.69998885
+## Mtr#N.Y./Rgn#               29.47845712
+## Styls##Fshn                  4.51866405
+## Bsnss#BsnssDy#SmllBsnss     12.14221607
+## Frgn#Wrld#AsPcfc             9.20852860
+## TStyl##                     21.47025749
+## Trvl#Trvl#                   4.37576471
+## #Mltmd#                      6.47877859
+## myOthr                       1.42099408
+## #U.S.#Edctn                  4.41134846
+## Cltr##                       0.06664375
+## Frgn#Wrld#                   3.05759995
 ##   .freqRatio.Fit   .freqRatio.OOB   .freqRatio.Tst           .n.Fit 
 ##               NA         1.000000         1.000000               NA 
 ##         .n.New.N         .n.New.Y           .n.OOB         .n.Trn.N 
@@ -10663,114 +7990,116 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ##         .n.Trn.Y           .n.Tst           .n.fit           .n.new 
 ##               NA      1870.000000               NA      1870.000000 
 ##           .n.trn err.abs.OOB.mean err.abs.fit.mean err.abs.new.mean 
-##      6532.000000         4.690731               NA               NA 
+##      6532.000000         4.469969               NA               NA 
 ## err.abs.trn.mean  err.abs.OOB.sum  err.abs.fit.sum  err.abs.new.sum 
-##         2.955758       369.535982               NA               NA 
+##         3.004762       345.236821               NA               NA 
 ##  err.abs.trn.sum 
-##       934.122128
+##       940.272886
 ```
 
 ```
-##                                         All.X__rcv_glmnet.imp
-## PubDate.day.minutes.poly.1                         100.000000
-## PubDate.day.minutes.poly.4                          46.118345
-## NDSSName.my.fctrOpEd#Opnn#                          29.608813
-## NDSSName.my.fctrBsnss#Crsswrds/Gms#                 27.135657
-## NDSSName.my.fctrScnc#Hlth#                          24.964890
-## NDSSName.my.fctr#Opnn#ThPblcEdtr                    24.849247
-## NDSSName.my.fctrStyls#U.S.#                         23.449567
-## PubDate.day.minutes.poly.2                          22.879214
-## WordCount.log1p                                      7.599061
-## PubDate.wkend                                        7.555716
-## PubDate.hour.fctr(15.3,23]                           6.568901
-## WordCount.root2                                      6.405483
-## PubDate.last4.log1p                                  6.403279
-## PubDate.last2.log1p                                  6.307833
-## PubDate.last8.log1p                                  6.231915
-## PubDate.day.minutes.poly.3                           6.181073
-## NDSSName.my.fctrBsnss#Tchnlgy#                       6.181073
-## PubDate.hour.fctr(7.67,15.3]                         6.181073
-## PubDate.wkday.fctr1                                  6.181073
-## PubDate.last16.log1p                                 6.181073
-## PubDate.date.fctr(7,13]                              6.181073
-## PubDate.date.fctr(25,31]                             6.181073
-## .rnorm                                               6.181073
-## NDSSName.my.fctrCltr##                               6.181073
-## NDSSName.my.fctrMtr#N.Y./Rgn#                        6.181073
-## PubDate.date.fctr(19,25]                             6.181073
-## PubDate.day.minutes.poly.5                           6.181073
-## PubDate.last32.log1p                                 6.181073
-## PubDate.minute.fctr(14.8,29.5]                       6.181073
-## PubDate.minute.fctr(44.2,59.1]                       6.181073
-## PubDate.month.fctr10                                 6.181073
-## PubDate.month.fctr12                                 6.181073
-## PubDate.second.fctr(14.8,29.5]                       6.181073
-## PubDate.second.fctr(29.5,44.2]                       6.181073
-## PubDate.wkday.fctr3                                  6.181073
-## PubDate.wkday.fctr4                                  6.181073
-## WordCount.nexp                                       6.181073
-## PubDate.juliandate                                   6.181073
-## PubDate.wkday.fctr2                                  6.181073
-## PubDate.date.fctr(13,19]                             6.181073
-## PubDate.month.fctr11                                 6.181073
-## PubDate.second.fctr(44.2,59.1]                       6.181073
-## PubDate.wkday.fctr5                                  6.181073
-## PubDate.minute.fctr(29.5,44.2]                       6.181073
-## PubDate.wkday.fctr6                                  6.181073
-## NDSSName.my.fctrTrvl#Trvl#                           4.901316
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss              4.791503
-## NDSSName.my.fctrBsnss#BsnssDy#Dlbk                   4.575817
-## NDSSName.my.fctrCltr#Arts#                           4.494666
-##                                         Final__rcv_glmnet.imp
-## PubDate.day.minutes.poly.1                           78.09046
-## PubDate.day.minutes.poly.4                           21.36267
-## NDSSName.my.fctrOpEd#Opnn#                           29.73570
-## NDSSName.my.fctrBsnss#Crsswrds/Gms#                  27.53840
-## NDSSName.my.fctrScnc#Hlth#                           25.24514
-## NDSSName.my.fctr#Opnn#ThPblcEdtr                     27.29376
-## NDSSName.my.fctrStyls#U.S.#                          24.24782
-## PubDate.day.minutes.poly.2                          100.00000
-## WordCount.log1p                                      15.19157
-## PubDate.wkend                                        15.37916
-## PubDate.hour.fctr(15.3,23]                           13.49353
-## WordCount.root2                                      13.72215
-## PubDate.last4.log1p                                  13.49353
-## PubDate.last2.log1p                                  13.55706
-## PubDate.last8.log1p                                  13.49353
-## PubDate.day.minutes.poly.3                           28.57451
-## NDSSName.my.fctrBsnss#Tchnlgy#                       15.43897
-## PubDate.hour.fctr(7.67,15.3]                         14.61230
-## PubDate.wkday.fctr1                                  13.91542
-## PubDate.last16.log1p                                 13.80029
-## PubDate.date.fctr(7,13]                              13.67140
-## PubDate.date.fctr(25,31]                             13.63428
-## .rnorm                                               13.49353
-## NDSSName.my.fctrCltr##                               13.49353
-## NDSSName.my.fctrMtr#N.Y./Rgn#                        13.49353
-## PubDate.date.fctr(19,25]                             13.49353
-## PubDate.day.minutes.poly.5                           13.49353
-## PubDate.last32.log1p                                 13.49353
-## PubDate.minute.fctr(14.8,29.5]                       13.49353
-## PubDate.minute.fctr(44.2,59.1]                       13.49353
-## PubDate.month.fctr10                                 13.49353
-## PubDate.month.fctr12                                 13.49353
-## PubDate.second.fctr(14.8,29.5]                       13.49353
-## PubDate.second.fctr(29.5,44.2]                       13.49353
-## PubDate.wkday.fctr3                                  13.49353
-## PubDate.wkday.fctr4                                  13.49353
-## WordCount.nexp                                       13.49353
-## PubDate.juliandate                                   13.49350
-## PubDate.wkday.fctr2                                  13.31814
-## PubDate.date.fctr(13,19]                             13.26769
-## PubDate.month.fctr11                                 13.16393
-## PubDate.second.fctr(44.2,59.1]                       13.11401
-## PubDate.wkday.fctr5                                  12.82054
-## PubDate.minute.fctr(29.5,44.2]                       12.78565
-## PubDate.wkday.fctr6                                  12.51262
-## NDSSName.my.fctrTrvl#Trvl#                           10.36195
-## NDSSName.my.fctrBsnss#BsnssDy#SmllBsnss              10.18924
-## NDSSName.my.fctrBsnss#BsnssDy#Dlbk                   12.35507
-## NDSSName.my.fctrCltr#Arts#                           12.63313
+##                                     All.X__rcv_glmnet.imp
+## PubDate.day.minutes.poly.1                     100.000000
+## NDSS.my.fctrOpEd#Opnn#                          68.562523
+## NDSS.my.fctrBsnss#Crsswrds/Gms#                 63.559761
+## NDSS.my.fctrScnc#Hlth#                          54.307908
+## NDSS.my.fctrStyls#U.S.#                         50.421526
+## NDSS.my.fctr#Opnn#ThPblcEdtr                    48.417943
+## WordCount.log1p                                  6.701272
+## WordCount.root2                                  6.021636
+## NDSS.my.fctrBsnss#Tchnlgy#                       5.690755
+## PubDate.wkend                                    5.345889
+## PubDate.day.minutes.poly.2                       5.307609
+## PubDate.day.minutes.poly.4                       5.307609
+## PubDate.day.minutes.poly.3                       5.307609
+## PubDate.hour.fctr(7.67,15.3]                     5.307609
+## PubDate.last16.log1p                             5.307609
+## PubDate.wkday.fctr1                              5.307609
+## PubDate.last32.log1p                             5.307609
+## PubDate.date.fctr(7,13]                          5.307609
+## .rnorm                                           5.307609
+## NDSS.my.fctrCltr##                               5.307609
+## NDSS.my.fctrMtr#N.Y./Rgn#                        5.307609
+## PubDate.date.fctr(19,25]                         5.307609
+## PubDate.date.fctr(25,31]                         5.307609
+## PubDate.day.minutes.poly.5                       5.307609
+## PubDate.hour.fctr(15.3,23]                       5.307609
+## PubDate.juliandate                               5.307609
+## PubDate.last2.log1p                              5.307609
+## PubDate.last4.log1p                              5.307609
+## PubDate.last8.log1p                              5.307609
+## PubDate.minute.fctr(14.8,29.5]                   5.307609
+## PubDate.minute.fctr(44.2,59.1]                   5.307609
+## PubDate.month.fctr10                             5.307609
+## PubDate.month.fctr12                             5.307609
+## PubDate.second.fctr(14.8,29.5]                   5.307609
+## PubDate.second.fctr(29.5,44.2]                   5.307609
+## PubDate.wkday.fctr3                              5.307609
+## PubDate.wkday.fctr4                              5.307609
+## WordCount.nexp                                   5.307609
+## PubDate.wkday.fctr2                              5.307609
+## PubDate.date.fctr(13,19]                         5.307609
+## NDSS.my.fctrCltr#Arts#                           5.307609
+## PubDate.month.fctr11                             5.307609
+## PubDate.second.fctr(44.2,59.1]                   5.307609
+## PubDate.wkday.fctr6                              5.307609
+## PubDate.wkday.fctr5                              5.307609
+## PubDate.minute.fctr(29.5,44.2]                   5.307609
+## NDSS.my.fctrBsnss#BsnssDy#Dlbk                   5.307609
+## NDSS.my.fctrTrvl#Trvl#                           5.307609
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss              5.307609
+## NDSS.my.fctr#Mltmd#                              5.307609
+##                                     Final__rcv_glmnet.imp
+## PubDate.day.minutes.poly.1                       90.40903
+## NDSS.my.fctrOpEd#Opnn#                           33.93385
+## NDSS.my.fctrBsnss#Crsswrds/Gms#                  31.44233
+## NDSS.my.fctrScnc#Hlth#                           28.67549
+## NDSS.my.fctrStyls#U.S.#                          27.49488
+## NDSS.my.fctr#Opnn#ThPblcEdtr                     30.81095
+## WordCount.log1p                                  16.43344
+## WordCount.root2                                  14.82783
+## NDSS.my.fctrBsnss#Tchnlgy#                       17.06756
+## PubDate.wkend                                    16.18021
+## PubDate.day.minutes.poly.2                      100.00000
+## PubDate.day.minutes.poly.4                       32.18318
+## PubDate.day.minutes.poly.3                       25.72759
+## PubDate.hour.fctr(7.67,15.3]                     15.42835
+## PubDate.last16.log1p                             15.05236
+## PubDate.wkday.fctr1                              15.02383
+## PubDate.last32.log1p                             14.63405
+## PubDate.date.fctr(7,13]                          14.56304
+## .rnorm                                           14.55456
+## NDSS.my.fctrCltr##                               14.55456
+## NDSS.my.fctrMtr#N.Y./Rgn#                        14.55456
+## PubDate.date.fctr(19,25]                         14.55456
+## PubDate.date.fctr(25,31]                         14.55456
+## PubDate.day.minutes.poly.5                       14.55456
+## PubDate.hour.fctr(15.3,23]                       14.55456
+## PubDate.juliandate                               14.55456
+## PubDate.last2.log1p                              14.55456
+## PubDate.last4.log1p                              14.55456
+## PubDate.last8.log1p                              14.55456
+## PubDate.minute.fctr(14.8,29.5]                   14.55456
+## PubDate.minute.fctr(44.2,59.1]                   14.55456
+## PubDate.month.fctr10                             14.55456
+## PubDate.month.fctr12                             14.55456
+## PubDate.second.fctr(14.8,29.5]                   14.55456
+## PubDate.second.fctr(29.5,44.2]                   14.55456
+## PubDate.wkday.fctr3                              14.55456
+## PubDate.wkday.fctr4                              14.55456
+## WordCount.nexp                                   14.55456
+## PubDate.wkday.fctr2                              14.50995
+## PubDate.date.fctr(13,19]                         14.31658
+## NDSS.my.fctrCltr#Arts#                           14.24518
+## PubDate.month.fctr11                             14.24288
+## PubDate.second.fctr(44.2,59.1]                   14.23286
+## PubDate.wkday.fctr6                              14.02941
+## PubDate.wkday.fctr5                              13.90528
+## PubDate.minute.fctr(29.5,44.2]                   13.84506
+## NDSS.my.fctrBsnss#BsnssDy#Dlbk                   13.73612
+## NDSS.my.fctrTrvl#Trvl#                           12.16166
+## NDSS.my.fctrBsnss#BsnssDy#SmllBsnss              11.40620
+## NDSS.my.fctr#Mltmd#                              10.67411
 ```
 
 ```
@@ -10780,15 +8109,15 @@ glb_chunks_df <- myadd_chunk(glb_chunks_df, "predict.data.new", major.inc=TRUE)
 ```
 ## 
 ##    N    Y 
-## 1189  681
+## 1186  684
 ```
 
 ```
 ##                   label step_major step_minor label_minor     bgn     end
-## 16     predict.data.new          8          0           0 358.247 379.494
-## 17 display.session.info          9          0           0 379.495      NA
+## 16     predict.data.new          8          0           0 269.154 285.003
+## 17 display.session.info          9          0           0 285.004      NA
 ##    elapsed
-## 16  21.248
+## 16   15.85
 ## 17      NA
 ```
 
@@ -10804,66 +8133,64 @@ We reject the null hypothesis i.e. we have evidence to conclude that am_fctr imp
 
 ```
 ##                      label step_major step_minor label_minor     bgn
-## 10              fit.models          6          0           0  83.208
-## 14       fit.data.training          7          0           0 282.564
-## 5         extract.features          3          0           0  24.453
-## 11              fit.models          6          1           1 231.997
-## 16        predict.data.new          8          0           0 358.247
-## 9          select.features          5          0           0  62.061
-## 12              fit.models          6          2           2 261.729
-## 1              import.data          1          0           0   9.172
-## 15       fit.data.training          7          1           1 347.894
-## 13              fit.models          6          3           3 276.543
-## 2             inspect.data          2          0           0  20.292
-## 8  partition.data.training          4          0           0  60.746
-## 6      manage.missing.data          3          1           1  59.576
-## 3               scrub.data          2          1           1  23.327
-## 4           transform.data          2          2           2  24.356
-## 7             cluster.data          3          2           2  60.677
+## 10              fit.models          6          0           0  80.360
+## 14       fit.data.training          7          0           0 192.948
+## 11              fit.models          6          1           1 150.660
+## 5         extract.features          3          0           0  26.626
+## 9          select.features          5          0           0  57.659
+## 16        predict.data.new          8          0           0 269.154
+## 12              fit.models          6          2           2 174.229
+## 15       fit.data.training          7          1           1 258.677
+## 1              import.data          1          0           0  11.375
+## 6      manage.missing.data          3          1           1  49.558
+## 13              fit.models          6          3           3 187.078
+## 2             inspect.data          2          0           0  21.011
+## 8  partition.data.training          4          0           0  56.152
+## 3               scrub.data          2          1           1  25.368
+## 4           transform.data          2          2           2  26.529
+## 7             cluster.data          3          2           2  56.087
 ##        end elapsed duration
-## 10 231.997 148.789  148.789
-## 14 347.894  65.330   65.330
-## 5   59.576  35.123   35.123
-## 11 261.728  29.731   29.731
-## 16 379.494  21.248   21.247
-## 9   83.208  21.147   21.147
-## 12 276.542  14.813   14.813
-## 1   20.291  11.119   11.119
-## 15 358.247  10.353   10.353
-## 13 282.563   6.020    6.020
-## 2   23.326   3.034    3.034
-## 8   62.060   1.314    1.314
-## 6   60.676   1.101    1.100
-## 3   24.356   1.029    1.029
-## 4   24.452   0.096    0.096
-## 7   60.745   0.068    0.068
-## [1] "Total Elapsed Time: 379.494 secs"
+## 10 150.659  70.299   70.299
+## 14 258.677  65.729   65.729
+## 11 174.228  23.568   23.568
+## 5   49.557  22.932   22.931
+## 9   80.360  22.701   22.701
+## 16 285.003  15.850   15.849
+## 12 187.078  12.849   12.849
+## 15 269.153  10.476   10.476
+## 1   21.011   9.636    9.636
+## 6   56.087   6.529    6.529
+## 13 192.947   5.869    5.869
+## 2   25.368   4.357    4.357
+## 8   57.658   1.507    1.506
+## 3   26.528   1.160    1.160
+## 4   26.626   0.097    0.097
+## 7   56.151   0.064    0.064
+## [1] "Total Elapsed Time: 285.003 secs"
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/display.session.info-1.png) 
 
 ```
-##                                   label step_major step_minor
-## 4        fit.models_0_Max.cor.Y.rcv.*X*          1          3
-## 5 fit.models_0_Max.cor.Y[rcv.1X1.cp.0|]          1          4
-## 9                fit.models_0_Low.cor.X          1          8
-## 8      fit.models_0_Interact.High.cor.Y          1          7
-## 6      fit.models_0_Max.cor.Y.Time.Poly          1          5
-## 7       fit.models_0_Max.cor.Y.Time.Lag          1          6
-## 3                   fit.models_0_Random          1          2
-## 2                      fit.models_0_MFO          1          1
-## 1                      fit.models_0_bgn          1          0
-##        label_minor     bgn     end elapsed duration
-## 4           glmnet  91.766 169.327  77.561   77.561
-## 5            rpart 169.327 183.585  14.258   14.258
-## 9           glmnet 218.981 231.982  13.001   13.001
-## 8           glmnet 206.243 218.980  12.738   12.737
-## 6           glmnet 183.586 195.343  11.757   11.757
-## 7           glmnet 195.344 206.242  10.899   10.898
-## 3 myrandom_classfr  87.427  91.766   4.339    4.339
-## 2    myMFO_classfr  84.356  87.427   3.071    3.071
-## 1            setup  84.325  84.355   0.031    0.030
-## [1] "Total Elapsed Time: 231.982 secs"
+##                              label step_major step_minor      label_minor
+## 8           fit.models_0_Low.cor.X          1          7           glmnet
+## 4   fit.models_0_Max.cor.Y.rcv.*X*          1          3           glmnet
+## 7 fit.models_0_Interact.High.cor.Y          1          6           glmnet
+## 5 fit.models_0_Max.cor.Y.Time.Poly          1          4           glmnet
+## 6  fit.models_0_Max.cor.Y.Time.Lag          1          5           glmnet
+## 3              fit.models_0_Random          1          2 myrandom_classfr
+## 2                 fit.models_0_MFO          1          1    myMFO_classfr
+## 1                 fit.models_0_bgn          1          0            setup
+##       bgn     end elapsed duration
+## 8 136.861 150.646  13.785   13.785
+## 4  88.902 102.249  13.347   13.347
+## 7 124.990 136.861  11.871   11.871
+## 5 102.250 114.112  11.863   11.862
+## 6 114.113 124.990  10.877   10.877
+## 3  84.532  88.901   4.370    4.369
+## 2  81.489  84.531   3.042    3.042
+## 1  81.459  81.488   0.030    0.029
+## [1] "Total Elapsed Time: 150.646 secs"
 ```
 
 ![](NYTBlogs3_feat_PubDate_files/figure-html/display.session.info-2.png) 
